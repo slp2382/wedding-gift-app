@@ -34,10 +34,13 @@ export default function Home() {
     });
   }
 
+  // Build a relative URL with query params so both localhost and Vercel work
   const cardUrl =
     preview &&
-    `https://wedding-gift-app.vercel.app/card/${encodeURIComponent(
-      preview.cardId
+    `/card/${encodeURIComponent(preview.cardId)}?giverName=${encodeURIComponent(
+      preview.giverName
+    )}&amount=${encodeURIComponent(preview.amount)}&note=${encodeURIComponent(
+      preview.note
     )}`;
 
   return (
