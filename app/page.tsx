@@ -1,213 +1,240 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
+import { supabase } from "../lib/supabaseClient";
+
+type PreviewState = {
+  cardId: string;
+  giverName: string;
+  amount: number;
+  note: string;
+  url: string;
+};
 
 export default function Home() {
   const [giverName, setGiverName] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [preview, setPreview] = useState<null | {
-    giverName: string;
-    amount: string;
-    note: string;
-    cardId: string;
-  }>(null);
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function generateCardId() {
+    const randomPart = Math.random().toString(36).slice(2, 10);
+    return `card_${randomPart}`;
+  }
+
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    setErrorMessage(null);
 
-    if (!giverName || !amount) {
-      alert("Please enter your name and a gift amount");
+    const numericAmount = parseFloat(amount);
+    if (!giverName.trim()) {
+      setErrorMessage("Please enter a name.");
+      return;
+    }
+    if (Number.isNaN(numericAmount) || numericAmount <= 0) {
+      setErrorMessage("Please enter a valid amount.");
       return;
     }
 
-    const cardId = `card_${Date.now().toString(36)}_${Math.random()
-      .toString(36)
-      .slice(2, 8)}`;
+    const cardId = generateCardId();
+    const baseUrl =
+      typeof window !== "undefined" ? window.location.origin : "";
+    const cardUrl = `${baseUrl}/card/${cardId}`;
+
+    setLoading(true);
+
+    const { error } = await supabase.from("cards").insert([
+      {
+        card_id: cardId,
+        giver_name: giverName.trim(),
+        amount: numericAmount,
+        note: note.trim() || null,
+      },
+    ]);
+
+    setLoading(false);
+
+    if (error) {
+      console.error(error);
+      setErrorMessage("Something went wrong while saving the card.");
+      return;
+    }
 
     setPreview({
-      giverName,
-      amount,
-      note,
       cardId,
+      giverName: giverName.trim(),
+      amount: numericAmount,
+      note: note.trim(),
+      url: cardUrl,
     });
   }
 
-  // Build a relative URL with query params so both localhost and Vercel work
-  const cardUrl =
-    preview &&
-    `/card/${encodeURIComponent(preview.cardId)}?giverName=${encodeURIComponent(
-      preview.giverName
-    )}&amount=${encodeURIComponent(preview.amount)}&note=${encodeURIComponent(
-      preview.note
-    )}`;
+  async function handleCopyLink() {
+    if (!preview?.url) return;
+    try {
+      await navigator.clipboard.writeText(preview.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 flex items-center justify-center px-4 dark:bg-zinc-950 dark:text-zinc-50">
       <main className="w-full max-w-2xl space-y-10">
         {/* Header */}
-        <header className="space-y-3">
-          <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
+        <header className="space-y-3 text-center">
+          <p className="text-xs font-medium tracking-wide text-indigo-500 uppercase dark:text-indigo-300">
             Early concept
           </p>
           <h1 className="text-4xl font-semibold tracking-tight">
-            Wedding cards that carry cash with a simple scan
+            Wedding cards that carry cash with a scan
           </h1>
           <p className="text-base text-zinc-600 dark:text-zinc-400">
             Buy a physical card, scan one code to load a gift, and the couple
             scans the same code at the wedding to move the money to their bank.
-            No more last minute trips to the bank machine.
           </p>
         </header>
 
-        {/* How it works */}
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">How it works</h2>
-          <ol className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300">
-            <li>
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-medium mr-2">
-                1
-              </span>
-              You buy a card in a store and scan the code inside.
-            </li>
-            <li>
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-medium mr-2">
-                2
-              </span>
-              Our site lets you pick an amount and load your gift securely.
-            </li>
-            <li>
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-medium mr-2">
-                3
-              </span>
-              The couple scans the same code and sends the funds to their bank.
-            </li>
-          </ol>
-        </section>
+        <div className="grid gap-8 md:grid-cols-2">
+          {/* Form */}
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="text-lg font-semibold tracking-tight">
+              Load a gift
+            </h2>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              This creates a gift card and a QR code. No real payments yet, just
+              a working prototype.
+            </p>
 
-        {/* Load gift form */}
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Try the load gift flow</h2>
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            This is a demo form. In the real product, this step would create a
-            secure session tied to the card code.
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium" htmlFor="giverName">
-                Your name
-              </label>
-              <input
-                id="giverName"
-                type="text"
-                value={giverName}
-                onChange={(e) => setGiverName(e.target.value)}
-                placeholder="Alex Guest"
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium" htmlFor="amount">
-                Gift amount
-              </label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-zinc-500">$</span>
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" htmlFor="giverName">
+                  Your name
+                </label>
                 <input
-                  id="amount"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="100"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900"
+                  id="giverName"
+                  type="text"
+                  value={giverName}
+                  onChange={(event) => setGiverName(event.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-indigo-500/50 placeholder:text-zinc-400 focus:border-indigo-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900"
+                  placeholder="Scott Porter"
                 />
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium" htmlFor="note">
-                Message on the card optional
-              </label>
-              <textarea
-                id="note"
-                rows={3}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="So happy for you both..."
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-medium bg-zinc-900 text-zinc-50 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition"
-            >
-              Preview card load
-            </button>
-          </form>
-
-          {preview && (
-            <div className="mt-6 space-y-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <div>
-                <p className="text-xs font-semibold text-zinc-500 mb-1">
-                  Demo preview
-                </p>
-                <p>
-                  <span className="font-medium">{preview.giverName}</span> is
-                  loading{" "}
-                  <span className="font-medium">
-                    ${Number(preview.amount || 0).toFixed(2)}
-                  </span>{" "}
-                  onto this card.
-                </p>
-                {preview.note && (
-                  <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-                    Message on card: {preview.note}
-                  </p>
-                )}
-                <p className="mt-2 text-xs text-zinc-500">
-                  In a real build, this step would redirect to payment.
-                </p>
-              </div>
-
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-zinc-500 mb-1">
-                    Demo QR code for this card
-                  </p>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-xs">
-                    In a real product, this code would be printed inside the
-                    physical card and scanned by the guest and by the couple.
-                  </p>
-                  <p className="mt-1 text-[10px] text-zinc-500">
-                    Debug QR URL: {cardUrl}
-                  </p>
-                </div>
-                <div className="p-2 rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
-                  {cardUrl && (
-                    <a
-                      href={cardUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <QRCodeCanvas value={cardUrl} size={120} />
-                    </a>
-                  )}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" htmlFor="amount">
+                  Amount
+                </label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-zinc-500">
+                    $
+                  </span>
+                  <input
+                    id="amount"
+                    type="number"
+                    min={1}
+                    step="0.01"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-7 py-2 text-sm shadow-sm outline-none ring-indigo-500/50 placeholder:text-zinc-400 focus:border-indigo-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900"
+                    placeholder="100"
+                  />
                 </div>
               </div>
-            </div>
-          )}
-        </section>
 
-        {/* Footer */}
-        <footer className="pt-4 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500">
-          Built as a first draft using Next and Tailwind. All data here is test
-          only.
-        </footer>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" htmlFor="note">
+                  Optional note
+                </label>
+                <textarea
+                  id="note"
+                  rows={3}
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-indigo-500/50 placeholder:text-zinc-400 focus:border-indigo-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900"
+                  placeholder="We are so happy for you both."
+                />
+              </div>
+
+              {errorMessage && (
+                <p className="text-sm text-rose-600 dark:text-rose-400">
+                  {errorMessage}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring focus-visible:ring-indigo-500/70 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+              >
+                {loading ? "Creating card…" : "Create card and QR"}
+              </button>
+            </form>
+          </section>
+
+          {/* Preview */}
+          <section className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/60 p-6 text-center shadow-sm dark:border-indigo-900 dark:bg-indigo-950/40">
+            <h2 className="text-lg font-semibold tracking-tight">
+              QR preview
+            </h2>
+            <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+              The card you buy in the store prints this QR code on the inside.
+            </p>
+
+            <div className="mt-4 flex flex-col items-center gap-4">
+              {preview ? (
+                <>
+                  <div className="rounded-2xl bg-white p-4 shadow-md dark:bg-zinc-900">
+                    <QRCodeCanvas
+                      value={preview.url}
+                      size={180}
+                      includeMargin
+                    />
+                  </div>
+                  <div className="space-y-1 text-sm text-zinc-700 dark:text-zinc-200">
+                    <p>
+                      For{" "}
+                      <span className="font-semibold">
+                        {preview.giverName}
+                      </span>{" "}
+                      ·{" "}
+                      <span className="font-semibold">
+                        {preview.amount.toLocaleString("en-US", {
+                          style: "currency",
+                          currency: "USD",
+                        })}
+                      </span>
+                    </p>
+                    {preview.note && (
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                        “{preview.note}”
+                      </p>
+                    )}
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 break-all">
+                      Link {preview.url}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCopyLink}
+                    className="inline-flex items-center justify-center rounded-full border border-indigo-300 bg-white px-4 py-2 text-xs font-medium text-indigo-700 shadow-sm transition hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring focus-visible:ring-indigo-500/60 dark:border-indigo-700 dark:bg-zinc-900 dark:text-indigo-200 dark:hover:bg-zinc-800"
+                  >
+                    {copied ? "Link copied" : "Copy link to share"}
+                  </button>
+                </>
+              ) : (
+                <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">
+                  Fill out the form and create a card to see the QR code here.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   );
