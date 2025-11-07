@@ -185,7 +185,15 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="p-2 rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
-                  <QRCodeCanvas value={cardUrl || ""} size={120} />
+                  {cardUrl && (
+                    <a
+                      href={cardUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <QRCodeCanvas value={cardUrl} size={120} />
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
