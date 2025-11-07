@@ -1,9 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
 type CardPageProps = {
-  params: {
-    cardId: string;
-  };
+  params: { cardId: string };
   searchParams: {
     giverName?: string;
     amount?: string;
@@ -13,86 +14,115 @@ type CardPageProps = {
 
 export default function CardPage({ params, searchParams }: CardPageProps) {
   const { cardId } = params;
-  const giverName = searchParams.giverName || "A guest";
-  const amount = searchParams.amount || "";
+
+  const giverName = searchParams.giverName || "A generous guest";
+  const amount = searchParams.amount || "0";
   const note = searchParams.note || "";
-  const hasDetails =
-    Boolean(searchParams.giverName) ||
-    Boolean(searchParams.amount) ||
-    Boolean(searchParams.note);
+
+  const [isClaimed, setIsClaimed] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+
+  function handleClaim() {
+    // Simulated claim flow, no database yet
+    setIsClaiming(true);
+    setTimeout(() => {
+      setIsClaiming(false);
+      setIsClaimed(true);
+    }, 800);
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 flex items-center justify-center px-4 dark:bg-zinc-950 dark:text-zinc-50">
+    <div className="min-h-screen bg-zinc-50 text-zinc-900 px-4 py-10 flex items-center justify-center dark:bg-zinc-950 dark:text-zinc-50">
       <main className="w-full max-w-xl space-y-8">
-        <header className="space-y-2">
-          <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
-            Demo card view
+        {/* Header */}
+        <header className="space-y-2 text-center">
+          <p className="text-xs font-medium tracking-wide text-indigo-500 uppercase dark:text-indigo-300">
+            Wedding Gift Card
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            You have opened a gift card
+            Gift for the happy couple
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            In a real version of this product, this page would look up the card
-            in a database and show the live gift amount and message from the
-            guest.
+            Card ID {cardId}
           </p>
         </header>
 
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900 space-y-3">
-          <p className="text-xs font-semibold text-zinc-500">
-            Card information
-          </p>
-          <p>
-            Card id{" "}
-            <span className="font-mono text-xs bg-zinc-100 px-1 py-0.5 rounded dark:bg-zinc-800">
-              {cardId}
-            </span>
-          </p>
-
-          {hasDetails ? (
-            <>
-              <p>
-                <span className="font-medium">{giverName}</span> loaded{" "}
-                {amount ? (
-                  <span className="font-medium">
-                    ${Number(amount || 0).toFixed(2)}
-                  </span>
-                ) : (
-                  "a gift"
-                )}{" "}
-                onto this card.
-              </p>
-              {note && (
-                <p className="text-zinc-600 dark:text-zinc-300">
-                  Message on card: {note}
+        {/* Card content */}
+        <section
+          className={`rounded-2xl border p-6 shadow-sm transition transform ${
+            isClaimed
+              ? "border-emerald-400 bg-emerald-50/60 dark:border-emerald-500 dark:bg-emerald-950/40"
+              : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+          }`}
+        >
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  From
                 </p>
+                <p className="text-lg font-semibold">{giverName}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  Amount
+                </p>
+                <p className="text-2xl font-bold tracking-tight">
+                  {Number(amount).toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  })}
+                </p>
+              </div>
+            </div>
+
+            {note && (
+              <div className="mt-2 rounded-xl bg-zinc-50 p-3 text-sm text-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-100">
+                “{note}”
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
+              {!isClaimed ? (
+                <>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                    When you tap claim, this gift is marked as received for this
+                    card. In a later version, this will also transfer the funds.
+                  </p>
+                  <button
+                    onClick={handleClaim}
+                    disabled={isClaiming}
+                    className="inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-sm font-medium shadow-sm transition focus-visible:outline-none focus-visible:ring focus-visible:ring-indigo-500/60 disabled:cursor-not-allowed disabled:opacity-70 bg-indigo-600 text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+                  >
+                    {isClaiming ? "Claiming gift…" : "Claim gift"}
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
+                    <span className="font-medium text-emerald-700 dark:text-emerald-300">
+                      Gift claimed
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80">
+                    Confirmation saved for this session.
+                  </p>
+                </div>
               )}
-              <p className="text-xs text-zinc-500">
-                In a real build, this data would come from a secure backend
-                after the guest finished loading the card.
-              </p>
-            </>
-          ) : (
-            <p className="text-zinc-600 dark:text-zinc-300">
-              This demo link doesn&apos;t contain gift details. In the full
-              version, this page would still show the amount and message by
-              looking up the card in a database.
-            </p>
-          )}
+            </div>
+          </div>
         </section>
 
-        <section className="space-y-2 text-sm text-zinc-600 dark:text-zinc-300">
-          <p>
-            To try the full flow, go back to the main page, fill out the load
-            form, and scan or open the new QR code from your phone.
-          </p>
+        {/* Back link */}
+        <div className="flex justify-center">
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-medium bg-zinc-900 text-zinc-50 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition"
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-500 underline-offset-4 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200"
           >
             Back to load a card
           </Link>
-        </section>
+        </div>
       </main>
     </div>
   );
