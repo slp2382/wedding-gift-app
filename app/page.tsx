@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import QRCode from "qrcode.react"; // ✅ Correct import
+import { QRCodeCanvas } from "qrcode.react";
 
 export default function Home() {
   const [giverName, setGiverName] = useState("");
@@ -22,7 +22,6 @@ export default function Home() {
       return;
     }
 
-    // Create a simple fake card ID (timestamp + random)
     const cardId = `card_${Date.now().toString(36)}_${Math.random()
       .toString(36)
       .slice(2, 8)}`;
@@ -35,7 +34,7 @@ export default function Home() {
     });
   }
 
-  const qrUrl =
+  const cardUrl =
     preview &&
     `https://wedding-gift-app.vercel.app/card/${encodeURIComponent(
       preview.cardId
@@ -172,26 +171,23 @@ export default function Home() {
                 </p>
               </div>
 
-              {qrUrl && (
-                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-zinc-500 mb-1">
-                      Demo QR code for this card
-                    </p>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-xs">
-                      In a real product, this code would be printed inside the
-                      physical card and scanned by the guest and by the couple.
-                    </p>
-                    {/* Debug line to verify URL */}
-                    <p className="mt-1 text-[10px] text-zinc-500">
-                      Debug QR URL: {qrUrl}
-                    </p>
-                  </div>
-                  <div className="p-2 rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
-                    <QRCode value={qrUrl} size={120} />
-                  </div>
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-zinc-500 mb-1">
+                    Demo QR code for this card
+                  </p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-xs">
+                    In a real product, this code would be printed inside the
+                    physical card and scanned by the guest and by the couple.
+                  </p>
+                  <p className="mt-1 text-[10px] text-zinc-500">
+                    Debug QR URL: {cardUrl}
+                  </p>
                 </div>
-              )}
+                <div className="p-2 rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
+                  <QRCodeCanvas value={cardUrl || ""} size={120} />
+                </div>
+              </div>
             </div>
           )}
         </section>
