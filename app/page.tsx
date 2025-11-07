@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import QRCode from "qrcode.react"; // ✅ Correct import
 
 export default function Home() {
   const [giverName, setGiverName] = useState("");
@@ -10,6 +11,7 @@ export default function Home() {
     giverName: string;
     amount: string;
     note: string;
+    cardId: string;
   }>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -20,14 +22,24 @@ export default function Home() {
       return;
     }
 
+    // Create a simple fake card ID (timestamp + random)
+    const cardId = `card_${Date.now().toString(36)}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+
     setPreview({
       giverName,
       amount,
       note,
+      cardId,
     });
-
-    // later this is where you would call an API route to create the card session
   }
+
+  const qrUrl =
+    preview &&
+    `https://wedding-gift-app.vercel.app/card/${encodeURIComponent(
+      preview.cardId
+    )}`;
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 flex items-center justify-center px-4 dark:bg-zinc-950 dark:text-zinc-50">
@@ -137,26 +149,49 @@ export default function Home() {
           </form>
 
           {preview && (
-            <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <p className="text-xs font-semibold text-zinc-500 mb-2">
-                Demo preview
-              </p>
-              <p>
-                <span className="font-medium">{preview.giverName}</span> is
-                loading{" "}
-                <span className="font-medium">
-                  ${Number(preview.amount || 0).toFixed(2)}
-                </span>{" "}
-                onto this card.
-              </p>
-              {preview.note && (
-                <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-                  Message on card: {preview.note}
+            <div className="mt-6 space-y-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div>
+                <p className="text-xs font-semibold text-zinc-500 mb-1">
+                  Demo preview
                 </p>
+                <p>
+                  <span className="font-medium">{preview.giverName}</span> is
+                  loading{" "}
+                  <span className="font-medium">
+                    ${Number(preview.amount || 0).toFixed(2)}
+                  </span>{" "}
+                  onto this card.
+                </p>
+                {preview.note && (
+                  <p className="mt-2 text-zinc-600 dark:text-zinc-300">
+                    Message on card: {preview.note}
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-zinc-500">
+                  In a real build, this step would redirect to payment.
+                </p>
+              </div>
+
+              {qrUrl && (
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-500 mb-1">
+                      Demo QR code for this card
+                    </p>
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-xs">
+                      In a real product, this code would be printed inside the
+                      physical card and scanned by the guest and by the couple.
+                    </p>
+                    {/* Debug line to verify URL */}
+                    <p className="mt-1 text-[10px] text-zinc-500">
+                      Debug QR URL: {qrUrl}
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
+                    <QRCode value={qrUrl} size={120} />
+                  </div>
+                </div>
               )}
-              <p className="mt-2 text-xs text-zinc-500">
-                In a real build, this step would redirect to payment.
-              </p>
             </div>
           )}
         </section>
