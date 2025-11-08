@@ -1,4 +1,3 @@
-// app/api/load-gift/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -39,10 +38,10 @@ export const POST = async (request: NextRequest) => {
       );
     }
 
-    // Build base URL for local dev and Vercel
+    // Prefer the actual host the user visited, fall back to VERCEL_URL
     const host =
-      process.env.VERCEL_URL ||
       request.headers.get("host") ||
+      process.env.VERCEL_URL ||
       "localhost:3000";
     const protocol = host.startsWith("localhost") ? "http" : "https";
     const baseUrl = `${protocol}://${host}`;
