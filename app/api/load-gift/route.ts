@@ -1,83 +1,97 @@
-import { NextResponse } from "next/server";
+// pages/api/load-gift.ts
+import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
-import { supabase } from "../../../lib/supabaseClient";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const appUrl =
-  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+type LoadGiftRequestBody = {
+  cardId: string;
+  giverName?: string;
+  amount: number;
+  note?: string | null;
+};
 
-export async function POST(request: Request) {
-  if (!stripeSecretKey) {
-    return NextResponse.json(
-      { error: "Stripe is not configured on the server." },
-      { status: 500 }
-    );
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const stripe = new Stripe(stripeSecretKey, {
-    apiVersion: "2024-06-20" as any,
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+
+  if (!secretKey) {
+    console.error("Stripe secret key is missing on the server");
+    return res
+      .status(500)
+      .json({ error: "Stripe secret key not configured on server" });
+  }
+
+  const stripe = new Stripe(secretKey, {
+    apiVersion: "2024-06-20",
   });
 
-  const body = await request.json().catch(() => null);
+  try {
+    const { cardId, giverName, amount, note } =
+      req.body as LoadGiftRequestBody;
 
-  if (!body) {
-    return NextResponse.json(
-      { error: "Invalid JSON body." },
-      { status: 400 }
-    );
-  }
+    if (!cardId || !amount) {
+      return res
+        .status(400)
+        .json({ error: "Missing card id or amount" });
+    }
 
-  const { cardId, amount, giverName, note } = body;
+    const amountNumber = Number(amount);
+    if (!amountNumber || amountNumber <= 0) {
+      return res
+        .status(400)
+        .json({ error: "Amount must be greater than zero" });
+    }
 
-  if (!cardId || !amount || !giverName) {
-    return NextResponse.json(
-      { error: "cardId, amount, and giverName are required." },
-      { status: 400 }
-    );
-  }
+    // Build base url that works in both local dev and Vercel production
+    const host =
+      process.env.VERCEL_URL ||
+      req.headers.host ||
+      "localhost:3000";
 
-  const numericAmount = Number(amount);
-  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-    return NextResponse.json(
-      { error: "Amount must be a positive number." },
-      { status: 400 }
-    );
-  }
+    const protocol = host.startsWith("localhost")
+      ? "http"
+      : "https";
 
-  const successUrl = `${appUrl}/card/${cardId}?status=paid&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${appUrl}/card/${cardId}?status=cancelled`;
+    const baseUrl = `${protocol}://${host}`;
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["card"],
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: "GiftLink Wedding Gift",
-            description: `Gift loaded to card ${cardId}`,
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "GiftLink Wedding Gift",
+              description: `Gift loaded to card ${cardId}`,
+            },
+            unit_amount: Math.round(amountNumber * 100),
           },
-          unit_amount: Math.round(numericAmount * 100),
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+      success_url: `${baseUrl}/card/${cardId}?status=paid&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/card/${cardId}?status=cancelled`,
+      metadata: {
+        cardId,
+        giverName: giverName || "",
+        note: note || "",
       },
-    ],
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    metadata: {
-      cardId,
-      giverName,
-      note: note || "",
-    },
-  });
+    });
 
-  if (!session.url) {
-    return NextResponse.json(
-      { error: "Failed to create Stripe checkout session." },
-      { status: 500 }
-    );
+    return res.status(200).json({
+      id: session.id,
+      url: session.url,
+    });
+  } catch (error) {
+    console.error("Error creating checkout session", error);
+    return res
+      .status(500)
+      .json({ error: "Internal server error creating checkout session" });
   }
-
-  return NextResponse.json({ checkoutUrl: session.url });
 }
