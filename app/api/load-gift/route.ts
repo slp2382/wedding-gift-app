@@ -1,29 +1,16 @@
-// pages/api/load-gift.ts
-import type { NextApiRequest, NextApiResponse } from "next";
+// app/api/load-gift/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-type LoadGiftRequestBody = {
-  cardId: string;
-  giverName?: string;
-  amount: number;
-  note?: string | null;
-};
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
+export const POST = async (request: NextRequest) => {
   const secretKey = process.env.STRIPE_SECRET_KEY;
 
   if (!secretKey) {
     console.error("Stripe secret key is missing on the server");
-    return res
-      .status(500)
-      .json({ error: "Stripe secret key not configured on server" });
+    return NextResponse.json(
+      { error: "Stripe secret key not configured on server" },
+      { status: 500 }
+    );
   }
 
   const stripe = new Stripe(secretKey, {
@@ -31,32 +18,35 @@ export default async function handler(
   });
 
   try {
-    const { cardId, giverName, amount, note } =
-      req.body as LoadGiftRequestBody;
+    const body = await request.json();
+    const { cardId, giverName, amount, note } = body as {
+      cardId: string;
+      giverName?: string;
+      amount: number | string;
+      note?: string | null;
+    };
 
-    if (!cardId || !amount) {
-      return res
-        .status(400)
-        .json({ error: "Missing card id or amount" });
+    if (!cardId || amount == null) {
+      return NextResponse.json(
+        { error: "Missing card id or amount" },
+        { status: 400 }
+      );
     }
 
     const amountNumber = Number(amount);
     if (!amountNumber || amountNumber <= 0) {
-      return res
-        .status(400)
-        .json({ error: "Amount must be greater than zero" });
+      return NextResponse.json(
+        { error: "Amount must be greater than zero" },
+        { status: 400 }
+      );
     }
 
-    // Build base url that works in both local dev and Vercel production
+    // Build base URL for local dev and Vercel
     const host =
       process.env.VERCEL_URL ||
-      req.headers.host ||
+      request.headers.get("host") ||
       "localhost:3000";
-
-    const protocol = host.startsWith("localhost")
-      ? "http"
-      : "https";
-
+    const protocol = host.startsWith("localhost") ? "http" : "https";
     const baseUrl = `${protocol}://${host}`;
 
     const session = await stripe.checkout.sessions.create({
@@ -84,14 +74,12 @@ export default async function handler(
       },
     });
 
-    return res.status(200).json({
-      id: session.id,
-      url: session.url,
-    });
+    return NextResponse.json({ id: session.id, url: session.url });
   } catch (error) {
     console.error("Error creating checkout session", error);
-    return res
-      .status(500)
-      .json({ error: "Internal server error creating checkout session" });
+    return NextResponse.json(
+      { error: "Internal server error creating checkout session" },
+      { status: 500 }
+    );
   }
-}
+};
