@@ -1,3 +1,4 @@
+// app/api/load-gift/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -38,6 +39,10 @@ export const POST = async (request: NextRequest) => {
       );
     }
 
+    // Calculate doubled fee: 2 × (2.9% + $0.30) = 5.8% + $0.60
+    const fee = amountNumber * 0.058 + 0.60;
+    const totalCharge = amountNumber + fee;
+
     // Prefer the actual host the user visited, fall back to VERCEL_URL
     const host =
       request.headers.get("host") ||
@@ -54,10 +59,20 @@ export const POST = async (request: NextRequest) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "GiftLink Wedding Gift",
+              name: "Wedding Gift",
               description: `Gift loaded to card ${cardId}`,
             },
             unit_amount: Math.round(amountNumber * 100),
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Processing & Service Fee",
+            },
+            unit_amount: Math.round(fee * 100),
           },
           quantity: 1,
         },
@@ -68,6 +83,9 @@ export const POST = async (request: NextRequest) => {
         cardId,
         giverName: giverName || "",
         note: note || "",
+        giftAmount: amountNumber.toFixed(2),
+        feeAmount: fee.toFixed(2),
+        totalCharge: totalCharge.toFixed(2),
       },
     });
 
