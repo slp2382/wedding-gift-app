@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { supabase } from "../../../lib/supabaseClient";
 
 type CardRecord = {
@@ -30,6 +30,11 @@ export default function CardPage() {
   const [guestNote, setGuestNote] = useState("");
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
+
+  // Flip animation state
+  const [flipKey, setFlipKey] = useState(0);
+  const prevFundedRef = useRef(false);
+  const prevClaimedRef = useRef(false);
 
   // Load card details from Supabase on first render
   useEffect(() => {
@@ -66,17 +71,24 @@ export default function CardPage() {
   }, [cardId]);
 
   // Central state flags for card status
-  const amount =
-    card && card.amount != null ? Number(card.amount) : 0;
+  const amount = card && card.amount != null ? Number(card.amount) : 0;
 
-  const isBlankStoreCard =
-    !!card && amount <= 0 && !card.claimed;
+  const isBlankStoreCard = !!card && amount <= 0 && !card.claimed;
+  const isFunded = !!card && amount > 0 && !card.claimed;
+  const isClaimed = !!card && card.claimed;
 
-  const isFunded =
-    !!card && amount > 0 && !card.claimed;
+  // Trigger flip animation when card transitions to funded or claimed
+  useEffect(() => {
+    const prevFunded = prevFundedRef.current;
+    const prevClaimed = prevClaimedRef.current;
 
-  const isClaimed =
-    !!card && card.claimed;
+    if ((!prevFunded && isFunded) || (!prevClaimed && isClaimed)) {
+      setFlipKey((k) => k + 1);
+    }
+
+    prevFundedRef.current = isFunded;
+    prevClaimedRef.current = isClaimed;
+  }, [isFunded, isClaimed]);
 
   // Claim via API route instead of direct Supabase client
   async function handleClaim() {
@@ -265,8 +277,12 @@ export default function CardPage() {
 
           {/* Card content */}
           {!loading && card && (
-            <section
-              className={`mt-4 rounded-2xl border p-6 shadow-lg backdrop-blur-sm ${
+            <motion.section
+              key={flipKey}
+              initial={{ rotateY: 180, opacity: 0 }}
+              animate={{ rotateY: 0, opacity: 1 }}
+              transition={{ duration: 0.6, ease: "easeInOut" }}
+              className={`mt-4 transform-gpu rounded-2xl border p-6 shadow-lg backdrop-blur-sm ${
                 isClaimed
                   ? "border-emerald-400/80 bg-emerald-50/80 shadow-emerald-100/70 dark:border-emerald-500 dark:bg-emerald-950/40 dark:shadow-none"
                   : isFunded
@@ -371,7 +387,7 @@ export default function CardPage() {
                         </span>
                       </div>
                       <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80">
-                        Saved to this card, you are all set.
+                        Saved to this card, you&apos;re all set.
                       </p>
                     </div>
                   ) : isFunded ? (
@@ -499,7 +515,7 @@ export default function CardPage() {
                   )}
                 </div>
               </div>
-            </section>
+            </motion.section>
           )}
 
           {/* Back link */}
