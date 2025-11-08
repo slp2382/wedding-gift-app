@@ -13,9 +13,7 @@ export async function POST(request: Request) {
     return new Response("Stripe not configured", { status: 500 });
   }
 
-  const stripe = new Stripe(stripeSecretKey, {
-    apiVersion: "2024-06-20" as any,
-  });
+  const stripe = new Stripe(stripeSecretKey);
 
   const sig = request.headers.get("stripe-signature");
   if (!sig) {
@@ -45,30 +43,60 @@ export async function POST(request: Request) {
     const cardId = session.metadata?.cardId;
     const giverName = session.metadata?.giverName || null;
     const note = session.metadata?.note || null;
-    const amountTotal = session.amount_total ?? 0;
-    const amount = amountTotal / 100;
+
+    // What Stripe actually charged in total (gift + fee)
+    const amountTotal = session.amount_total ?? null;
+
+    // Our metadata from /api/load-gift
+    const giftAmountRaw = session.metadata?.giftAmount;
+    const feeAmountRaw = session.metadata?.feeAmount;
+    const totalChargeRaw = session.metadata?.totalCharge;
+
+    // Decide what to store in Supabase as the card amount:
+    // Prefer the original gift amount from metadata so the couple
+    // only sees the gift, not the fee.
+    let amount: number | null = null;
+
+    if (giftAmountRaw != null) {
+      const parsed = parseFloat(giftAmountRaw);
+      if (!Number.isNaN(parsed)) {
+        amount = parsed;
+      }
+    }
+
+    // Fallback to amount_total (should rarely be used, but keeps things robust)
+    if (amount == null && typeof amountTotal === "number") {
+      amount = amountTotal / 100;
+    }
 
     console.log("Updating card from webhook:", {
       cardId,
       giverName,
-      amount,
       note,
+      giftAmountRaw,
+      feeAmountRaw,
+      totalChargeRaw,
+      amountUsed: amount,
     });
 
-    if (cardId) {
+    if (cardId && amount != null) {
       const { error } = await supabase
         .from("cards")
         .update({
           giver_name: giverName,
-          amount,
+          amount, // <-- gift only, fee is yours
           note,
-          // later: funded: true
         })
         .eq("card_id", cardId);
 
       if (error) {
         console.error("Error updating card after payment", error);
       }
+    } else {
+      console.warn(
+        "Skipping card update, missing cardId or amount",
+        { cardId, amount }
+      );
     }
   }
 
