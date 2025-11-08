@@ -13,9 +13,7 @@ export const POST = async (request: NextRequest) => {
     );
   }
 
-  const stripe = new Stripe(secretKey, {
-    apiVersion: "2024-06-20",
-  });
+  const stripe = new Stripe(secretKey);
 
   try {
     const body = await request.json();
