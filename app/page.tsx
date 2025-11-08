@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { supabase } from "../lib/supabaseClient";
 
 type PreviewState = {
   cardId: string;
@@ -20,11 +19,7 @@ export default function Home() {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  function generateCardId() {
-    const randomPart = Math.random().toString(36).slice(2, 10);
-    return `card_${randomPart}`;
-  }
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -40,37 +35,49 @@ export default function Home() {
       return;
     }
 
-    const cardId = generateCardId();
-    const baseUrl =
-      typeof window !== "undefined" ? window.location.origin : "";
-    const cardUrl = `${baseUrl}/card/${cardId}`;
-
     setLoading(true);
 
-    const { error } = await supabase.from("cards").insert([
-      {
-        card_id: cardId,
-        giver_name: giverName.trim(),
+    try {
+      const response = await fetch("/api/create-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          giverName: giverName.trim(),
+          amount: numericAmount,
+          note: note.trim() || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        const message =
+          (result && result.error) ||
+          "Something went wrong while creating the card.";
+        setErrorMessage(message);
+        setLoading(false);
+        return;
+      }
+
+      const result = await response.json();
+      const cardId: string = result.cardId;
+
+      const baseUrl =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const cardUrl = `${baseUrl}/card/${cardId}`;
+
+      setPreview({
+        cardId,
+        giverName: giverName.trim(),
         amount: numericAmount,
-        note: note.trim() || null,
-      },
-    ]);
-
-    setLoading(false);
-
-    if (error) {
-      console.error(error);
-      setErrorMessage("Something went wrong while saving the card.");
-      return;
+        note: note.trim(),
+        url: cardUrl,
+      });
+    } catch (error) {
+      console.error("Error calling /api/create-card:", error);
+      setErrorMessage("Something went wrong while creating the card.");
     }
 
-    setPreview({
-      cardId,
-      giverName: giverName.trim(),
-      amount: numericAmount,
-      note: note.trim(),
-      url: cardUrl,
-    });
+    setLoading(false);
   }
 
   async function handleCopyLink() {
@@ -82,6 +89,44 @@ export default function Home() {
     } catch (error) {
       console.error(error);
     }
+  }
+
+  async function handleStripeCheckoutTest() {
+    if (!preview) return;
+    setStripeLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/load-gift", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId: preview.cardId,
+          amount: preview.amount,
+          giverName: preview.giverName,
+          note: preview.note || "",
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.checkoutUrl) {
+        const message =
+          (result && result.error) ||
+          "Unable to start Stripe test checkout.";
+        setErrorMessage(message);
+        setStripeLoading(false);
+        return;
+      }
+
+      // Redirect to Stripe test checkout
+      window.location.href = result.checkoutUrl;
+    } catch (error) {
+      console.error("Error calling /api/load-gift:", error);
+      setErrorMessage("Something went wrong starting Stripe checkout.");
+    }
+
+    setStripeLoading(false);
   }
 
   return (
@@ -109,7 +154,7 @@ export default function Home() {
         </header>
 
         {/* Main content */}
-        <main className="grid flex-1 gap-10 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center">
+        <main className="grid flex-1 items-center gap-10 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <section className="space-y-8">
             {/* Hero text with decorative line */}
             <div className="space-y-4">
@@ -217,6 +262,19 @@ export default function Home() {
                   {loading ? "Creating card…" : "Create card and QR"}
                 </button>
               </form>
+
+              {preview && (
+                <button
+                  type="button"
+                  onClick={handleStripeCheckoutTest}
+                  disabled={stripeLoading}
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-indigo-300 bg-white px-4 py-2.5 text-xs font-medium text-indigo-700 shadow-sm transition hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring focus-visible:ring-indigo-500/70 disabled:cursor-not-allowed disabled:opacity-70 dark:border-indigo-700 dark:bg-zinc-900 dark:text-indigo-200 dark:hover:bg-zinc-800"
+                >
+                  {stripeLoading
+                    ? "Opening Stripe test checkout…"
+                    : "Open Stripe test checkout for this gift"}
+                </button>
+              )}
             </section>
           </section>
 
@@ -260,7 +318,7 @@ export default function Home() {
                           “{preview.note}”
                         </p>
                       )}
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 break-all">
+                      <p className="break-all text-xs text-zinc-500 dark:text-zinc-400">
                         Link {preview.url}
                       </p>
                     </div>
