@@ -27,10 +27,9 @@ export async function POST(request: Request) {
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
     console.error("Webhook signature verification failed.", err);
-    return new Response(
-      `Webhook Error: ${(err as Error).message}`,
-      { status: 400 }
-    );
+    return new Response(`Webhook Error: ${(err as Error).message}`, {
+      status: 400,
+    });
   }
 
   console.log("🔔 Stripe webhook event received:", event.type);
@@ -40,6 +39,29 @@ export async function POST(request: Request) {
 
     console.log("✅ checkout.session.completed for session", session.id);
 
+    const flowType = session.metadata?.type;
+
+    // 🛒 1) Handle card pack / shop orders
+    if (flowType === "card_pack_order") {
+      console.log("🧾 Received card pack order via Stripe checkout:", {
+        sessionId: session.id,
+        email: session.customer_details?.email,
+        amount_total: session.amount_total,
+        product: session.metadata?.product,
+      });
+
+      // TODO (later):
+      // - Insert a row into an `orders` table in Supabase with:
+      //   - stripe_session_id
+      //   - email / customer details
+      //   - items / product metadata
+      //   - amount_total
+      //   - status = 'paid'
+      // For now we just log and return so it doesn't touch `cards`.
+      return NextResponse.json({ received: true });
+    }
+
+    // 🎁 2) Default: treat as a gift load (current behavior)
     const cardId = session.metadata?.cardId;
     const giverName = session.metadata?.giverName || null;
     const note = session.metadata?.note || null;
@@ -69,7 +91,7 @@ export async function POST(request: Request) {
       amount = amountTotal / 100;
     }
 
-    console.log("Updating card from webhook:", {
+    console.log("Updating card from webhook (gift load):", {
       cardId,
       giverName,
       note,
@@ -93,10 +115,10 @@ export async function POST(request: Request) {
         console.error("Error updating card after payment", error);
       }
     } else {
-      console.warn(
-        "Skipping card update, missing cardId or amount",
-        { cardId, amount }
-      );
+      console.warn("Skipping card update, missing cardId or amount", {
+        cardId,
+        amount,
+      });
     }
   }
 
