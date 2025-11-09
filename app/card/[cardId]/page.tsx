@@ -39,7 +39,8 @@ export default function CardPage() {
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [payoutName, setPayoutName] = useState("");
   const [payoutEmail, setPayoutEmail] = useState("");
-  const [payoutMethod, setPayoutMethod] = useState("bank_transfer");
+  // For now, we only support Venmo as a payout method
+  const [payoutMethod] = useState("venmo");
   const [payoutDetails, setPayoutDetails] = useState("");
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutError, setPayoutError] = useState<string | null>(null);
@@ -90,6 +91,12 @@ export default function CardPage() {
   const isBlankStoreCard = !!card && amount <= 0 && !card.claimed;
   const isFunded = !!card && amount > 0 && !card.claimed;
   const isClaimed = !!card && card.claimed;
+
+  // Venmo-only payout field text
+  const detailLabel = "Venmo handle";
+  const detailPlaceholder = "@your-venmo-handle";
+  const detailHelpText =
+    "We’ll use this Venmo handle to send your gift. Make sure it matches your Venmo profile exactly.";
 
   // Trigger flip when card transitions to funded or claimed
   useEffect(() => {
@@ -194,6 +201,11 @@ export default function CardPage() {
       return;
     }
 
+    if (!details) {
+      setPayoutError("Please enter your Venmo handle.");
+      return;
+    }
+
     setPayoutError(null);
     setPayoutSuccess(null);
     setPayoutLoading(true);
@@ -207,8 +219,8 @@ export default function CardPage() {
           cardId,
           contactName: name,
           contactEmail: email,
-          payoutMethod,
-          payoutDetails: details || null,
+          payoutMethod, // will be "venmo"
+          payoutDetails: details,
         }),
       });
 
@@ -245,7 +257,7 @@ export default function CardPage() {
       }
 
       setPayoutSuccess(
-        "Thanks! We’ve received your payout details. Your gift will be sent to you soon.",
+        "Thanks! We’ve received your Venmo details. We’ll review and send your gift to that handle soon.",
       );
       setShowClaimForm(false);
     } catch (err) {
@@ -448,7 +460,7 @@ export default function CardPage() {
                   ) : isFunded ? (
                     <>
                       <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                        When you claim this gift, we&apos;ll use your payout
+                        When you claim this gift, we&apos;ll use your Venmo
                         details to send the funds to you outside the app.
                       </p>
 
@@ -461,7 +473,7 @@ export default function CardPage() {
                       >
                         {showClaimForm
                           ? "Hide claim form"
-                          : "Claim gift"}
+                          : "Claim gift via Venmo"}
                       </button>
 
                       {payoutSuccess && (
@@ -476,9 +488,9 @@ export default function CardPage() {
                             Where should we send this gift?
                           </p>
                           <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                            Enter your details so we can send your gift
-                            balance to you. We&apos;ll review and send
-                            your payout shortly.
+                            For now, we send payouts via Venmo. Enter your name,
+                            email, and Venmo handle and we&apos;ll review and
+                            send your gift there shortly.
                           </p>
 
                           <form
@@ -502,8 +514,7 @@ export default function CardPage() {
                               </div>
                               <div>
                                 <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                                  Email for payout
-                                  confirmation
+                                  Email for payout confirmation
                                 </label>
                                 <input
                                   type="email"
@@ -517,46 +528,22 @@ export default function CardPage() {
                               </div>
                             </div>
 
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                                  Preferred payout method
-                                </label>
-                                <select
-                                  value={payoutMethod}
-                                  onChange={(e) =>
-                                    setPayoutMethod(e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                                >
-                                  <option value="bank_transfer">
-                                    Bank transfer
-                                  </option>
-                                  <option value="venmo">
-                                    Venmo
-                                  </option>
-                                  <option value="paypal">
-                                    PayPal
-                                  </option>
-                                  <option value="other">
-                                    Other
-                                  </option>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                                  Details (handle or note)
-                                </label>
-                                <input
-                                  type="text"
-                                  value={payoutDetails}
-                                  onChange={(e) =>
-                                    setPayoutDetails(e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                                  placeholder="@yourVenmo, bank name, etc."
-                                />
-                              </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                {detailLabel}
+                              </label>
+                              <input
+                                type="text"
+                                value={payoutDetails}
+                                onChange={(e) =>
+                                  setPayoutDetails(e.target.value)
+                                }
+                                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                                placeholder={detailPlaceholder}
+                              />
+                              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                {detailHelpText}
+                              </p>
                             </div>
 
                             {payoutError && (
@@ -572,7 +559,7 @@ export default function CardPage() {
                             >
                               {payoutLoading
                                 ? "Sending claim…"
-                                : "Submit payout details"}
+                                : "Submit Venmo details"}
                             </button>
                           </form>
                         </div>
