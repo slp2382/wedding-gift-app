@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import QRCode from "react-qr-code";
 
 type CreateCardResponse = {
@@ -227,39 +228,26 @@ export default function HomePage() {
               </p>
             </div>
 
+            {/* Hero image: real GiftLink card */}
             <div className="relative">
               <div className="pointer-events-none absolute -inset-6 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-sky-400/10 to-emerald-400/10 blur-2xl dark:from-indigo-500/15 dark:via-sky-400/15 dark:to-emerald-400/15" />
               <div className="relative rounded-3xl border border-zinc-200/80 bg-white/80 p-5 shadow-xl shadow-indigo-100/60 backdrop-blur-sm dark:border-zinc-800/70 dark:bg-zinc-950/80 dark:shadow-none">
                 <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
-                  A GiftLink card
+                  A real GiftLink card
                 </p>
-                <div className="flex items-center gap-5">
-                  <div className="flex-1 space-y-2">
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      Front
-                    </p>
-                    <div className="flex h-32 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-sm font-semibold text-white shadow-md shadow-indigo-500/40">
-                      “Scan me to send a gift”
-                    </div>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Guests scan the code on the card to send their gift.
-                    </p>
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      Back
-                    </p>
-                    <div className="flex h-32 flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 text-[11px] text-zinc-500 dark:border-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">
-                      <span>QR code with unique link</span>
-                      <span className="mt-1 font-mono text-[10px] text-zinc-400">
-                        giftlink.cards/card/...
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Couples scan the same card to see and claim each gift.
-                    </p>
-                  </div>
+                <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+                  <Image
+                    src="/Example_Card.png"
+                    alt="Inside view of a GiftLink card showing a QR code and 'Congratulations' message"
+                    width={768}
+                    height={768}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
+                <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Each card has its own unique QR code that guests can scan to
+                  send a gift, and the couple can later scan to claim it.
+                </p>
               </div>
             </div>
           </section>
