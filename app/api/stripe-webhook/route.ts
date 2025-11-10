@@ -19,7 +19,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing");
 }
 
-// Use library default API version to avoid TypeScript type mismatch with SDK
+// Use library default API version
 const stripe = new Stripe(stripeSecretKey);
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    const sessionAny = session as any;
+
     const metadata = session.metadata ?? {};
     const type = metadata.type;
 
@@ -54,8 +56,29 @@ export async function POST(req: NextRequest) {
       if (type === "card_pack_order") {
         // Card pack shop order branch
 
-        const shipping = session.shipping_details;
-        const address = shipping?.address;
+        const shipping = sessionAny.shipping_details as
+          | {
+              name?: string | null;
+              address?: {
+                line1?: string | null;
+                line2?: string | null;
+                city?: string | null;
+                state?: string | null;
+                postal_code?: string | null;
+                country?: string | null;
+              } | null;
+            }
+          | null
+          | undefined;
+
+        const address = shipping?.address ?? null;
+
+        const customerDetails = sessionAny.customer_details as
+          | {
+              email?: string | null;
+            }
+          | null
+          | undefined;
 
         const items =
           metadata.product != null
@@ -69,7 +92,7 @@ export async function POST(req: NextRequest) {
 
         const { error } = await supabaseAdmin.from("orders").insert({
           stripe_session_id: session.id,
-          email: session.customer_details?.email ?? null,
+          email: customerDetails?.email ?? null,
 
           shipping_name: shipping?.name ?? null,
           shipping_address_line1: address?.line1 ?? null,
@@ -130,8 +153,8 @@ export async function POST(req: NextRequest) {
         if (error) {
           console.error("Error updating card for gift load", error);
           return new NextResponse("Supabase update error", {
-            status: 500 },
-          );
+            status: 500,
+          });
         }
 
         console.log("Gift load completed", {
