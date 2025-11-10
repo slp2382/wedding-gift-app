@@ -1,30 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY!;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-if (!stripeSecretKey) {
-  throw new Error("STRIPE_SECRET_KEY is missing");
-}
+// Prefer SUPABASE_URL, fall back to NEXT_PUBLIC_SUPABASE_URL
+const supabaseUrl =
+  process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!stripeWebhookSecret) {
-  throw new Error("STRIPE_WEBHOOK_SECRET is missing");
-}
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing");
-}
-
-// Use library default API version
+// Use default API version from the Stripe SDK
 const stripe = new Stripe(stripeSecretKey);
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+// Create Supabase admin client only when env vars exist
+const supabaseAdmin: SupabaseClient | null =
+  supabaseUrl && supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey)
+    : null;
 
 export async function POST(req: NextRequest) {
+  if (!stripeSecretKey || !stripeWebhookSecret) {
+    console.error("Stripe env vars are missing");
+    return new NextResponse("Stripe not configured", { status: 500 });
+  }
+
   let event: Stripe.Event;
 
   const signature = req.headers.get("stripe-signature");
@@ -46,6 +46,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === "checkout.session.completed") {
+    if (!supabaseAdmin) {
+      console.error(
+        "Supabase admin client not configured, missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
+      );
+      return new NextResponse("Supabase not configured", { status: 500 });
+    }
+
     const session = event.data.object as Stripe.Checkout.Session;
     const sessionAny = session as any;
 
@@ -107,7 +114,7 @@ export async function POST(req: NextRequest) {
           status: "paid",
         });
 
-        // Handle retry case for duplicate insert
+        // Ignore duplicate insert error
         if (error && error.code !== "23505") {
           console.error("Error inserting order", error);
           return new NextResponse("Supabase insert error", {
