@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY!;
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 if (!stripeSecretKey) {
   throw new Error("STRIPE_SECRET_KEY is missing");
@@ -19,7 +19,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing");
 }
 
-// Use library default API version to avoid TypeScript type mismatch
+// Use library default API version to avoid TypeScript type mismatch with SDK
 const stripe = new Stripe(stripeSecretKey);
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -130,8 +130,8 @@ export async function POST(req: NextRequest) {
         if (error) {
           console.error("Error updating card for gift load", error);
           return new NextResponse("Supabase update error", {
-            status: 500,
-          });
+            status: 500 },
+          );
         }
 
         console.log("Gift load completed", {
@@ -147,8 +147,6 @@ export async function POST(req: NextRequest) {
       return new NextResponse("Handler error", { status: 500 });
     }
   }
-
-  // You may add handling for other Stripe events here if needed
 
   return new NextResponse("ok", { status: 200 });
 }
