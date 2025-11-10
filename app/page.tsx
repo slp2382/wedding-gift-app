@@ -165,8 +165,13 @@ export default function HomePage() {
         {/* Top nav / wordmark */}
         <header className="mb-10 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-400 to-emerald-400 shadow-md shadow-indigo-500/30 dark:shadow-indigo-700/40">
-              <span className="text-lg font-semibold text-white">G</span>
+            {/* favicon logo */}
+            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-md shadow-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-indigo-700/40">
+              <img
+                src="/favicon.ico"
+                alt="GiftLink logo"
+                className="h-full w-full object-contain"
+              />
             </div>
             <div className="leading-tight">
               <p className="text-lg font-semibold tracking-tight">GiftLink</p>
