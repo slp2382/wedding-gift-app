@@ -61,24 +61,6 @@ export async function POST(req: NextRequest) {
       if (type === "card_pack_order") {
         // Card pack shop order branch
 
-        const sessionAny = session as any;
-
-        const shippingFromShippingDetails = sessionAny
-          .shipping_details as
-          | {
-              name?: string | null;
-              address?: {
-                line1?: string | null;
-                line2?: string | null;
-                city?: string | null;
-                state?: string | null;
-                postal_code?: string | null;
-                country?: string | null;
-              } | null;
-            }
-          | null
-          | undefined;
-
         const customerDetails = session.customer_details as
           | {
               email?: string | null;
@@ -95,16 +77,72 @@ export async function POST(req: NextRequest) {
           | null
           | undefined;
 
-        // Prefer shipping_details, fall back to customer_details
-        const shippingName =
-          shippingFromShippingDetails?.name ??
-          customerDetails?.name ??
-          null;
+        // Start with whatever is on customer_details
+        let shippingName: string | null = customerDetails?.name ?? null;
+        let addressLine1: string | null =
+          customerDetails?.address?.line1 ?? null;
+        let addressLine2: string | null =
+          customerDetails?.address?.line2 ?? null;
+        let addressCity: string | null =
+          customerDetails?.address?.city ?? null;
+        let addressState: string | null =
+          customerDetails?.address?.state ?? null;
+        let addressPostalCode: string | null =
+          customerDetails?.address?.postal_code ?? null;
+        let addressCountry: string | null =
+          customerDetails?.address?.country ?? null;
 
-        const address =
-          shippingFromShippingDetails?.address ??
-          customerDetails?.address ??
-          null;
+        // Then, if there is a PaymentIntent, pull its shipping details
+        const paymentIntentId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id;
+
+        if (paymentIntentId) {
+          try {
+            const paymentIntent = await stripe.paymentIntents.retrieve(
+              paymentIntentId,
+            );
+
+            const piShipping = paymentIntent.shipping as
+              | {
+                  name?: string | null;
+                  address?: {
+                    line1?: string | null;
+                    line2?: string | null;
+                    city?: string | null;
+                    state?: string | null;
+                    postal_code?: string | null;
+                    country?: string | null;
+                  } | null;
+                }
+              | null
+              | undefined;
+
+            if (piShipping) {
+              shippingName = piShipping.name ?? shippingName;
+              addressLine1 =
+                piShipping.address?.line1 ?? addressLine1 ?? null;
+              addressLine2 =
+                piShipping.address?.line2 ?? addressLine2 ?? null;
+              addressCity =
+                piShipping.address?.city ?? addressCity ?? null;
+              addressState =
+                piShipping.address?.state ?? addressState ?? null;
+              addressPostalCode =
+                piShipping.address?.postal_code ??
+                addressPostalCode ??
+                null;
+              addressCountry =
+                piShipping.address?.country ?? addressCountry ?? null;
+            }
+          } catch (err) {
+            console.error(
+              "Could not retrieve payment intent for shipping details",
+              err,
+            );
+          }
+        }
 
         const items =
           metadata.product != null
@@ -121,12 +159,12 @@ export async function POST(req: NextRequest) {
           email: customerDetails?.email ?? null,
 
           shipping_name: shippingName,
-          shipping_address_line1: address?.line1 ?? null,
-          shipping_address_line2: address?.line2 ?? null,
-          shipping_city: address?.city ?? null,
-          shipping_state: address?.state ?? null,
-          shipping_postal_code: address?.postal_code ?? null,
-          shipping_country: address?.country ?? null,
+          shipping_address_line1: addressLine1,
+          shipping_address_line2: addressLine2,
+          shipping_city: addressCity,
+          shipping_state: addressState,
+          shipping_postal_code: addressPostalCode,
+          shipping_country: addressCountry,
 
           items,
           amount_total: session.amount_total ?? 0,
