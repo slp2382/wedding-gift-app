@@ -19,9 +19,8 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing");
 }
 
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: "2024-06-20",
-});
+// Use library default API version to avoid TypeScript type mismatch
+const stripe = new Stripe(stripeSecretKey);
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
