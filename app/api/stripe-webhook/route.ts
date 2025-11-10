@@ -54,8 +54,6 @@ export async function POST(req: NextRequest) {
     }
 
     const session = event.data.object as Stripe.Checkout.Session;
-    const sessionAny = session as any;
-
     const metadata = session.metadata ?? {};
     const type = metadata.type;
 
@@ -63,8 +61,9 @@ export async function POST(req: NextRequest) {
       if (type === "card_pack_order") {
         // Card pack shop order branch
 
-        const shipping = sessionAny.shipping_details as
+        const customerDetails = session.customer_details as
           | {
+              email?: string | null;
               name?: string | null;
               address?: {
                 line1?: string | null;
@@ -78,14 +77,7 @@ export async function POST(req: NextRequest) {
           | null
           | undefined;
 
-        const address = shipping?.address ?? null;
-
-        const customerDetails = sessionAny.customer_details as
-          | {
-              email?: string | null;
-            }
-          | null
-          | undefined;
+        const address = customerDetails?.address ?? null;
 
         const items =
           metadata.product != null
@@ -101,7 +93,7 @@ export async function POST(req: NextRequest) {
           stripe_session_id: session.id,
           email: customerDetails?.email ?? null,
 
-          shipping_name: shipping?.name ?? null,
+          shipping_name: customerDetails?.name ?? null,
           shipping_address_line1: address?.line1 ?? null,
           shipping_address_line2: address?.line2 ?? null,
           shipping_city: address?.city ?? null,
@@ -160,8 +152,8 @@ export async function POST(req: NextRequest) {
         if (error) {
           console.error("Error updating card for gift load", error);
           return new NextResponse("Supabase update error", {
-            status: 500,
-          });
+            status: 500 },
+          );
         }
 
         console.log("Gift load completed", {
