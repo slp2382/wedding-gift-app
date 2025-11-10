@@ -61,6 +61,24 @@ export async function POST(req: NextRequest) {
       if (type === "card_pack_order") {
         // Card pack shop order branch
 
+        const sessionAny = session as any;
+
+        const shippingFromShippingDetails = sessionAny
+          .shipping_details as
+          | {
+              name?: string | null;
+              address?: {
+                line1?: string | null;
+                line2?: string | null;
+                city?: string | null;
+                state?: string | null;
+                postal_code?: string | null;
+                country?: string | null;
+              } | null;
+            }
+          | null
+          | undefined;
+
         const customerDetails = session.customer_details as
           | {
               email?: string | null;
@@ -77,7 +95,16 @@ export async function POST(req: NextRequest) {
           | null
           | undefined;
 
-        const address = customerDetails?.address ?? null;
+        // Prefer shipping_details, fall back to customer_details
+        const shippingName =
+          shippingFromShippingDetails?.name ??
+          customerDetails?.name ??
+          null;
+
+        const address =
+          shippingFromShippingDetails?.address ??
+          customerDetails?.address ??
+          null;
 
         const items =
           metadata.product != null
@@ -93,7 +120,7 @@ export async function POST(req: NextRequest) {
           stripe_session_id: session.id,
           email: customerDetails?.email ?? null,
 
-          shipping_name: customerDetails?.name ?? null,
+          shipping_name: shippingName,
           shipping_address_line1: address?.line1 ?? null,
           shipping_address_line2: address?.line2 ?? null,
           shipping_city: address?.city ?? null,
@@ -152,8 +179,8 @@ export async function POST(req: NextRequest) {
         if (error) {
           console.error("Error updating card for gift load", error);
           return new NextResponse("Supabase update error", {
-            status: 500 },
-          );
+            status: 500,
+          });
         }
 
         console.log("Gift load completed", {
