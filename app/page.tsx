@@ -47,7 +47,6 @@ export default function HomePage() {
     setCreating(true);
 
     try {
-      // ✅ Send the data your /api/create-card route expects
       const createRes = await fetch("/api/create-card", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -188,12 +187,6 @@ export default function HomePage() {
 
         {/* Hero */}
         <main className="space-y-24 pb-16">
-          {/* ... rest of your JSX stays exactly as you pasted ... */}
-          {/* (Hero, How it works, CTAs, DIY section, QR column, footer) */}
-          {/* I’m not changing any of that structure. */}
-          {/* --- paste your existing JSX from your message here unchanged --- */}
-          {/* I’ll keep it here to preserve your full page: */}
-
           <section className="grid gap-10 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-center">
             <div className="space-y-5">
               <p className="inline-flex items-center rounded-full border border-indigo-200/80 bg-white/70 px-3 py-1 text-xs font-medium text-indigo-600 shadow-sm backdrop-blur dark:border-indigo-500/40 dark:bg-indigo-950/40 dark:text-indigo-300">
@@ -343,7 +336,7 @@ export default function HomePage() {
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link
-                  href="#"
+                  href="/shop"
                   className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring focus-visible:ring-indigo-500/60 dark:bg-indigo-500 dark:hover:bg-indigo-400"
                 >
                   Order GiftLink card packs
