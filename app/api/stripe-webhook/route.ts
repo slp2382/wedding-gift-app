@@ -1,126 +1,155 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { supabase } from "../../../lib/supabaseClient";
-
-export const runtime = "nodejs";
+import { createClient } from "@supabase/supabase-js";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export async function POST(request: Request) {
-  if (!stripeSecretKey || !webhookSecret) {
-    console.error("Stripe webhook not configured.");
-    return new Response("Stripe not configured", { status: 500 });
-  }
+if (!stripeSecretKey) {
+  throw new Error("STRIPE_SECRET_KEY is missing");
+}
 
-  const stripe = new Stripe(stripeSecretKey);
+if (!stripeWebhookSecret) {
+  throw new Error("STRIPE_WEBHOOK_SECRET is missing");
+}
 
-  const sig = request.headers.get("stripe-signature");
-  if (!sig) {
-    return new Response("Missing Stripe signature", { status: 400 });
-  }
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing");
+}
 
-  const body = await request.text();
+const stripe = new Stripe(stripeSecretKey, {
+  apiVersion: "2024-06-20",
+});
 
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+export async function POST(req: NextRequest) {
   let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
-  } catch (err) {
-    console.error("Webhook signature verification failed.", err);
-    return new Response(`Webhook Error: ${(err as Error).message}`, {
-      status: 400,
-    });
+
+  const signature = req.headers.get("stripe-signature");
+  const rawBody = await req.text();
+
+  if (!signature) {
+    return new NextResponse("Missing Stripe signature header", { status: 400 });
   }
 
-  console.log("🔔 Stripe webhook event received:", event.type);
+  try {
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      stripeWebhookSecret,
+    );
+  } catch (err) {
+    console.error("Stripe webhook signature verification failed", err);
+    return new NextResponse("Webhook Error", { status: 400 });
+  }
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    const metadata = session.metadata ?? {};
+    const type = metadata.type;
 
-    console.log("✅ checkout.session.completed for session", session.id);
+    try {
+      if (type === "card_pack_order") {
+        // Card pack shop order branch
 
-    const flowType = session.metadata?.type;
+        const shipping = session.shipping_details;
+        const address = shipping?.address;
 
-    // 🛒 1) Handle card pack / shop orders
-    if (flowType === "card_pack_order") {
-      console.log("🧾 Received card pack order via Stripe checkout:", {
-        sessionId: session.id,
-        email: session.customer_details?.email,
-        amount_total: session.amount_total,
-        product: session.metadata?.product,
-      });
+        const items =
+          metadata.product != null
+            ? [
+                {
+                  product: metadata.product,
+                  quantity: 1,
+                },
+              ]
+            : null;
 
-      // TODO (later):
-      // - Insert a row into an `orders` table in Supabase with:
-      //   - stripe_session_id
-      //   - email / customer details
-      //   - items / product metadata
-      //   - amount_total
-      //   - status = 'paid'
-      // For now we just log and return so it doesn't touch `cards`.
-      return NextResponse.json({ received: true });
-    }
+        const { error } = await supabaseAdmin.from("orders").insert({
+          stripe_session_id: session.id,
+          email: session.customer_details?.email ?? null,
 
-    // 🎁 2) Default: treat as a gift load (current behavior)
-    const cardId = session.metadata?.cardId;
-    const giverName = session.metadata?.giverName || null;
-    const note = session.metadata?.note || null;
+          shipping_name: shipping?.name ?? null,
+          shipping_address_line1: address?.line1 ?? null,
+          shipping_address_line2: address?.line2 ?? null,
+          shipping_city: address?.city ?? null,
+          shipping_state: address?.state ?? null,
+          shipping_postal_code: address?.postal_code ?? null,
+          shipping_country: address?.country ?? null,
 
-    // What Stripe actually charged in total (gift + fee)
-    const amountTotal = session.amount_total ?? null;
+          items,
+          amount_total: session.amount_total ?? 0,
+          status: "paid",
+        });
 
-    // Our metadata from /api/load-gift
-    const giftAmountRaw = session.metadata?.giftAmount;
-    const feeAmountRaw = session.metadata?.feeAmount;
-    const totalChargeRaw = session.metadata?.totalCharge;
+        // Handle retry case for duplicate insert
+        if (error && error.code !== "23505") {
+          console.error("Error inserting order", error);
+          return new NextResponse("Supabase insert error", {
+            status: 500,
+          });
+        }
+      } else {
+        // Gift load branch
 
-    // Decide what to store in Supabase as the card amount:
-    // Prefer the original gift amount from metadata so the couple
-    // only sees the gift, not the fee.
-    let amount: number | null = null;
+        const cardId = metadata.cardId;
+        const giverName = metadata.giverName ?? "";
+        const note = metadata.note ?? "";
 
-    if (giftAmountRaw != null) {
-      const parsed = parseFloat(giftAmountRaw);
-      if (!Number.isNaN(parsed)) {
-        amount = parsed;
+        // Metadata gift amount in cents from your /api/load-gift route
+        const giftAmountRaw = metadata.giftAmountRaw;
+        const feeAmountRaw = metadata.feeAmountRaw;
+        const totalChargeRaw = metadata.totalChargeRaw;
+
+        let giftAmountCents: number | null = null;
+
+        if (giftAmountRaw != null) {
+          giftAmountCents = Number(giftAmountRaw);
+        } else if (session.amount_total != null) {
+          giftAmountCents = session.amount_total;
+        }
+
+        if (!cardId || giftAmountCents == null) {
+          console.error("Missing cardId or gift amount for gift load");
+          return new NextResponse("Missing metadata", { status: 400 });
+        }
+
+        const giftAmount = giftAmountCents / 100;
+
+        const { error } = await supabaseAdmin
+          .from("cards")
+          .update({
+            giver_name: giverName,
+            amount: giftAmount,
+            note,
+          })
+          .eq("card_id", cardId);
+
+        if (error) {
+          console.error("Error updating card for gift load", error);
+          return new NextResponse("Supabase update error", {
+            status: 500,
+          });
+        }
+
+        console.log("Gift load completed", {
+          cardId,
+          giverName,
+          giftAmount,
+          feeAmountRaw,
+          totalChargeRaw,
+        });
       }
-    }
-
-    // Fallback to amount_total (should rarely be used, but keeps things robust)
-    if (amount == null && typeof amountTotal === "number") {
-      amount = amountTotal / 100;
-    }
-
-    console.log("Updating card from webhook (gift load):", {
-      cardId,
-      giverName,
-      note,
-      giftAmountRaw,
-      feeAmountRaw,
-      totalChargeRaw,
-      amountUsed: amount,
-    });
-
-    if (cardId && amount != null) {
-      const { error } = await supabase
-        .from("cards")
-        .update({
-          giver_name: giverName,
-          amount, // <-- gift only, fee is yours
-          note,
-        })
-        .eq("card_id", cardId);
-
-      if (error) {
-        console.error("Error updating card after payment", error);
-      }
-    } else {
-      console.warn("Skipping card update, missing cardId or amount", {
-        cardId,
-        amount,
-      });
+    } catch (err) {
+      console.error("Error handling checkout.session.completed", err);
+      return new NextResponse("Handler error", { status: 500 });
     }
   }
 
-  return NextResponse.json({ received: true });
+  // You may add handling for other Stripe events here if needed
+
+  return new NextResponse("ok", { status: 200 });
 }
