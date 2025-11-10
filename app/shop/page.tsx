@@ -1,5 +1,7 @@
 import ShopPageClient from "./ShopPageClient";
 
+export const dynamic = "force-dynamic";
+
 type SearchParams = { [key: string]: string | string[] | undefined };
 
 export default function ShopPage({
