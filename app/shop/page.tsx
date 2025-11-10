@@ -1,21 +1,16 @@
+"use client";
+
+import { Suspense } from "react";
 import ShopPageClient from "./ShopPageClient";
 
-export const dynamic = "force-dynamic";
-
-type SearchParams = { [key: string]: string | string[] | undefined };
-
-export default function ShopPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const rawStatus = searchParams.status;
-  const status =
-    typeof rawStatus === "string"
-      ? rawStatus
-      : Array.isArray(rawStatus)
-      ? rawStatus[0]
-      : null;
-
-  return <ShopPageClient status={status} />;
+export default function ShopPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-zinc-50 px-4 py-10 dark:bg-zinc-950" />
+      }
+    >
+      <ShopPageClient />
+    </Suspense>
+  );
 }

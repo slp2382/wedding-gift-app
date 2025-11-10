@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-export default function ShopPageClient({ status }: { status: string | null }) {
+export default function ShopPageClient() {
+  const searchParams = useSearchParams();
+  const status = searchParams.get("status");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
