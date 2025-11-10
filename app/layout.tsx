@@ -6,8 +6,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "GiftLink cards",
-    template: "%s  GiftLink cards",
+    default: "GiftLink Cards",
+    template: "%s  GiftLink Cards",
   },
   description:
     "Smart wedding and occasion cards with QR links that let guests send cash directly to the couple",

@@ -342,7 +342,7 @@ export default function HomePage() {
                   Order GiftLink card packs
                 </Link>
                 <Link
-                  href="#"
+                  href="/locations"
                   className="inline-flex items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 px-4 py-2.5 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring focus-visible:ring-indigo-500/40 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
                 >
                   Find retail locations
