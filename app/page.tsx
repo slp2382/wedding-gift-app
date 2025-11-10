@@ -4,6 +4,8 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import QRCode from "react-qr-code";
+import { jsPDF } from "jspdf";
+import QRCodeLib from "qrcode";
 
 type CreateCardResponse = {
   cardId?: string;
@@ -156,6 +158,53 @@ export default function HomePage() {
         "Something went wrong while starting secure checkout.",
       );
       setCheckoutLoading(false);
+    }
+  }
+
+  async function handleDownloadPdf() {
+    if (!createdCardUrl) return;
+
+    try {
+      // Generate QR image for PDF
+      const qrDataUrl = await QRCodeLib.toDataURL(createdCardUrl, {
+        margin: 1,
+        width: 256,
+      });
+
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "letter",
+      });
+
+      // Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.text("GiftLink Card QR", 72, 72);
+
+      // Subtitle
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.text(
+        "Place this QR code inside your card or on your wedding signage.",
+        72,
+        96,
+      );
+
+      // QR image
+      doc.addImage(qrDataUrl, "PNG", 72, 120, 256, 256);
+
+      // URL text
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("GiftLink URL:", 72, 400);
+      doc.setFont("courier", "normal");
+      doc.text(doc.splitTextToSize(createdCardUrl, 460), 72, 414);
+
+      doc.save("giftlink-card.pdf");
+    } catch (error) {
+      console.error("Error generating PDF", error);
+      alert("Sorry, something went wrong while generating the PDF.");
     }
   }
 
@@ -466,17 +515,28 @@ export default function HomePage() {
                           {createdCardUrl}
                         </span>
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard
-                            .writeText(createdCardUrl)
-                            .catch(() => {});
-                        }}
-                        className="inline-flex items-center justify-center rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
-                      >
-                        Copy link
-                      </button>
+
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard
+                              .writeText(createdCardUrl)
+                              .catch(() => {});
+                          }}
+                          className="inline-flex items-center justify-center rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                        >
+                          Copy link
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleDownloadPdf}
+                          className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                        >
+                          Download printable PDF
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mt-4 space-y-2 border-t border-zinc-200 pt-3 text-xs dark:border-zinc-700">
