@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 export default function LocationsPage() {
   const [zip, setZip] = useState("");
@@ -51,7 +52,7 @@ export default function LocationsPage() {
                 maxLength={10}
                 value={zip}
                 onChange={(event) => setZip(event.target.value)}
-                placeholder="Enter ZIP code  for example 28203"
+                placeholder="Enter ZIP code (for example 28203)"
                 className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-0 transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900"
               />
             </div>
@@ -108,6 +109,16 @@ export default function LocationsPage() {
             your interest and appear in the map.
           </p>
         </section>
+
+        {/* Return to Home button */}
+        <div className="pt-4">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+          >
+            ← Return to Home
+          </Link>
+        </div>
       </main>
     </div>
   );
