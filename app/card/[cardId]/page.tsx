@@ -307,42 +307,46 @@ export default function CardPage() {
               initial={{ y: 160, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
-              className="relative h-44 w-72"
+              className="relative h-48 w-72"
+              style={{ perspective: 900 }}
             >
-              {/* Card sliding up */}
+              {/* Envelope body */}
+              <div className="absolute inset-x-4 bottom-0 h-28 rounded-xl border border-emerald-700 bg-emerald-900 shadow-xl shadow-black/40" />
+
+              {/* Card sliding up (cream like favicon) */}
               <motion.div
-                initial={{ y: 40, opacity: 0 }}
-                animate={{ y: -20, opacity: 1 }}
-                transition={{ delay: 0.6, duration: 0.5, ease: "easeOut" }}
-                className="absolute inset-x-4 top-4 rounded-2xl border border-emerald-100 bg-stone-50 px-4 py-3 shadow-lg shadow-emerald-900/80"
+                initial={{ y: 36, opacity: 0 }}
+                animate={{ y: -22, opacity: 1 }}
+                transition={{ delay: 0.55, duration: 0.55, ease: "easeOut" }}
+                className="absolute inset-x-6 bottom-10 rounded-2xl border border-emerald-700/60 bg-[#f5f0e3] px-4 py-3 shadow-lg shadow-emerald-950/70"
               >
-                <p className="text-xs font-semibold text-emerald-700">
-                  Your wedding gift is ready
-                </p>
-                <p className="mt-1 text-[11px] text-emerald-800/80">
+                <div className="flex items-center justify-between">
+                  <span className="text-base font-semibold tracking-tight text-emerald-900">
+                    GL
+                  </span>
+                  <span className="h-8 w-8 rounded-sm bg-emerald-900/90" />
+                </div>
+                <p className="mt-3 text-[11px] font-medium text-emerald-800">
                   Open this card to claim the funds waiting on your GiftLink.
                 </p>
               </motion.div>
 
-              {/* Envelope back */}
-              <div className="absolute inset-x-2 bottom-0 h-32 rounded-xl border border-emerald-600 bg-emerald-800 shadow-xl shadow-black/40" />
-
-              {/* Envelope flap opening */}
+              {/* Envelope flap opening over card */}
               <motion.div
                 initial={{ rotateX: 0 }}
                 animate={{ rotateX: -135 }}
-                transition={{ delay: 0.3, duration: 0.5, ease: "easeInOut" }}
+                transition={{ delay: 0.25, duration: 0.5, ease: "easeInOut" }}
                 style={{
-                  transformOrigin: "top center",
+                  transformOrigin: "bottom center",
                   transformStyle: "preserve-3d",
                 }}
-                className="absolute inset-x-2 bottom-16 h-20 origin-top"
+                className="absolute inset-x-4 bottom-[4.6rem] h-10"
               >
-                <div className="h-full w-full rounded-t-xl border border-emerald-700 border-b-transparent bg-emerald-900" />
+                <div className="h-full w-full rounded-t-xl border border-emerald-700 bg-emerald-950" />
               </motion.div>
 
-              {/* Small logo circle on envelope */}
-              <div className="absolute left-1/2 bottom-10 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-emerald-600 bg-emerald-900 text-xs font-semibold tracking-tight text-emerald-50">
+              {/* Logo seal on envelope front */}
+              <div className="absolute left-1/2 bottom-6 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-emerald-600 bg-emerald-900 text-xs font-semibold tracking-tight text-emerald-50">
                 GL
               </div>
             </motion.div>
@@ -357,7 +361,7 @@ export default function CardPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-400 to-emerald-400 shadow-md shadow-indigo-500/30 dark:shadow-indigo-700/40">
               <span className="text-lg font-semibold text-white">G</span>
             </div>
-            <div className="leading-tight">
+          <div className="leading-tight">
               <p className="text-lg font-semibold tracking-tight">GiftLink</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Wedding gift QR cards
