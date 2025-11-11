@@ -46,12 +46,12 @@ export default function CardPage() {
   const [payoutError, setPayoutError] = useState<string | null>(null);
   const [payoutSuccess, setPayoutSuccess] = useState<string | null>(null);
 
-  // Flip animation state
+  // Flip animation state (for status changes)
   const [flipKey, setFlipKey] = useState(0);
   const prevFundedRef = useRef(false);
   const prevClaimedRef = useRef(false);
 
-  // Intro envelope animation state
+  // Intro animation state (claim card slide-up)
   const [introDone, setIntroDone] = useState(true);
   const [hasPlayedIntro, setHasPlayedIntro] = useState(false);
 
@@ -115,18 +115,18 @@ export default function CardPage() {
     prevClaimedRef.current = isClaimed;
   }, [isFunded, isClaimed]);
 
-  // Trigger envelope intro animation once for funded, unclaimed cards
+  // Trigger intro slide-up animation once for funded, unclaimed cards
   useEffect(() => {
     if (!loading && card && isFunded && !isClaimed && !hasPlayedIntro) {
       setIntroDone(false);
       setHasPlayedIntro(true);
       const t = setTimeout(() => {
         setIntroDone(true);
-      }, 2600); // total intro duration
+      }, 2200); // slightly shorter now that it's simpler
       return () => clearTimeout(t);
     }
 
-    // For all other states (not funded or claimed), content is just shown
+    // For all other states, content is shown immediately
     if (!loading && (!isFunded || isClaimed)) {
       setIntroDone(true);
     }
@@ -293,62 +293,35 @@ export default function CardPage() {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-sky-50 via-indigo-50/60 to-zinc-50 px-4 py-6 text-zinc-900 dark:from-zinc-950 dark:via-slate-950 dark:to-zinc-950 dark:text-zinc-50">
-      {/* Envelope intro animation overlay */}
+      {/* Simple claim card intro animation (funded & not claimed) */}
       <AnimatePresence>
         {!introDone && isFunded && !isClaimed && (
           <motion.div
-            className="fixed inset-0 z-30 flex items-end justify-center bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950 pb-20"
+            className="fixed inset-0 z-30 flex items-end justify-center bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950 pb-16"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.3 }}
           >
             <motion.div
-              initial={{ y: 160, opacity: 0 }}
-              animate={{ y: -40, opacity: 1 }} // end slightly above bottom so it feels "lifted"
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className="relative h-48 w-72"
-              style={{ perspective: 900 }}
+              initial={{ y: 200, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="w-80 rounded-3xl border border-emerald-700/70 bg-[#f5f0e3] px-5 py-4 shadow-2xl shadow-black/60"
             >
-              {/* Envelope body */}
-              <div className="absolute inset-x-4 bottom-0 h-28 rounded-xl border border-emerald-700 bg-emerald-900 shadow-xl shadow-black/40" />
-
-              {/* Card sliding up (cream like favicon) */}
-              <motion.div
-                initial={{ y: 32, opacity: 0 }}
-                animate={{ y: -32, opacity: 1 }}
-                transition={{ delay: 0.55, duration: 0.55, ease: "easeOut" }}
-                className="absolute inset-x-6 bottom-8 rounded-2xl border border-emerald-700/60 bg-[#f5f0e3] px-4 py-3 shadow-lg shadow-emerald-950/70"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-base font-semibold tracking-tight text-emerald-900">
-                    GL
-                  </span>
-                  <span className="h-8 w-8 rounded-sm bg-emerald-900/90" />
-                </div>
-                <p className="mt-3 text-[11px] font-medium text-emerald-800">
-                  Open this card to claim the funds waiting on your GiftLink.
-                </p>
-              </motion.div>
-
-              {/* Envelope flap opening over card */}
-              <motion.div
-                initial={{ rotateX: 0 }}
-                animate={{ rotateX: -160 }}
-                transition={{ delay: 0.25, duration: 0.5, ease: "easeInOut" }}
-                style={{
-                  transformOrigin: "bottom center",
-                  transformStyle: "preserve-3d",
-                }}
-                className="absolute inset-x-4 bottom-28 h-10"
-              >
-                <div className="h-full w-full rounded-t-xl border border-emerald-700 bg-emerald-950" />
-              </motion.div>
-
-              {/* Logo seal on envelope front */}
-              <div className="absolute left-1/2 bottom-6 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-emerald-600 bg-emerald-900 text-xs font-semibold tracking-tight text-emerald-50">
-                GL
+              <div className="flex items-center justify-between">
+                <span className="text-base font-semibold tracking-tight text-emerald-900">
+                  GL
+                </span>
+                <span className="h-8 w-8 rounded-md bg-emerald-900/90" />
               </div>
+              <p className="mt-3 text-[11px] font-medium text-emerald-900">
+                Your wedding gift is ready.
+              </p>
+              <p className="mt-1 text-[11px] text-emerald-900/80">
+                Slide up to claim the funds waiting on your GiftLink card.
+              </p>
             </motion.div>
           </motion.div>
         )}
@@ -380,7 +353,7 @@ export default function CardPage() {
           className="flex-1 space-y-6"
           initial={false}
           animate={introDone ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
         >
           {/* Hero / heading */}
           <section className="space-y-3 text-center">
@@ -553,9 +526,7 @@ export default function CardPage() {
 
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowClaimForm((v) => !v)
-                        }
+                        onClick={() => setShowClaimForm((v) => !v)}
                         className="inline-flex w-full items-center justify-center rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring focus-visible:ring-indigo-500/60 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-indigo-500 dark:hover:bg-indigo-400"
                       >
                         {showClaimForm
