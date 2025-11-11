@@ -8,7 +8,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabaseClient";
 
 type CardRecord = {
@@ -50,6 +50,10 @@ export default function CardPage() {
   const [flipKey, setFlipKey] = useState(0);
   const prevFundedRef = useRef(false);
   const prevClaimedRef = useRef(false);
+
+  // Intro envelope animation state
+  const [introDone, setIntroDone] = useState(true);
+  const [hasPlayedIntro, setHasPlayedIntro] = useState(false);
 
   // Load card details from Supabase
   useEffect(() => {
@@ -110,6 +114,23 @@ export default function CardPage() {
     prevFundedRef.current = isFunded;
     prevClaimedRef.current = isClaimed;
   }, [isFunded, isClaimed]);
+
+  // Trigger envelope intro animation once for funded, unclaimed cards
+  useEffect(() => {
+    if (!loading && card && isFunded && !isClaimed && !hasPlayedIntro) {
+      setIntroDone(false);
+      setHasPlayedIntro(true);
+      const t = setTimeout(() => {
+        setIntroDone(true);
+      }, 2600); // total intro duration
+      return () => clearTimeout(t);
+    }
+
+    // For all other states (not funded or claimed), content is just shown
+    if (!loading && (!isFunded || isClaimed)) {
+      setIntroDone(true);
+    }
+  }, [loading, card, isFunded, isClaimed, hasPlayedIntro]);
 
   // Guest load handler for blank store cards (Stripe Checkout)
   async function handleGuestLoad(e: FormEvent<HTMLFormElement>) {
@@ -271,7 +292,64 @@ export default function CardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-indigo-50/60 to-zinc-50 px-4 py-6 text-zinc-900 dark:from-zinc-950 dark:via-slate-950 dark:to-zinc-950 dark:text-zinc-50">
+    <div className="relative min-h-screen bg-gradient-to-b from-sky-50 via-indigo-50/60 to-zinc-50 px-4 py-6 text-zinc-900 dark:from-zinc-950 dark:via-slate-950 dark:to-zinc-950 dark:text-zinc-50">
+      {/* Envelope intro animation overlay */}
+      <AnimatePresence>
+        {!introDone && isFunded && !isClaimed && (
+          <motion.div
+            className="fixed inset-0 z-30 flex items-end justify-center bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950 pb-20"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <motion.div
+              initial={{ y: 160, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="relative h-44 w-72"
+            >
+              {/* Card sliding up */}
+              <motion.div
+                initial={{ y: 40, opacity: 0 }}
+                animate={{ y: -20, opacity: 1 }}
+                transition={{ delay: 0.6, duration: 0.5, ease: "easeOut" }}
+                className="absolute inset-x-4 top-4 rounded-2xl border border-emerald-100 bg-stone-50 px-4 py-3 shadow-lg shadow-emerald-900/80"
+              >
+                <p className="text-xs font-semibold text-emerald-700">
+                  Your wedding gift is ready
+                </p>
+                <p className="mt-1 text-[11px] text-emerald-800/80">
+                  Open this card to claim the funds waiting on your GiftLink.
+                </p>
+              </motion.div>
+
+              {/* Envelope back */}
+              <div className="absolute inset-x-2 bottom-0 h-32 rounded-xl border border-emerald-600 bg-emerald-800 shadow-xl shadow-black/40" />
+
+              {/* Envelope flap opening */}
+              <motion.div
+                initial={{ rotateX: 0 }}
+                animate={{ rotateX: -135 }}
+                transition={{ delay: 0.3, duration: 0.5, ease: "easeInOut" }}
+                style={{
+                  transformOrigin: "top center",
+                  transformStyle: "preserve-3d",
+                }}
+                className="absolute inset-x-2 bottom-16 h-20 origin-top"
+              >
+                <div className="h-full w-full rounded-t-xl border border-emerald-700 border-b-transparent bg-emerald-900" />
+              </motion.div>
+
+              {/* Small logo circle on envelope */}
+              <div className="absolute left-1/2 bottom-10 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-emerald-600 bg-emerald-900 text-xs font-semibold tracking-tight text-emerald-50">
+                GL
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="mx-auto flex min-h-[90vh] max-w-3xl flex-col">
         {/* Top nav / wordmark */}
         <header className="mb-8 flex items-center justify-between">
@@ -287,14 +365,19 @@ export default function CardPage() {
             </div>
           </div>
 
-          <div className="hidden text-xs font-medium text-zinc-500 md:block dark:text-zinc-400">
+          <div className="hidden text-xs font-medium text-zinc-500 dark:text-zinc-400 md:block">
             <span className="rounded-full border border-zinc-200/80 bg-white/60 px-3 py-1 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/60">
               Guest view · Card scan
             </span>
           </div>
         </header>
 
-        <main className="flex-1 space-y-6">
+        <motion.main
+          className="flex-1 space-y-6"
+          initial={false}
+          animate={introDone ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
           {/* Hero / heading */}
           <section className="space-y-3 text-center">
             <p className="text-xs font-medium uppercase tracking-wide text-indigo-500 dark:text-indigo-300">
@@ -682,7 +765,7 @@ export default function CardPage() {
               Back to create a new GiftLink card
             </Link>
           </div>
-        </main>
+        </motion.main>
       </div>
     </div>
   );
