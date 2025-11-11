@@ -308,48 +308,49 @@ export default function HomePage() {
                 How it works
               </p>
               <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
-                Three simple steps on one little card
+                Three simple steps — one QR code
               </h2>
               <p className="mx-auto max-w-2xl text-sm text-emerald-900/80 dark:text-emerald-100/80">
-                Every GiftLink card carries a unique QR code. Guests and couples
-                both use that same code. One to load gifts, the other to claim
-                them.
+                Every GiftLink card carries a single QR code. Givers use it to
+                load cash gifts, and recipients use the same code to claim them
+                instantly.
               </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-emerald-100/80 bg-stone-50/90 p-4 text-sm shadow-sm dark:border-emerald-800/70 dark:bg-emerald-950/80">
                 <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600/80 dark:text-emerald-300/80">
-                  1 · At the shop or online
+                  1 · Gift
                 </p>
-                <h3 className="text-sm font-semibold">Buy GiftLink cards</h3>
+                <h3 className="text-sm font-semibold">Buy a GiftLink card</h3>
                 <p className="mt-2 text-xs text-emerald-900/80 dark:text-emerald-100/80">
-                  Couples or guests pick up physical GiftLink cards from a
-                  partner shop or order packs online. Each card already has its
-                  own unique QR link.
+                  Pick up a GiftLink card from a partner shop or order a pack
+                  online. Each one comes with its own unique QR code, ready to
+                  personalize.
                 </p>
               </div>
               <div className="rounded-2xl border border-emerald-100/80 bg-stone-50/90 p-4 text-sm shadow-sm dark:border-emerald-800/70 dark:bg-emerald-950/80">
                 <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600/80 dark:text-emerald-300/80">
-                  2 · Guest scans to load
+                  2 · Link
                 </p>
-                <h3 className="text-sm font-semibold">Guests send their gift</h3>
+                <h3 className="text-sm font-semibold">
+                  Scan the QR to load your gift
+                </h3>
                 <p className="mt-2 text-xs text-emerald-900/80 dark:text-emerald-100/80">
-                  Guests scan the card&apos;s QR, enter their name, amount and
-                  note, and pay through Stripe. The couple&apos;s card instantly
-                  reflects that gift as ready to claim.
+                  Givers scan the card&apos;s QR code, enter their name, note,
+                  and amount, and complete payment securely through Stripe.
                 </p>
               </div>
               <div className="rounded-2xl border border-emerald-100/80 bg-stone-50/90 p-4 text-sm shadow-sm dark:border-emerald-800/70 dark:bg-emerald-950/80">
                 <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600/80 dark:text-emerald-300/80">
-                  3 · Couple scans to claim
+                  3 · Give
                 </p>
-                <h3 className="text-sm font-semibold">Couple claims funds</h3>
+                <h3 className="text-sm font-semibold">
+                  The recipient scans to claim
+                </h3>
                 <p className="mt-2 text-xs text-emerald-900/80 dark:text-emerald-100/80">
-                  The couple scans their stack of cards to see who sent what,
-                  then submits their payout details to receive the total later
-                  via Venmo or bank transfer in a future version, fully
-                  automated.
+                  The recipient scans that same QR code to instantly claim and
+                  deposit their gift through our secure payment system.
                 </p>
               </div>
             </div>
