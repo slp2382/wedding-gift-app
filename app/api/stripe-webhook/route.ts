@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
         const giverName = metadata.giverName ?? metadata.giver_name ?? "";
         const note = metadata.note ?? "";
 
-        // Metadata values from /api/load-gift (all expected in cents)
+        // Metadata values from /api/load-gift (these are in DOLLARS)
         const giftAmountRaw =
           metadata.giftAmountRaw ??
           metadata.giftAmount ??
@@ -207,18 +207,18 @@ export async function POST(req: NextRequest) {
           metadata.total_charge ??
           null;
 
-        let giftAmountCents: number | null = null;
+        let giftAmount: number | null = null;
 
-        // 1) Prefer explicit gift amount from metadata (gift-only, in cents)
+        // 1) Prefer explicit gift amount from metadata (gift-only, in dollars)
         if (giftAmountRaw != null) {
           const parsed = Number(giftAmountRaw);
           if (!Number.isNaN(parsed) && parsed > 0) {
-            giftAmountCents = parsed;
+            giftAmount = parsed;
           }
         }
 
-        // 2) Else compute gift = total - fee (still in cents)
-        if (giftAmountCents == null && totalChargeRaw != null && feeAmountRaw != null) {
+        // 2) Else compute gift = total - fee (still in dollars)
+        if (giftAmount == null && totalChargeRaw != null && feeAmountRaw != null) {
           const totalParsed = Number(totalChargeRaw);
           const feeParsed = Number(feeAmountRaw);
 
@@ -227,17 +227,16 @@ export async function POST(req: NextRequest) {
             !Number.isNaN(feeParsed) &&
             totalParsed > feeParsed
           ) {
-            giftAmountCents = totalParsed - feeParsed;
+            giftAmount = totalParsed - feeParsed;
           }
         }
 
-        // 3) Else fall back to Stripe's amount_total (gift + fee)
-        //    This is a last resort; ideally metadata is always present.
-        if (giftAmountCents == null && session.amount_total != null) {
-          giftAmountCents = session.amount_total;
+        // 3) Else fall back to Stripe's amount_total (in cents → convert to dollars)
+        if (giftAmount == null && session.amount_total != null) {
+          giftAmount = session.amount_total / 100;
         }
 
-        if (!cardId || giftAmountCents == null) {
+        if (!cardId || giftAmount == null) {
           console.error(
             "Missing cardId or gift amount for gift load",
             { cardId, giftAmountRaw, totalChargeRaw, feeAmountRaw },
@@ -245,13 +244,11 @@ export async function POST(req: NextRequest) {
           return new NextResponse("Missing metadata", { status: 400 });
         }
 
-        const giftAmount = giftAmountCents / 100;
-
         const { error } = await supabaseAdmin
           .from("cards")
           .update({
             giver_name: giverName,
-            amount: giftAmount,
+            amount: giftAmount, // <- already in dollars
             note,
           })
           .eq("card_id", cardId);
@@ -267,9 +264,10 @@ export async function POST(req: NextRequest) {
           cardId,
           giverName,
           giftAmount,
-          giftAmountCents,
+          giftAmountRaw,
           feeAmountRaw,
           totalChargeRaw,
+          amountTotalFromStripe: session.amount_total,
         });
       }
     } catch (err) {
