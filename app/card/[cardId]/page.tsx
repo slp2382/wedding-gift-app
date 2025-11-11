@@ -305,7 +305,7 @@ export default function CardPage() {
           >
             <motion.div
               initial={{ y: 160, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
+              animate={{ y: -40, opacity: 1 }} // end slightly above bottom so it feels "lifted"
               transition={{ duration: 0.6, ease: "easeOut" }}
               className="relative h-48 w-72"
               style={{ perspective: 900 }}
@@ -315,10 +315,10 @@ export default function CardPage() {
 
               {/* Card sliding up (cream like favicon) */}
               <motion.div
-                initial={{ y: 36, opacity: 0 }}
-                animate={{ y: -22, opacity: 1 }}
+                initial={{ y: 32, opacity: 0 }}
+                animate={{ y: -32, opacity: 1 }}
                 transition={{ delay: 0.55, duration: 0.55, ease: "easeOut" }}
-                className="absolute inset-x-6 bottom-10 rounded-2xl border border-emerald-700/60 bg-[#f5f0e3] px-4 py-3 shadow-lg shadow-emerald-950/70"
+                className="absolute inset-x-6 bottom-8 rounded-2xl border border-emerald-700/60 bg-[#f5f0e3] px-4 py-3 shadow-lg shadow-emerald-950/70"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-base font-semibold tracking-tight text-emerald-900">
@@ -334,13 +334,13 @@ export default function CardPage() {
               {/* Envelope flap opening over card */}
               <motion.div
                 initial={{ rotateX: 0 }}
-                animate={{ rotateX: -135 }}
+                animate={{ rotateX: -160 }}
                 transition={{ delay: 0.25, duration: 0.5, ease: "easeInOut" }}
                 style={{
                   transformOrigin: "bottom center",
                   transformStyle: "preserve-3d",
                 }}
-                className="absolute inset-x-4 bottom-[4.6rem] h-10"
+                className="absolute inset-x-4 bottom-28 h-10"
               >
                 <div className="h-full w-full rounded-t-xl border border-emerald-700 bg-emerald-950" />
               </motion.div>
@@ -361,7 +361,7 @@ export default function CardPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-400 to-emerald-400 shadow-md shadow-indigo-500/30 dark:shadow-indigo-700/40">
               <span className="text-lg font-semibold text-white">G</span>
             </div>
-          <div className="leading-tight">
+            <div className="leading-tight">
               <p className="text-lg font-semibold tracking-tight">GiftLink</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Wedding gift QR cards
