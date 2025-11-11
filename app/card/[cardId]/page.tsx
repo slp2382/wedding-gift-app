@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabaseClient";
 
 type CardRecord = {
@@ -45,15 +39,6 @@ export default function CardPage() {
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutError, setPayoutError] = useState<string | null>(null);
   const [payoutSuccess, setPayoutSuccess] = useState<string | null>(null);
-
-  // Flip animation state (for status changes)
-  const [flipKey, setFlipKey] = useState(0);
-  const prevFundedRef = useRef(false);
-  const prevClaimedRef = useRef(false);
-
-  // Intro animation state (claim card slide-up)
-  const [introDone, setIntroDone] = useState(true);
-  const [hasPlayedIntro, setHasPlayedIntro] = useState(false);
 
   // Load card details from Supabase
   useEffect(() => {
@@ -101,36 +86,6 @@ export default function CardPage() {
   const detailPlaceholder = "@your-venmo-handle";
   const detailHelpText =
     "We’ll use this Venmo handle to send your gift. Make sure it matches your Venmo profile exactly.";
-
-  // Trigger flip when card transitions to funded or claimed
-  useEffect(() => {
-    const prevFunded = prevFundedRef.current;
-    const prevClaimed = prevClaimedRef.current;
-
-    if ((!prevFunded && isFunded) || (!prevClaimed && isClaimed)) {
-      setFlipKey((k) => k + 1);
-    }
-
-    prevFundedRef.current = isFunded;
-    prevClaimedRef.current = isClaimed;
-  }, [isFunded, isClaimed]);
-
-  // Trigger intro slide-up animation once for funded, unclaimed cards
-  useEffect(() => {
-    if (!loading && card && isFunded && !isClaimed && !hasPlayedIntro) {
-      setIntroDone(false);
-      setHasPlayedIntro(true);
-      const t = setTimeout(() => {
-        setIntroDone(true);
-      }, 2200); // slightly shorter now that it's simpler
-      return () => clearTimeout(t);
-    }
-
-    // For all other states, content is shown immediately
-    if (!loading && (!isFunded || isClaimed)) {
-      setIntroDone(true);
-    }
-  }, [loading, card, isFunded, isClaimed, hasPlayedIntro]);
 
   // Guest load handler for blank store cards (Stripe Checkout)
   async function handleGuestLoad(e: FormEvent<HTMLFormElement>) {
@@ -240,7 +195,7 @@ export default function CardPage() {
           cardId,
           contactName: name,
           contactEmail: email,
-          payoutMethod, // will be "venmo"
+          payoutMethod, // "venmo"
           payoutDetails: details,
         }),
       });
@@ -292,98 +247,59 @@ export default function CardPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-sky-50 via-indigo-50/60 to-zinc-50 px-4 py-6 text-zinc-900 dark:from-zinc-950 dark:via-slate-950 dark:to-zinc-950 dark:text-zinc-50">
-      {/* Simple claim card intro animation (funded & not claimed) */}
-      <AnimatePresence>
-        {!introDone && isFunded && !isClaimed && (
-          <motion.div
-            className="fixed inset-0 z-30 flex items-end justify-center bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950 pb-16"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <motion.div
-              initial={{ y: 200, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 40, opacity: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              className="w-80 rounded-3xl border border-emerald-700/70 bg-[#f5f0e3] px-5 py-4 shadow-2xl shadow-black/60"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-base font-semibold tracking-tight text-emerald-900">
-                  GL
-                </span>
-                <span className="h-8 w-8 rounded-md bg-emerald-900/90" />
-              </div>
-              <p className="mt-3 text-[11px] font-medium text-emerald-900">
-                Your wedding gift is ready.
-              </p>
-              <p className="mt-1 text-[11px] text-emerald-900/80">
-                Slide up to claim the funds waiting on your GiftLink card.
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-emerald-50 to-emerald-100 px-4 py-6 text-emerald-950">
       <div className="mx-auto flex min-h-[90vh] max-w-3xl flex-col">
         {/* Top nav / wordmark */}
         <header className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-400 to-emerald-400 shadow-md shadow-indigo-500/30 dark:shadow-indigo-700/40">
-              <span className="text-lg font-semibold text-white">G</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-500 shadow-md shadow-emerald-400/40">
+              <span className="text-lg font-semibold text-emerald-50">G</span>
             </div>
             <div className="leading-tight">
               <p className="text-lg font-semibold tracking-tight">GiftLink</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-emerald-700/80">
                 Wedding gift QR cards
               </p>
             </div>
           </div>
 
-          <div className="hidden text-xs font-medium text-zinc-500 dark:text-zinc-400 md:block">
-            <span className="rounded-full border border-zinc-200/80 bg-white/60 px-3 py-1 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div className="hidden text-xs font-medium text-emerald-800/80 md:block">
+            <span className="rounded-full border border-emerald-200/80 bg-emerald-50/80 px-3 py-1 shadow-sm backdrop-blur">
               Guest view · Card scan
             </span>
           </div>
         </header>
 
-        <motion.main
-          className="flex-1 space-y-6"
-          initial={false}
-          animate={introDone ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-        >
+        <main className="flex-1 space-y-6">
           {/* Hero / heading */}
           <section className="space-y-3 text-center">
-            <p className="text-xs font-medium uppercase tracking-wide text-indigo-500 dark:text-indigo-300">
+            <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
               Wedding Gift Card
             </p>
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
               A gift for the happy couple
             </h1>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-emerald-800/80">
               Card ID{" "}
-              <span className="font-mono text-[11px] text-zinc-600 dark:text-zinc-300">
+              <span className="font-mono text-[11px] text-emerald-900">
                 {cardId || "(missing)"}
               </span>
             </p>
 
             {/* Decorative line */}
             <div className="mt-3 flex items-center justify-center gap-3">
-              <div className="h-px w-16 bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400" />
-              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
+              <div className="h-px w-16 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600" />
+              <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-700/90">
                 Couple view
               </p>
-              <div className="h-px w-16 bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-400" />
+              <div className="h-px w-16 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />
             </div>
           </section>
 
           {/* Loading state */}
           {loading && (
-            <section className="mt-4 rounded-2xl border border-zinc-200/80 bg-white/80 p-6 text-center shadow-lg shadow-indigo-100/60 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/80 dark:shadow-none">
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            <section className="mt-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-6 text-center shadow-lg shadow-emerald-100/80 backdrop-blur-sm">
+              <p className="text-sm text-emerald-900/90">
                 Loading card details…
               </p>
             </section>
@@ -391,11 +307,11 @@ export default function CardPage() {
 
           {/* Error / not found */}
           {!loading && errorMessage && !card && (
-            <section className="mt-4 rounded-2xl border border-rose-200/80 bg-rose-50/80 p-6 text-center shadow-md shadow-rose-100/60 backdrop-blur-sm dark:border-rose-900 dark:bg-rose-950/40 dark:shadow-none">
-              <p className="text-sm font-medium text-rose-700 dark:text-rose-200">
+            <section className="mt-4 rounded-2xl border border-rose-200/80 bg-rose-50/80 p-6 text-center shadow-md shadow-rose-100/60 backdrop-blur-sm">
+              <p className="text-sm font-medium text-rose-700">
                 {errorMessage}
               </p>
-              <p className="mt-2 text-xs text-rose-700/80 dark:text-rose-300/80">
+              <p className="mt-2 text-xs text-rose-700/80">
                 Try scanning a different QR or creating a fresh card from the
                 homepage.
               </p>
@@ -404,17 +320,13 @@ export default function CardPage() {
 
           {/* Card content */}
           {!loading && card && (
-            <motion.section
-              key={flipKey}
-              initial={{ rotateY: 180, opacity: 0 }}
-              animate={{ rotateY: 0, opacity: 1 }}
-              transition={{ duration: 0.6, ease: "easeInOut" }}
-              className={`mt-4 transform-gpu rounded-2xl border p-6 shadow-lg backdrop-blur-sm ${
+            <section
+              className={`mt-4 rounded-2xl border p-6 shadow-lg backdrop-blur-sm ${
                 isClaimed
-                  ? "border-emerald-400/80 bg-emerald-50/80 shadow-emerald-100/70 dark:border-emerald-500 dark:bg-emerald-950/40 dark:shadow-none"
+                  ? "border-emerald-300/80 bg-emerald-50/90 shadow-emerald-100/80"
                   : isFunded
-                  ? "border-indigo-300/80 bg-white/80 shadow-indigo-100/70 dark:border-indigo-400/70 dark:bg-zinc-900/80 dark:shadow-none"
-                  : "border-amber-200/80 bg-amber-50/80 shadow-amber-100/60 dark:border-amber-500/70 dark:bg-amber-950/40 dark:shadow-none"
+                  ? "border-emerald-300/80 bg-emerald-50/90 shadow-emerald-100/80"
+                  : "border-amber-200/80 bg-amber-50/90 shadow-amber-100/80"
               }`}
             >
               <div className="space-y-4">
@@ -424,21 +336,21 @@ export default function CardPage() {
                     {isClaimed ? (
                       <>
                         <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
-                        <span className="font-medium text-emerald-800 dark:text-emerald-200">
+                        <span className="font-medium text-emerald-900">
                           Gift claimed
                         </span>
                       </>
                     ) : isFunded ? (
                       <>
-                        <span className="inline-flex h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_0_4px_rgba(79,70,229,0.25)]" />
-                        <span className="font-medium text-indigo-800 dark:text-indigo-200">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
+                        <span className="font-medium text-emerald-900">
                           Gift ready to claim
                         </span>
                       </>
                     ) : (
                       <>
                         <span className="inline-flex h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.3)]" />
-                        <span className="font-medium text-amber-900 dark:text-amber-100">
+                        <span className="font-medium text-amber-900">
                           {isBlankStoreCard
                             ? "Store card ready for a gift"
                             : "Not funded yet"}
@@ -448,7 +360,7 @@ export default function CardPage() {
                   </div>
 
                   {!isFunded && !isClaimed && (
-                    <p className="text-[11px] text-amber-800/80 dark:text-amber-100/80">
+                    <p className="text-[11px] text-amber-900/80">
                       {isBlankStoreCard
                         ? "This card has been printed and activated, but no gift has been loaded yet."
                         : "Once a guest loads this card, it will appear here."}
@@ -456,13 +368,13 @@ export default function CardPage() {
                   )}
 
                   {isFunded && !isClaimed && (
-                    <p className="text-[11px] text-zinc-600 dark:text-zinc-300">
+                    <p className="text-[11px] text-emerald-900/80">
                       This gift has been funded and is waiting to be claimed.
                     </p>
                   )}
 
                   {isClaimed && (
-                    <p className="text-[11px] text-emerald-700/80 dark:text-emerald-200/80">
+                    <p className="text-[11px] text-emerald-900/80">
                       Status saved — this card is fully received.
                     </p>
                   )}
@@ -471,9 +383,7 @@ export default function CardPage() {
                 {/* Giver and amount */}
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      From
-                    </p>
+                    <p className="text-sm text-emerald-800/80">From</p>
                     <p className="text-lg font-semibold">
                       {card.giver_name ||
                         (isFunded
@@ -482,9 +392,7 @@ export default function CardPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      Amount
-                    </p>
+                    <p className="text-sm text-emerald-800/80">Amount</p>
                     <p className="text-2xl font-bold tracking-tight">
                       {card.amount != null && Number(card.amount) > 0
                         ? Number(card.amount).toLocaleString("en-US", {
@@ -498,36 +406,38 @@ export default function CardPage() {
 
                 {/* Note */}
                 {card.note && (
-                  <div className="mt-2 rounded-xl bg-sky-50/80 p-3 text-sm text-zinc-700 shadow-sm shadow-sky-100/60 dark:bg-zinc-900/70 dark:text-zinc-100 dark:shadow-none">
+                  <div className="mt-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 shadow-sm shadow-emerald-100/80">
                     “{card.note}”
                   </div>
                 )}
 
                 {/* Status + actions */}
-                <div className="space-y-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                <div className="space-y-3 border-t border-emerald-100 pt-4">
                   {isClaimed ? (
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <div className="flex items-center gap-2">
                         <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
-                        <span className="font-medium text-emerald-700 dark:text-emerald-300">
+                        <span className="font-medium text-emerald-900">
                           Gift claimed
                         </span>
                       </div>
-                      <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80">
+                      <p className="text-xs text-emerald-900/80">
                         Saved to this card — you&apos;re all set.
                       </p>
                     </div>
                   ) : isFunded ? (
                     <>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                      <p className="text-sm text-emerald-900/90">
                         When you claim this gift, we&apos;ll use your Venmo
                         details to send the funds to you outside the app.
                       </p>
 
                       <button
                         type="button"
-                        onClick={() => setShowClaimForm((v) => !v)}
-                        className="inline-flex w-full items-center justify-center rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring focus-visible:ring-indigo-500/60 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+                        onClick={() =>
+                          setShowClaimForm((v) => !v)
+                        }
+                        className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         {showClaimForm
                           ? "Hide claim form"
@@ -535,17 +445,17 @@ export default function CardPage() {
                       </button>
 
                       {payoutSuccess && (
-                        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                        <p className="mt-2 text-xs text-emerald-900/90">
                           {payoutSuccess}
                         </p>
                       )}
 
                       {showClaimForm && (
-                        <div className="mt-3 rounded-xl bg-zinc-50/80 p-3 text-xs text-zinc-700 shadow-sm dark:bg-zinc-900/80 dark:text-zinc-100">
+                        <div className="mt-3 rounded-xl bg-emerald-50/80 p-3 text-xs text-emerald-900 shadow-sm">
                           <p className="mb-2 text-sm font-medium">
                             Where should we send this gift?
                           </p>
-                          <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                          <p className="mb-3 text-xs text-emerald-800/90">
                             For now, we send payouts via Venmo. Enter your name,
                             email, and Venmo handle and we&apos;ll review and
                             send your gift there shortly.
@@ -557,7 +467,7 @@ export default function CardPage() {
                           >
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                <label className="mb-1 block text-xs font-medium text-emerald-900/90">
                                   Your name
                                 </label>
                                 <input
@@ -566,12 +476,12 @@ export default function CardPage() {
                                   onChange={(e) =>
                                     setPayoutName(e.target.value)
                                   }
-                                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                                  className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                   placeholder="Name for payout"
                                 />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                <label className="mb-1 block text-xs font-medium text-emerald-900/90">
                                   Email for payout confirmation
                                 </label>
                                 <input
@@ -580,14 +490,14 @@ export default function CardPage() {
                                   onChange={(e) =>
                                     setPayoutEmail(e.target.value)
                                   }
-                                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                                  className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                   placeholder="you@example.com"
                                 />
                               </div>
                             </div>
 
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                              <label className="mb-1 block text-xs font-medium text-emerald-900/90">
                                 {detailLabel}
                               </label>
                               <input
@@ -596,16 +506,16 @@ export default function CardPage() {
                                 onChange={(e) =>
                                   setPayoutDetails(e.target.value)
                                 }
-                                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                                className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                 placeholder={detailPlaceholder}
                               />
-                              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                              <p className="mt-1 text-[11px] text-emerald-800/90">
                                 {detailHelpText}
                               </p>
                             </div>
 
                             {payoutError && (
-                              <p className="text-xs text-rose-600 dark:text-rose-400">
+                              <p className="text-xs text-rose-600">
                                 {payoutError}
                               </p>
                             )}
@@ -613,7 +523,7 @@ export default function CardPage() {
                             <button
                               type="submit"
                               disabled={payoutLoading}
-                              className="inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                              className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                             >
                               {payoutLoading
                                 ? "Sending claim…"
@@ -627,7 +537,7 @@ export default function CardPage() {
                     <>
                       {isBlankStoreCard ? (
                         <>
-                          <p className="text-sm text-amber-900 dark:text-amber-100">
+                          <p className="text-sm text-amber-900">
                             This GiftLink card is ready for a guest to load.
                             When someone uses this QR link to send a gift,
                             the amount and their name will appear here for
@@ -640,7 +550,7 @@ export default function CardPage() {
                           >
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                <label className="mb-1 block text-xs font-medium text-emerald-900/90">
                                   Your name
                                 </label>
                                 <input
@@ -649,16 +559,16 @@ export default function CardPage() {
                                   onChange={(e) =>
                                     setGuestName(e.target.value)
                                   }
-                                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                                  className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                   placeholder="Jane Guest"
                                 />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                <label className="mb-1 block text-xs font-medium text-emerald-900/90">
                                   Amount
                                 </label>
                                 <div className="relative">
-                                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">
+                                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-emerald-700/70">
                                     $
                                   </span>
                                   <input
@@ -669,7 +579,7 @@ export default function CardPage() {
                                     onChange={(e) =>
                                       setGuestAmount(e.target.value)
                                     }
-                                    className="w-full rounded-xl border border-zinc-200 bg-white pl-6 pr-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                                    className="w-full rounded-xl border border-emerald-200 bg-emerald-50 pl-6 pr-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                     placeholder="100"
                                   />
                                 </div>
@@ -677,7 +587,7 @@ export default function CardPage() {
                             </div>
 
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                              <label className="mb-1 block text-xs font-medium text-emerald-900/90">
                                 Optional note
                               </label>
                               <textarea
@@ -686,7 +596,7 @@ export default function CardPage() {
                                 onChange={(e) =>
                                   setGuestNote(e.target.value)
                                 }
-                                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                                className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                 placeholder="Add a short message for the couple"
                               />
                             </div>
@@ -694,7 +604,7 @@ export default function CardPage() {
                             <button
                               type="submit"
                               disabled={loadingCheckout}
-                              className="inline-flex w-full items-center justify-center rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring focus-visible:ring-indigo-500/60 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+                              className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                             >
                               {loadingCheckout
                                 ? "Opening secure checkout…"
@@ -702,7 +612,7 @@ export default function CardPage() {
                             </button>
 
                             {guestError && (
-                              <p className="text-sm text-rose-600 dark:text-rose-400">
+                              <p className="text-sm text-rose-600">
                                 {guestError}
                               </p>
                             )}
@@ -710,7 +620,7 @@ export default function CardPage() {
                         </>
                       ) : (
                         <>
-                          <p className="text-sm text-amber-900 dark:text-amber-100">
+                          <p className="text-sm text-amber-900">
                             This GiftLink hasn&apos;t been loaded yet. Once a
                             guest uses the QR code to send a wedding gift, the
                             amount and their name will show up here and
@@ -718,7 +628,7 @@ export default function CardPage() {
                           </p>
                           <button
                             disabled
-                            className="inline-flex w-full items-center justify-center rounded-full bg-amber-300/70 px-4 py-2.5 text-sm font-medium text-amber-900 shadow-sm disabled:cursor-not-allowed dark:bg-amber-800/60 dark:text-amber-100"
+                            className="inline-flex w-full items-center justify-center rounded-full bg-amber-300/80 px-4 py-2.5 text-sm font-medium text-amber-900 shadow-sm disabled:cursor-not-allowed"
                           >
                             Waiting for gift to be loaded
                           </button>
@@ -728,19 +638,19 @@ export default function CardPage() {
                   )}
                 </div>
               </div>
-            </motion.section>
+            </section>
           )}
 
           {/* Back link */}
           <div className="mt-6 flex justify-center">
             <Link
               href="/"
-              className="text-sm font-medium text-indigo-600 underline-offset-4 hover:text-indigo-500 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200"
+              className="text-sm font-medium text-emerald-800 underline-offset-4 hover:text-emerald-700 hover:underline"
             >
               Back to create a new GiftLink card
             </Link>
           </div>
-        </motion.main>
+        </main>
       </div>
     </div>
   );
