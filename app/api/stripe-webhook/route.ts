@@ -54,13 +54,17 @@ export async function POST(req: NextRequest) {
     }
 
     const session = event.data.object as Stripe.Checkout.Session;
-    const metadata = session.metadata ?? {};
+    const metadata = (session.metadata ?? {}) as Record<
+      string,
+      string | undefined
+    >;
     const type = metadata.type;
 
     try {
       if (type === "card_pack_order") {
+        // -------------------------------
         // Card pack shop order branch
-
+        // -------------------------------
         const customerDetails = session.customer_details as
           | {
               email?: string | null;
@@ -179,27 +183,65 @@ export async function POST(req: NextRequest) {
           });
         }
       } else {
+        // -------------------------------
         // Gift load branch
-
-        const cardId = metadata.cardId;
-        const giverName = metadata.giverName ?? "";
+        // -------------------------------
+        const cardId = metadata.cardId ?? metadata.card_id;
+        const giverName = metadata.giverName ?? metadata.giver_name ?? "";
         const note = metadata.note ?? "";
 
-        // Metadata gift amount in cents from your /api/load-gift route
-        const giftAmountRaw = metadata.giftAmountRaw;
-        const feeAmountRaw = metadata.feeAmountRaw;
-        const totalChargeRaw = metadata.totalChargeRaw;
+        // Metadata values from /api/load-gift (all expected in cents)
+        const giftAmountRaw =
+          metadata.giftAmountRaw ??
+          metadata.giftAmount ??
+          metadata.gift_amount ??
+          null;
+        const feeAmountRaw =
+          metadata.feeAmountRaw ??
+          metadata.feeAmount ??
+          metadata.fee_amount ??
+          null;
+        const totalChargeRaw =
+          metadata.totalChargeRaw ??
+          metadata.totalCharge ??
+          metadata.total_charge ??
+          null;
 
         let giftAmountCents: number | null = null;
 
+        // 1) Prefer explicit gift amount from metadata (gift-only, in cents)
         if (giftAmountRaw != null) {
-          giftAmountCents = Number(giftAmountRaw);
-        } else if (session.amount_total != null) {
+          const parsed = Number(giftAmountRaw);
+          if (!Number.isNaN(parsed) && parsed > 0) {
+            giftAmountCents = parsed;
+          }
+        }
+
+        // 2) Else compute gift = total - fee (still in cents)
+        if (giftAmountCents == null && totalChargeRaw != null && feeAmountRaw != null) {
+          const totalParsed = Number(totalChargeRaw);
+          const feeParsed = Number(feeAmountRaw);
+
+          if (
+            !Number.isNaN(totalParsed) &&
+            !Number.isNaN(feeParsed) &&
+            totalParsed > feeParsed
+          ) {
+            giftAmountCents = totalParsed - feeParsed;
+          }
+        }
+
+        // 3) Else fall back to Stripe's amount_total (gift + fee)
+        //    This is a last resort; ideally metadata is always present.
+        if (giftAmountCents == null && session.amount_total != null) {
           giftAmountCents = session.amount_total;
         }
 
         if (!cardId || giftAmountCents == null) {
-          console.error("Missing cardId or gift amount for gift load");
+          console.error(
+            "Missing cardId or gift amount for gift load",
+            { cardId, giftAmountRaw, totalChargeRaw, feeAmountRaw },
+          );
           return new NextResponse("Missing metadata", { status: 400 });
         }
 
@@ -225,6 +267,7 @@ export async function POST(req: NextRequest) {
           cardId,
           giverName,
           giftAmount,
+          giftAmountCents,
           feeAmountRaw,
           totalChargeRaw,
         });
