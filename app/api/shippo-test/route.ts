@@ -35,21 +35,21 @@ export async function GET() {
       throw new Error("Could not resolve address IDs from Shippo response");
     }
 
-    // Build a letter-sized parcel (use strings for numeric values, with camelCase units)
-    const parcelInput = {
+    // Relax typing here to avoid strict ParcelCreateRequest / enum issues
+    const parcelInput: any = {
       length: "7",
       width: "5",
       height: "0.25",
       distanceUnit: "in", // "cm" | "in" | "ft" | "m" | "mm" | "yd"
       weight: "2",
-      massUnit: "oz",     // "g" | "kg" | "lb" | "oz"
+      massUnit: "oz", // "g" | "kg" | "lb" | "oz"
     };
 
     // Create the shipment (camelCase keys)
     const shipment = await shippo.shipments.create({
-      addressFrom: fromId,     // can be an ID or an address object
-      addressTo: toId,         // can be an ID or an address object
-      parcels: [parcelInput],  // can be inline objects or parcel IDs
+      addressFrom: fromId, // can be an ID or an address object
+      addressTo: toId, // can be an ID or an address object
+      parcels: [parcelInput], // can be inline objects or parcel IDs
     });
 
     const shipmentId =
@@ -59,7 +59,7 @@ export async function GET() {
       throw new Error("Could not resolve shipment ID from Shippo response");
     }
 
-    // List rates for the shipment (this method name works on current SDKs)
+    // List rates for the shipment
     const rates = await shippo.rates.listShipmentRates(shipmentId);
 
     const top = (rates.results ?? [])
@@ -87,7 +87,7 @@ export async function GET() {
     console.error("Shippo test error:", err);
     return NextResponse.json(
       { ok: false, error: err?.message ?? "Shippo error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
