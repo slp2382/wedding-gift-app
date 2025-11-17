@@ -6,14 +6,20 @@ if (!key) {
   throw new Error("Missing SHIPPO_API_KEY in environment");
 }
 
-// single shared client for server code
+// Single shared Shippo client for server code
 export const shippo = new Shippo({
   apiKeyHeader: key,
   // shippoApiVersion: "2024-01-01", // optional pin
 });
 
-// simple ping helper if you ever need it
+// Ping helper with relaxed typing so TS does not complain about "count"
 export async function pingShippo() {
-  const list = await shippo.addresses.list(1, 1);
-  return { ok: true, total: list.count ?? 0 };
+  const list: any = await shippo.addresses.list(1, 1);
+
+  // Some SDK responses include "count", others only return "results"
+  const total =
+    (list as any).count ??
+    (Array.isArray(list?.results) ? list.results.length : 0);
+
+  return { ok: true, total };
 }
