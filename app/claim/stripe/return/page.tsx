@@ -2,15 +2,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 type Status = "loading" | "success" | "error";
 
 export default function StripeReturnPage() {
-  const searchParams = useSearchParams();
-  const payoutRequestId = searchParams.get("payout_request_id");
-
   const [status, setStatus] = useState<Status>("loading");
   const [message, setMessage] = useState<string>("");
   const [amount, setAmount] = useState<number | null>(null);
@@ -18,15 +14,20 @@ export default function StripeReturnPage() {
 
   useEffect(() => {
     async function runClaim() {
-      if (!payoutRequestId) {
-        setStatus("error");
-        setMessage(
-          "Missing payout request id. Please contact GiftLink support.",
-        );
-        return;
-      }
-
       try {
+        // Read payout_request_id from the URL query string on the client
+        const search = window.location.search;
+        const params = new URLSearchParams(search);
+        const payoutRequestId = params.get("payout_request_id");
+
+        if (!payoutRequestId) {
+          setStatus("error");
+          setMessage(
+            "Missing payout request id. Please contact GiftLink support."
+          );
+          return;
+        }
+
         const res = await fetch("/api/stripe/connect/claim", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -39,7 +40,7 @@ export default function StripeReturnPage() {
           setStatus("error");
           setMessage(
             data?.error ??
-              "We could not complete your payout. Please contact GiftLink support.",
+              "We could not complete your payout. Please contact GiftLink support."
           );
           return;
         }
@@ -55,13 +56,13 @@ export default function StripeReturnPage() {
         console.error("StripeReturnPage claim error", err);
         setStatus("error");
         setMessage(
-          "Something went wrong while finalizing your payout. Please try again.",
+          "Something went wrong while finalizing your payout. Please try again."
         );
       }
     }
 
     runClaim();
-  }, [payoutRequestId]);
+  }, []);
 
   const formattedAmount =
     amount != null
