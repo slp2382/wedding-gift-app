@@ -33,8 +33,10 @@ export default function CardPage() {
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [payoutName, setPayoutName] = useState("");
   const [payoutEmail, setPayoutEmail] = useState("");
-  // For now, we only support Venmo as a payout method
-  const [payoutMethod] = useState("venmo");
+  // Now support Venmo or Stripe Connect
+  const [payoutMethod, setPayoutMethod] = useState<
+    "venmo" | "stripe_connect"
+  >("venmo");
   const [payoutDetails, setPayoutDetails] = useState("");
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutError, setPayoutError] = useState<string | null>(null);
@@ -80,12 +82,6 @@ export default function CardPage() {
   const isBlankStoreCard = !!card && amount <= 0 && !card.claimed;
   const isFunded = !!card && amount > 0 && !card.claimed;
   const isClaimed = !!card && card.claimed;
-
-  // Venmo-only payout field text
-  const detailLabel = "Venmo handle";
-  const detailPlaceholder = "@your-venmo-handle";
-  const detailHelpText =
-    "We’ll use this Venmo handle to send your gift. Make sure it matches your Venmo profile exactly.";
 
   // Guest load handler for blank store cards (Stripe Checkout)
   async function handleGuestLoad(e: FormEvent<HTMLFormElement>) {
@@ -155,8 +151,8 @@ export default function CardPage() {
     }
   }
 
-  // Handle submitting payout info + marking card as claimed
-  async function handleSubmitPayout(e: FormEvent<HTMLFormElement>) {
+  // Venmo payout handler (existing behavior)
+  async function handleSubmitVenmoPayout(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!card || !cardId) return;
     if (!isFunded || isClaimed) return;
@@ -195,7 +191,7 @@ export default function CardPage() {
           cardId,
           contactName: name,
           contactEmail: email,
-          payoutMethod, // "venmo"
+          payoutMethod: "venmo",
           payoutDetails: details,
         }),
       });
@@ -210,7 +206,7 @@ export default function CardPage() {
         return;
       }
 
-      // 2) Mark card as claimed
+      // 2) Mark card as claimed immediately for Venmo
       const claimRes = await fetch("/api/claim-gift", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -246,6 +242,115 @@ export default function CardPage() {
     setPayoutLoading(false);
   }
 
+  // Stripe Connect payout handler (new behavior)
+  async function handleStripePayout(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!card || !cardId) return;
+    if (!isFunded || isClaimed) return;
+
+    const name = payoutName.trim();
+    const email = payoutEmail.trim();
+
+    if (!name) {
+      setPayoutError("Please enter your name.");
+      return;
+    }
+
+    if (!email) {
+      setPayoutError(
+        "Please enter your email so we can contact you about the payout.",
+      );
+      return;
+    }
+
+    setPayoutError(null);
+    setPayoutSuccess(null);
+    setPayoutLoading(true);
+
+    try {
+      // 1) Create payout_requests row for Stripe Connect
+      const res = await fetch("/api/request-payout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId,
+          contactName: name,
+          contactEmail: email,
+          payoutMethod: "stripe_connect",
+          payoutDetails: null,
+        }),
+      });
+
+      if (!res.ok) {
+        const result = await res.json().catch(() => null);
+        const message =
+          (result && result.error) ||
+          "Could not start Stripe payout. Please try again.";
+        setPayoutError(message);
+        setPayoutLoading(false);
+        return;
+      }
+
+      const { payoutRequestId } = await res.json();
+
+      if (!payoutRequestId) {
+        setPayoutError("Did not receive payoutRequestId from server.");
+        setPayoutLoading(false);
+        return;
+      }
+
+      // 2) Ensure a Connect account exists
+      const createAccountRes = await fetch(
+        "/api/stripe/connect/createAccount",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payoutRequestId }),
+        },
+      );
+
+      if (!createAccountRes.ok) {
+        const result = await createAccountRes.json().catch(() => null);
+        const message =
+          (result && result.error) ||
+          "Could not create Stripe Connect account. Please try again.";
+        setPayoutError(message);
+        setPayoutLoading(false);
+        return;
+      }
+
+      // 3) Get onboarding link
+      const onboardingRes = await fetch(
+        "/api/stripe/connect/onboardingLink",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payoutRequestId }),
+        },
+      );
+
+      const onboardingData = await onboardingRes.json();
+
+      if (!onboardingRes.ok || !onboardingData.url) {
+        const message =
+          onboardingData.error ||
+          "Could not start Stripe onboarding. Please try again.";
+        setPayoutError(message);
+        setPayoutLoading(false);
+        return;
+      }
+
+      // 4) Redirect to Stripe-hosted onboarding
+      window.location.href = onboardingData.url;
+    } catch (err) {
+      console.error("Error starting Stripe payout:", err);
+      setPayoutError(
+        "Something went wrong while starting bank payout setup.",
+      );
+      setPayoutLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-emerald-50 to-emerald-100 px-4 py-6 text-emerald-950">
       <div className="mx-auto flex min-h-[90vh] max-w-3xl flex-col">
@@ -253,10 +358,14 @@ export default function CardPage() {
         <header className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-500 shadow-md shadow-emerald-400/40">
-              <span className="text-lg font-semibold text-emerald-50">G</span>
+              <span className="text-lg font-semibold text-emerald-50">
+                G
+              </span>
             </div>
             <div className="leading-tight">
-              <p className="text-lg font-semibold tracking-tight">GiftLink</p>
+              <p className="text-lg font-semibold tracking-tight">
+                GiftLink
+              </p>
               <p className="text-xs text-emerald-700/80">
                 Wedding gift QR cards
               </p>
@@ -428,20 +537,57 @@ export default function CardPage() {
                   ) : isFunded ? (
                     <>
                       <p className="text-sm text-emerald-900/90">
-                        When you claim this gift, we&apos;ll use your Venmo
-                        details to send the funds to you outside the app.
+                        Choose how you would like to receive this gift, then
+                        enter your details to claim it.
                       </p>
+
+                      {/* Payout method toggle */}
+                      <div className="mt-2 flex flex-col gap-2 text-xs">
+                        <p className="font-medium text-emerald-900/90">
+                          Payout method
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPayoutMethod("venmo")
+                            }
+                            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                              payoutMethod === "venmo"
+                                ? "border-emerald-600 bg-emerald-600 text-emerald-50"
+                                : "border-emerald-200 bg-emerald-50 text-emerald-900"
+                            }`}
+                          >
+                            Venmo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPayoutMethod("stripe_connect")
+                            }
+                            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                              payoutMethod === "stripe_connect"
+                                ? "border-emerald-600 bg-emerald-600 text-emerald-50"
+                                : "border-emerald-200 bg-emerald-50 text-emerald-900"
+                            }`}
+                          >
+                            Bank payout
+                          </button>
+                        </div>
+                      </div>
 
                       <button
                         type="button"
                         onClick={() =>
                           setShowClaimForm((v) => !v)
                         }
-                        className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
+                        className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         {showClaimForm
                           ? "Hide claim form"
-                          : "Claim gift via Venmo"}
+                          : payoutMethod === "venmo"
+                          ? "Claim gift via Venmo"
+                          : "Claim gift via bank payout"}
                       </button>
 
                       {payoutSuccess && (
@@ -455,81 +601,159 @@ export default function CardPage() {
                           <p className="mb-2 text-sm font-medium">
                             Where should we send this gift?
                           </p>
-                          <p className="mb-3 text-xs text-emerald-800/90">
-                            For now, we send payouts via Venmo. Enter your name,
-                            email, and Venmo handle and we&apos;ll review and
-                            send your gift there shortly.
-                          </p>
 
-                          <form
-                            onSubmit={handleSubmitPayout}
-                            className="space-y-3"
-                          >
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-emerald-900/90">
-                                  Your name
-                                </label>
-                                <input
-                                  type="text"
-                                  value={payoutName}
-                                  onChange={(e) =>
-                                    setPayoutName(e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                                  placeholder="Name for payout"
-                                />
-                              </div>
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-emerald-900/90">
-                                  Email for payout confirmation
-                                </label>
-                                <input
-                                  type="email"
-                                  value={payoutEmail}
-                                  onChange={(e) =>
-                                    setPayoutEmail(e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                                  placeholder="you@example.com"
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-emerald-900/90">
-                                {detailLabel}
-                              </label>
-                              <input
-                                type="text"
-                                value={payoutDetails}
-                                onChange={(e) =>
-                                  setPayoutDetails(e.target.value)
-                                }
-                                className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                                placeholder={detailPlaceholder}
-                              />
-                              <p className="mt-1 text-[11px] text-emerald-800/90">
-                                {detailHelpText}
+                          {payoutMethod === "venmo" ? (
+                            <>
+                              <p className="mb-3 text-xs text-emerald-800/90">
+                                For now, we send payouts via Venmo. Enter your
+                                name, email, and Venmo handle and we&apos;ll
+                                review and send your gift there shortly.
                               </p>
-                            </div>
 
-                            {payoutError && (
-                              <p className="text-xs text-rose-600">
-                                {payoutError}
+                              <form
+                                onSubmit={handleSubmitVenmoPayout}
+                                className="space-y-3"
+                              >
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                      Your name
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={payoutName}
+                                      onChange={(e) =>
+                                        setPayoutName(
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                      placeholder="Name for payout"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                      Email for payout confirmation
+                                    </label>
+                                    <input
+                                      type="email"
+                                      value={payoutEmail}
+                                      onChange={(e) =>
+                                        setPayoutEmail(
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                      placeholder="you@example.com"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                    Venmo handle
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={payoutDetails}
+                                    onChange={(e) =>
+                                      setPayoutDetails(
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                    placeholder="@your-venmo-handle"
+                                  />
+                                  <p className="mt-1 text-[11px] text-emerald-800/90">
+                                    We’ll use this Venmo handle to send your
+                                    gift. Make sure it matches your Venmo
+                                    profile exactly.
+                                  </p>
+                                </div>
+
+                                {payoutError && (
+                                  <p className="text-xs text-rose-600">
+                                    {payoutError}
+                                  </p>
+                                )}
+
+                                <button
+                                  type="submit"
+                                  disabled={payoutLoading}
+                                  className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  {payoutLoading
+                                    ? "Sending claim…"
+                                    : "Submit Venmo details"}
+                                </button>
+                              </form>
+                            </>
+                          ) : (
+                            <>
+                              <p className="mb-3 text-xs text-emerald-800/90">
+                                We&apos;ll connect to Stripe to securely set up
+                                a bank payout. Enter your name and email, then
+                                we&apos;ll take you to Stripe to add your bank
+                                details.
                               </p>
-                            )}
 
-                            <button
-                              type="submit"
-                              disabled={payoutLoading}
-                              className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                              {payoutLoading
-                                ? "Sending claim…"
-                                : "Submit Venmo details"}
-                            </button>
-                          </form>
+                              <form
+                                onSubmit={handleStripePayout}
+                                className="space-y-3"
+                              >
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                      Your name
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={payoutName}
+                                      onChange={(e) =>
+                                        setPayoutName(
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                      placeholder="Name for payout"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                      Email for payout updates
+                                    </label>
+                                    <input
+                                      type="email"
+                                      value={payoutEmail}
+                                      onChange={(e) =>
+                                        setPayoutEmail(
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                      placeholder="you@example.com"
+                                    />
+                                  </div>
+                                </div>
+
+                                {payoutError && (
+                                  <p className="text-xs text-rose-600">
+                                    {payoutError}
+                                  </p>
+                                )}
+
+                                <button
+                                  type="submit"
+                                  disabled={payoutLoading}
+                                  className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  {payoutLoading
+                                    ? "Starting secure bank setup…"
+                                    : "Continue with Stripe"}
+                                </button>
+                              </form>
+                            </>
+                          )}
                         </div>
                       )}
                     </>
