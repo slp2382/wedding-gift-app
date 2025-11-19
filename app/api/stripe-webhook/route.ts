@@ -12,21 +12,20 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const giftlinkBaseUrl = process.env.GIFTLINK_BASE_URL ?? "https://www.giftlink.cards";
+const giftlinkBaseUrl =
+  process.env.GIFTLINK_BASE_URL ?? "https://www.giftlink.cards";
 
-if (!stripeSecretKey || !stripeWebhookSecret) {
-  throw new Error("Stripe environment variables are not set");
-}
+// Do NOT throw at module load time.
+// Create clients lazily / guarded so build does not break.
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error("Supabase environment variables are not set");
-}
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
-const stripe = new Stripe(stripeSecretKey);
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: { persistSession: false },
-});
+const supabaseAdmin: any =
+  supabaseUrl && supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+        auth: { persistSession: false },
+      })
+    : null;
 
 async function generateGiftlinkInsidePng(cardId: string): Promise<Buffer> {
   const width = 1245; // 4.15 in at 300 dpi
@@ -94,6 +93,23 @@ async function generateGiftlinkInsidePng(cardId: string): Promise<Buffer> {
 }
 
 export async function POST(req: NextRequest) {
+  // Runtime env checks happen here, NOT at module load.
+  if (!stripe || !stripeWebhookSecret) {
+    console.error("[stripewebhook] Stripe env vars missing");
+    return NextResponse.json(
+      { error: "Stripe env vars missing" },
+      { status: 500 },
+    );
+  }
+
+  if (!supabaseAdmin) {
+    console.error("[stripewebhook] Supabase server env vars missing");
+    return NextResponse.json(
+      { error: "Supabase server env vars missing" },
+      { status: 500 },
+    );
+  }
+
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
 
@@ -125,7 +141,9 @@ export async function POST(req: NextRequest) {
     const type = metadata.type;
 
     if (type === "card_pack_order") {
-      console.log("[stripewebhook] Handling card_pack_order checkout.session.completed");
+      console.log(
+        "[stripewebhook] Handling card_pack_order checkout.session.completed",
+      );
 
       // Build or reuse order
       const stripeSessionId = session.id;
@@ -141,7 +159,10 @@ export async function POST(req: NextRequest) {
             .maybeSingle();
 
         if (existingOrderError) {
-          console.error("[stripewebhook] Error checking existing order", existingOrderError);
+          console.error(
+            "[stripewebhook] Error checking existing order",
+            existingOrderError,
+          );
         }
 
         if (existingOrder) {
@@ -149,7 +170,10 @@ export async function POST(req: NextRequest) {
         } else {
           const shipping = session.shipping_details;
           const address = shipping?.address;
-          const email = session.customer_details?.email ?? session.customer_email ?? null;
+          const email =
+            session.customer_details?.email ??
+            session.customer_email ??
+            null;
 
           const { data: newOrder, error: insertOrderError } =
             await supabaseAdmin
@@ -165,20 +189,28 @@ export async function POST(req: NextRequest) {
                 shipping_postal_code: address?.postal_code ?? null,
                 shipping_country: address?.country ?? null,
                 items: metadata.items ? JSON.parse(metadata.items) : null,
-                amount_total: session.amount_total ? session.amount_total / 100 : null,
+                amount_total: session.amount_total
+                  ? session.amount_total / 100
+                  : null,
                 status: session.payment_status ?? "paid",
               })
               .select("id")
               .single();
 
           if (insertOrderError || !newOrder) {
-            console.error("[stripewebhook] Error inserting order", insertOrderError);
+            console.error(
+              "[stripewebhook] Error inserting order",
+              insertOrderError,
+            );
           } else {
             orderId = newOrder.id;
           }
         }
       } catch (orderErr) {
-        console.error("[stripewebhook] Unexpected error while handling order", orderErr);
+        console.error(
+          "[stripewebhook] Unexpected error while handling order",
+          orderErr,
+        );
       }
 
       // Create store card row
@@ -207,12 +239,18 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (cardInsertError || !cardRow) {
-          console.error("[stripewebhook] Error inserting card row", cardInsertError);
+          console.error(
+            "[stripewebhook] Error inserting card row",
+            cardInsertError,
+          );
         } else {
           cardRowId = cardRow.id;
         }
       } catch (cardErr) {
-        console.error("[stripewebhook] Unexpected error inserting card row", cardErr);
+        console.error(
+          "[stripewebhook] Unexpected error inserting card row",
+          cardErr,
+        );
       }
 
       // Generate inside right PNG
@@ -234,13 +272,22 @@ export async function POST(req: NextRequest) {
 
         if (uploadError) {
           uploadFailed = true;
-          console.error("[stripewebhook] Error uploading print PNG to Supabase", uploadError);
+          console.error(
+            "[stripewebhook] Error uploading print PNG to Supabase",
+            uploadError,
+          );
         } else {
-          console.log("[stripewebhook] Uploaded print PNG to Supabase at", storagePath);
+          console.log(
+            "[stripewebhook] Uploaded print PNG to Supabase at",
+            storagePath,
+          );
         }
       } catch (pngErr) {
         uploadFailed = true;
-        console.error("[stripewebhook] Error generating or uploading PNG", pngErr);
+        console.error(
+          "[stripewebhook] Error generating or uploading PNG",
+          pngErr,
+        );
       }
 
       // Update card row with print file url and printed flag
@@ -256,7 +303,10 @@ export async function POST(req: NextRequest) {
           .eq("id", cardRowId);
 
         if (cardUpdateError) {
-          console.error("[stripewebhook] Error updating card with print file url", cardUpdateError);
+          console.error(
+            "[stripewebhook] Error updating card with print file url",
+            cardUpdateError,
+          );
         }
       }
 
@@ -271,26 +321,41 @@ export async function POST(req: NextRequest) {
             order_id: orderId,
             pdf_path: storagePath ?? null,
             status: uploadFailed ? "error" : "generated",
-            error_message: uploadFailed ? "PNG generation or upload failed" : null,
+            error_message: uploadFailed
+              ? "PNG generation or upload failed"
+              : null,
           })
           .select("id")
           .single();
 
         if (printJobError || !printJob) {
-          console.error("[stripewebhook] Error inserting card_print_jobs row", printJobError);
+          console.error(
+            "[stripewebhook] Error inserting card_print_jobs row",
+            printJobError,
+          );
         } else {
           printJobId = printJob.id;
-          console.log("[stripewebhook] Created card_print_jobs row", printJobId);
+          console.log(
+            "[stripewebhook] Created card_print_jobs row",
+            printJobId,
+          );
         }
       } catch (jobErr) {
-        console.error("[stripewebhook] Unexpected error inserting card_print_jobs row", jobErr);
+        console.error(
+          "[stripewebhook] Unexpected error inserting card_print_jobs row",
+          jobErr,
+        );
       }
 
       // Automatic Printful order creation
       if (!uploadFailed && printJobId) {
         try {
-          console.log("[stripewebhook] Calling createPrintfulOrderForCard for", cardId);
-          const { printfulOrderId, status } = await createPrintfulOrderForCard(cardId);
+          console.log(
+            "[stripewebhook] Calling createPrintfulOrderForCard for",
+            cardId,
+          );
+          const { printfulOrderId, status } =
+            await createPrintfulOrderForCard(cardId);
           console.log(
             "[stripewebhook] Printful order created",
             printfulOrderId,
@@ -340,12 +405,16 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // Gift load flow
-      console.log("[stripewebhook] Handling gift load checkout.session.completed");
+      console.log(
+        "[stripewebhook] Handling gift load checkout.session.completed",
+      );
 
       const cardId = metadata.cardId;
 
       if (!cardId) {
-        console.error("[stripewebhook] Missing cardId metadata for gift load");
+        console.error(
+          "[stripewebhook] Missing cardId metadata for gift load",
+        );
         return NextResponse.json({ received: true });
       }
 
@@ -371,9 +440,15 @@ export async function POST(req: NextRequest) {
           .eq("card_id", cardId);
 
         if (updateCardError) {
-          console.error("[stripewebhook] Error updating card for gift load", updateCardError);
+          console.error(
+            "[stripewebhook] Error updating card for gift load",
+            updateCardError,
+          );
         } else {
-          console.log("[stripewebhook] Updated card for gift load", cardId);
+          console.log(
+            "[stripewebhook] Updated card for gift load",
+            cardId,
+          );
         }
       } catch (giftErr) {
         console.error(
@@ -384,7 +459,10 @@ export async function POST(req: NextRequest) {
     }
   } else {
     // Other Stripe events can be logged if desired
-    console.log("[stripewebhook] Received unsupported event type", event.type);
+    console.log(
+      "[stripewebhook] Received unsupported event type",
+      event.type,
+    );
   }
 
   // Always respond 200 so Stripe does not retry forever
