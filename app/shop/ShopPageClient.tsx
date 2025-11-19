@@ -62,16 +62,7 @@ export default function ShopPageClient() {
         </header>
 
         {/* Status banners from Stripe redirect */}
-        {status === "success" && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100">
-            <p className="font-medium">Order received</p>
-            <p className="mt-1">
-              We have your test order and the details appear in your internal
-              dashboard under card pack orders. You can fulfill it from there.
-            </p>
-          </div>
-        )}
-
+        {/* Success banner is now handled in app/shop/page.tsx */}
         {status === "cancelled" && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
             <p className="font-medium">Checkout cancelled</p>
@@ -122,7 +113,7 @@ export default function ShopPageClient() {
               disabled={loading}
               className="inline-flex w-full items-center justify-center rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 md:w-auto"
             >
-              {loading ? "Starting checkout…" : "Buy this card in test mode"}
+              {loading ? "Starting checkout…" : "Buy this card again"}
             </button>
           </div>
         </section>
