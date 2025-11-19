@@ -119,7 +119,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
+    // Treat the payload as a checkout session shape without fighting Stripe TS unions
+    const session = event.data.object as any;
     const metadata = session.metadata ?? {};
     const type = metadata.type;
 
