@@ -15,9 +15,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const giftlinkBaseUrl =
   process.env.GIFTLINK_BASE_URL ?? "https://www.giftlink.cards";
 
-// Do NOT throw at module load time.
-// Create clients lazily / guarded so build does not break.
-
+// Do NOT throw at module load time so Next can import this during build
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 const supabaseAdmin: any =
@@ -149,6 +147,7 @@ export async function POST(req: NextRequest) {
       const stripeSessionId = session.id;
 
       let orderId: string | null = null;
+      let hasValidShipping = false;
 
       try {
         const { data: existingOrder, error: existingOrderError } =
@@ -167,13 +166,58 @@ export async function POST(req: NextRequest) {
 
         if (existingOrder) {
           orderId = existingOrder.id;
+          // For now we assume existing order had valid shipping when created
+          hasValidShipping = true;
         } else {
-          const shipping = session.shipping_details;
-          const address = shipping?.address;
-          const email =
+          // Try to get shipping from session first
+          let shipping = session.shipping_details as any | null;
+          let address: any = shipping?.address ?? null;
+          let email =
             session.customer_details?.email ??
             session.customer_email ??
             null;
+
+          // Fallback: fetch PaymentIntent.shipping if session lacks shipping_details
+          if (!shipping && session.payment_intent) {
+            try {
+              const pi = await stripe.paymentIntents.retrieve(
+                typeof session.payment_intent === "string"
+                  ? session.payment_intent
+                  : session.payment_intent.id,
+              );
+              if (pi.shipping) {
+                shipping = pi.shipping;
+                address = pi.shipping.address;
+
+                // Stripe sometimes stores email on the PaymentIntent
+                if (!email && (pi as any).receipt_email) {
+                  email = (pi as any).receipt_email;
+                }
+              }
+            } catch (piErr) {
+              console.error(
+                "[stripewebhook] Error retrieving PaymentIntent for shipping",
+                piErr,
+              );
+            }
+          }
+
+          hasValidShipping =
+            !!address &&
+            !!address.line1 &&
+            !!address.city &&
+            !!address.country;
+
+          if (!hasValidShipping) {
+            console.warn(
+              "[stripewebhook] Missing or incomplete shipping address for card_pack_order",
+              {
+                stripeSessionId,
+                shipping,
+                address,
+              },
+            );
+          }
 
           const { data: newOrder, error: insertOrderError } =
             await supabaseAdmin
@@ -348,7 +392,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Automatic Printful order creation
-      if (!uploadFailed && printJobId) {
+      if (!uploadFailed && printJobId && hasValidShipping) {
         try {
           console.log(
             "[stripewebhook] Calling createPrintfulOrderForCard for",
@@ -361,7 +405,6 @@ export async function POST(req: NextRequest) {
             printfulOrderId,
             status,
           );
-          // Success path does not need extra updates here
           // createPrintfulOrderForCard already updates card_print_jobs
         } catch (printfulErr) {
           console.error(
@@ -397,6 +440,32 @@ export async function POST(req: NextRequest) {
               updateErr,
             );
           }
+        }
+      } else if (!uploadFailed && printJobId && !hasValidShipping) {
+        console.log(
+          "[stripewebhook] Skipping Printful order creation due to missing shipping address",
+        );
+        try {
+          const { error: updateJobError } = await supabaseAdmin
+            .from("card_print_jobs")
+            .update({
+              status: "pending_address",
+              error_message:
+                "Missing shipping address; Printful order not created.",
+            })
+            .eq("id", printJobId);
+
+          if (updateJobError) {
+            console.error(
+              "[stripewebhook] Error updating card_print_jobs to pending_address",
+              updateJobError,
+            );
+          }
+        } catch (updateErr) {
+          console.error(
+            "[stripewebhook] Unexpected error updating card_print_jobs to pending_address",
+            updateErr,
+          );
         }
       } else {
         console.log(
