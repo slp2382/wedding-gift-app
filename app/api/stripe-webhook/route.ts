@@ -132,11 +132,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  console.log("[stripewebhook] Event received", event.type);
+
   if (event.type === "checkout.session.completed") {
     // Treat the payload as a checkout session shape without fighting Stripe TS unions
     const session = event.data.object as any;
     const metadata = session.metadata ?? {};
     const type = metadata.type;
+
+    console.log("[stripewebhook] Session metadata", metadata, "type:", type);
 
     if (type === "card_pack_order") {
       console.log(
@@ -145,21 +149,22 @@ export async function POST(req: NextRequest) {
 
       const stripeSessionId = session.id;
 
-      // Safely parse items from metadata, never throw
-      let parsedItems: any = null;
+      // Safely stringify items from metadata, never throw
+      let itemsValue: string | null = null;
       if (metadata.items) {
         if (typeof metadata.items === "string") {
+          itemsValue = metadata.items;
+        } else {
           try {
-            parsedItems = JSON.parse(metadata.items);
+            itemsValue = JSON.stringify(metadata.items);
           } catch (parseErr) {
             console.error(
-              "[stripewebhook] Failed to parse metadata.items",
+              "[stripewebhook] Failed to stringify metadata.items",
               parseErr,
               metadata.items,
             );
+            itemsValue = null;
           }
-        } else {
-          parsedItems = metadata.items;
         }
       }
 
@@ -249,10 +254,12 @@ export async function POST(req: NextRequest) {
                 shipping_state: address?.state ?? null,
                 shipping_postal_code: address?.postal_code ?? null,
                 shipping_country: address?.country ?? null,
-                items: parsedItems,
-                amount_total: session.amount_total
-                  ? session.amount_total / 100
-                  : null,
+                items: itemsValue,
+                // store in cents to avoid decimal type issues
+                amount_total:
+                  typeof session.amount_total === "number"
+                    ? session.amount_total
+                    : null,
                 status: session.payment_status ?? "paid",
               })
               .select("id")
