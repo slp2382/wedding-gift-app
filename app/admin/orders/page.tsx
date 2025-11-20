@@ -78,9 +78,7 @@ export default function AdminOrdersPage() {
           Boolean(row.errorMessage),
       );
     }
-    return fetchState.data.filter(
-      (row) => row.fulfillmentStatus === filter,
-    );
+    return fetchState.data.filter((row) => row.fulfillmentStatus === filter);
   }, [fetchState, filter]);
 
   async function updateFulfillment(jobId: string, status: string) {
@@ -95,7 +93,6 @@ export default function AdminOrdersPage() {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error ?? "Failed to update fulfillment status");
       }
-      // reload orders to reflect change
       await loadOrders();
     } catch (err) {
       console.error(err);
@@ -157,7 +154,7 @@ export default function AdminOrdersPage() {
 
           {fetchState.state === "loading" && (
             <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
-              Loading orders
+              Loading orders…
             </div>
           )}
 
@@ -169,7 +166,7 @@ export default function AdminOrdersPage() {
 
           {fetchState.state === "loaded" && filteredOrders.length === 0 && (
             <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
-              No orders found for this filter
+              No orders found for this filter.
             </div>
           )}
 
@@ -214,13 +211,9 @@ export default function AdminOrdersPage() {
 
                     const isUpdating = updatingId === row.jobId;
 
-                    const supabaseCardUrl = row.cardId
-                      ? `https://app.supabase.com/project/${process.env.NEXT_PUBLIC_SUPABASE_URL}/editor?table=cards&filter=card_id%3Aeq%3A${row.cardId}`
-                      : null;
-
-                    const printfulOrderUrl = row.printfulOrderId
-                      ? `https://www.printful.com/dashboard/orders/${row.printfulOrderId}`
-                      : null;
+                    // Generic Printful orders dashboard (you can search by ID there)
+                    const printfulOrdersDashboardUrl =
+                      "https://www.printful.com/dashboard/orders";
 
                     return (
                       <tr key={row.jobId} className="align-top">
@@ -293,14 +286,14 @@ export default function AdminOrdersPage() {
                                 Print file
                               </a>
                             )}
-                            {printfulOrderUrl && (
+                            {row.printfulOrderId && (
                               <a
-                                href={printfulOrderUrl}
+                                href={printfulOrdersDashboardUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-indigo-600 hover:underline dark:text-indigo-400"
                               >
-                                Printful order
+                                Open Printful orders (search {row.printfulOrderId})
                               </a>
                             )}
                           </div>
@@ -319,7 +312,7 @@ export default function AdminOrdersPage() {
                               className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isUpdating
-                                ? "Updating"
+                                ? "Updating…"
                                 : row.fulfillmentStatus === "shipped"
                                 ? "Shipped"
                                 : "Mark shipped"}
