@@ -143,8 +143,25 @@ export async function POST(req: NextRequest) {
         "[stripewebhook] Handling card_pack_order checkout.session.completed",
       );
 
-      // Build or reuse order
       const stripeSessionId = session.id;
+
+      // Safely parse items from metadata, never throw
+      let parsedItems: any = null;
+      if (metadata.items) {
+        if (typeof metadata.items === "string") {
+          try {
+            parsedItems = JSON.parse(metadata.items);
+          } catch (parseErr) {
+            console.error(
+              "[stripewebhook] Failed to parse metadata.items",
+              parseErr,
+              metadata.items,
+            );
+          }
+        } else {
+          parsedItems = metadata.items;
+        }
+      }
 
       let orderId: string | null = null;
       let hasValidShipping = false;
@@ -232,7 +249,7 @@ export async function POST(req: NextRequest) {
                 shipping_state: address?.state ?? null,
                 shipping_postal_code: address?.postal_code ?? null,
                 shipping_country: address?.country ?? null,
-                items: metadata.items ? JSON.parse(metadata.items) : null,
+                items: parsedItems,
                 amount_total: session.amount_total
                   ? session.amount_total / 100
                   : null,
@@ -255,6 +272,15 @@ export async function POST(req: NextRequest) {
           "[stripewebhook] Unexpected error while handling order",
           orderErr,
         );
+      }
+
+      // If we still do not have an order id, abort before creating any print job
+      if (!orderId) {
+        console.error(
+          "[stripewebhook] No orderId for session, aborting card_print_jobs creation",
+          stripeSessionId,
+        );
+        return NextResponse.json({ received: true });
       }
 
       // Create store card row
@@ -392,7 +418,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Automatic Printful order creation
-      if (!uploadFailed && printJobId && hasValidShipping) {
+      if (!uploadFailed && printJobId && hasValidShipping && orderId) {
         try {
           console.log(
             "[stripewebhook] Calling createPrintfulOrderForCard for",
