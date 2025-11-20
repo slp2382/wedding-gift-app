@@ -1,229 +1,330 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type Order = {
-  id: string;
-  stripe_session_id: string;
+type AdminOrderRow = {
+  jobId: string;
+  createdAt: string | null;
+  cardId: string | null;
+  orderId: string | null;
+  fulfillmentStatus: string;
+  printfulStatus: string | null;
+  printfulOrderId: number | null;
+  jobStatus: string | null;
+  errorMessage: string | null;
+  paymentStatus: string | null;
+  shippingName: string | null;
+  shippingCity: string | null;
+  shippingState: string | null;
+  shippingPostalCode: string | null;
   email: string | null;
-  shipping_name: string | null;
-  shipping_address_line1: string | null;
-  shipping_address_line2: string | null;
-  shipping_city: string | null;
-  shipping_state: string | null;
-  shipping_postal_code: string | null;
-  shipping_country: string | null;
-  items: any | null;
-  amount_total: number;
-  status: string;
-  created_at: string;
+  amountTotal: number | null;
+  printFileUrl: string | null;
 };
 
-export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+type FetchState =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "loaded"; data: AdminOrderRow[] }
+  | { state: "error"; message: string };
 
-  async function fetchOrders() {
+const FULFILLMENT_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "processing", label: "Processing" },
+  { key: "shipped", label: "Shipped" },
+  { key: "error", label: "Error" },
+] as const;
+
+type FilterKey = (typeof FULFILLMENT_FILTERS)[number]["key"];
+
+export default function AdminOrdersPage() {
+  const [fetchState, setFetchState] = useState<FetchState>({ state: "idle" });
+  const [filter, setFilter] = useState<FilterKey>("pending");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  async function loadOrders() {
     try {
-      setLoading(true);
+      setFetchState({ state: "loading" });
       const res = await fetch("/api/admin/orders");
       if (!res.ok) {
-        throw new Error("Failed to fetch orders");
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Failed to load orders");
       }
-      const data = await res.json();
-      setOrders(data.orders ?? []);
-      setError(null);
+      const data = (await res.json()) as { orders: AdminOrderRow[] };
+      setFetchState({ state: "loaded", data: data.orders ?? [] });
     } catch (err) {
       console.error(err);
-      setError("Failed to load orders");
-    } finally {
-      setLoading(false);
+      setFetchState({
+        state: "error",
+        message:
+          err instanceof Error ? err.message : "Failed to fetch orders",
+      });
     }
   }
 
   useEffect(() => {
-    fetchOrders();
+    loadOrders();
   }, []);
 
-  async function markAsShipped(id: string) {
-    try {
-      setUpdatingId(id);
-      const res = await fetch("/api/admin/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id, status: "shipped" }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to update order");
-      }
-
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === id ? { ...order, status: "shipped" } : order,
-        ),
+  const filteredOrders = useMemo(() => {
+    if (fetchState.state !== "loaded") return [];
+    if (filter === "all") return fetchState.data;
+    if (filter === "error") {
+      return fetchState.data.filter(
+        (row) =>
+          row.fulfillmentStatus === "error" ||
+          row.jobStatus === "error" ||
+          Boolean(row.errorMessage),
       );
+    }
+    return fetchState.data.filter(
+      (row) => row.fulfillmentStatus === filter,
+    );
+  }, [fetchState, filter]);
+
+  async function updateFulfillment(jobId: string, status: string) {
+    try {
+      setUpdatingId(jobId);
+      const res = await fetch("/api/admin/orders/updateFulfillment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId, fulfillmentStatus: status }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Failed to update fulfillment status");
+      }
+      // reload orders to reflect change
+      await loadOrders();
     } catch (err) {
       console.error(err);
-      setError("Failed to update order");
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to update fulfillment status",
+      );
     } finally {
       setUpdatingId(null);
     }
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 px-4 py-10 dark:bg-zinc-950 dark:text-zinc-50">
-      <main className="mx-auto w-full max-w-5xl space-y-6">
-        <header className="space-y-2">
-          <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
-            Internal view
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Card pack orders
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Orders created from the shop checkout. Mark them as shipped after
-            you fulfill the physical cards.
-          </p>
+    <div className="min-h-screen bg-zinc-50 px-4 py-8 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+        <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              GiftLink admin
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Card pack orders
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={loadOrders}
+            className="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          >
+            Refresh
+          </button>
         </header>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-lg font-medium">Orders</h2>
-            <button
-              onClick={fetchOrders}
-              className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-            >
-              Refresh
-            </button>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2 text-sm">
+              {FULFILLMENT_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setFilter(f.key)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    filter === f.key
+                      ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900"
+                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Showing {filteredOrders.length} of{" "}
+              {fetchState.state === "loaded" ? fetchState.data.length : 0}{" "}
+              print jobs
+            </p>
           </div>
 
-          {loading && <p className="text-sm text-zinc-500">Loading orders…</p>}
-
-          {error && (
-            <p className="text-sm text-red-500">
-              {error}
-            </p>
+          {fetchState.state === "loading" && (
+            <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              Loading orders
+            </div>
           )}
 
-          {!loading && orders.length === 0 && !error && (
-            <p className="text-sm text-zinc-500">No orders yet.</p>
+          {fetchState.state === "error" && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
+              {fetchState.message}
+            </div>
           )}
 
-          {orders.length > 0 && (
+          {fetchState.state === "loaded" && filteredOrders.length === 0 && (
+            <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              No orders found for this filter
+            </div>
+          )}
+
+          {fetchState.state === "loaded" && filteredOrders.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="border-b border-zinc-200 text-xs uppercase text-zinc-500 dark:border-zinc-800">
+              <table className="min-w-full text-left text-xs">
+                <thead className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                   <tr>
-                    <th className="px-3 py-2">Created</th>
-                    <th className="px-3 py-2">Customer</th>
-                    <th className="px-3 py-2">Shipping</th>
-                    <th className="px-3 py-2">Items</th>
-                    <th className="px-3 py-2">Amount</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2"></th>
+                    <th className="px-3 py-2 font-medium">Created</th>
+                    <th className="px-3 py-2 font-medium">Card</th>
+                    <th className="px-3 py-2 font-medium">Customer</th>
+                    <th className="px-3 py-2 font-medium">Payment</th>
+                    <th className="px-3 py-2 font-medium">Fulfillment</th>
+                    <th className="px-3 py-2 font-medium">Printful</th>
+                    <th className="px-3 py-2 font-medium">Links</th>
+                    <th className="px-3 py-2 font-medium">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {orders.map((order) => {
-                    const created = new Date(order.created_at);
-                    const amountFormatted = (order.amount_total / 100).toFixed(
-                      2,
-                    );
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {filteredOrders.map((row) => {
+                    const created = row.createdAt
+                      ? new Date(row.createdAt)
+                      : null;
 
-                    const itemsLabel =
-                      order.items && Array.isArray(order.items)
-                        ? order.items
-                            .map((it: any) => {
-                              const p = it.product ?? "card";
-                              const q = it.quantity ?? 1;
-                              return `${p} x${q}`;
-                            })
-                            .join(", ")
-                        : "card pack";
-
-                    const shippingLines = [
-                      order.shipping_name,
-                      [
-                        order.shipping_address_line1,
-                        order.shipping_address_line2,
-                      ]
-                        .filter(Boolean)
-                        .join(" "),
-                      [
-                        order.shipping_city,
-                        order.shipping_state,
-                        order.shipping_postal_code,
-                      ]
-                        .filter(Boolean)
-                        .join(", "),
-                      order.shipping_country,
+                    const cityStateZip = [
+                      row.shippingCity,
+                      row.shippingState,
+                      row.shippingPostalCode,
                     ]
                       .filter(Boolean)
-                      .join(" · ");
+                      .join(" ");
+
+                    const fulfillmentBadge =
+                      row.fulfillmentStatus === "shipped"
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-100"
+                        : row.fulfillmentStatus === "processing"
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100"
+                        : row.fulfillmentStatus === "error" ||
+                          row.jobStatus === "error"
+                        ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-100"
+                        : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-100";
+
+                    const isUpdating = updatingId === row.jobId;
+
+                    const supabaseCardUrl = row.cardId
+                      ? `https://app.supabase.com/project/${process.env.NEXT_PUBLIC_SUPABASE_URL}/editor?table=cards&filter=card_id%3Aeq%3A${row.cardId}`
+                      : null;
+
+                    const printfulOrderUrl = row.printfulOrderId
+                      ? `https://www.printful.com/dashboard/orders/${row.printfulOrderId}`
+                      : null;
 
                     return (
-                      <tr
-                        key={order.id}
-                        className="border-b border-zinc-100 last:border-0 dark:border-zinc-800"
-                      >
-                        <td className="whitespace-nowrap px-3 py-2 align-top text-xs text-zinc-500">
-                          {created.toLocaleDateString()}{" "}
-                          {created.toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </td>
-                        <td className="px-3 py-2 align-top text-xs">
-                          <div className="flex flex-col gap-1">
-                            {order.email && (
-                              <span className="font-medium">
-                                {order.email}
-                              </span>
-                            )}
-                            <span className="text-zinc-500">
-                              {order.stripe_session_id}
-                            </span>
+                      <tr key={row.jobId} className="align-top">
+                        <td className="px-3 py-2">
+                          <div className="text-xs text-zinc-800 dark:text-zinc-100">
+                            {created
+                              ? created.toLocaleDateString() +
+                                " " +
+                                created.toLocaleTimeString()
+                              : "n/a"}
+                          </div>
+                          <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                            Job {row.jobId.slice(0, 8)}
                           </div>
                         </td>
-                        <td className="px-3 py-2 align-top text-xs">
-                          {shippingLines || (
-                            <span className="text-zinc-400">No shipping</span>
+                        <td className="px-3 py-2">
+                          <div className="text-xs font-medium">
+                            {row.cardId ?? "unknown"}
+                          </div>
+                          {row.amountTotal != null && (
+                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                              Order total ${row.amountTotal.toFixed(2)}
+                            </div>
                           )}
                         </td>
-                        <td className="px-3 py-2 align-top text-xs">
-                          {itemsLabel}
+                        <td className="px-3 py-2">
+                          <div className="text-xs text-zinc-800 dark:text-zinc-100">
+                            {row.shippingName ?? row.email ?? "unknown"}
+                          </div>
+                          <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                            {cityStateZip || "no address"}
+                          </div>
                         </td>
-                        <td className="px-3 py-2 align-top text-xs">
-                          ${amountFormatted}
-                        </td>
-                        <td className="px-3 py-2 align-top text-xs">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                              order.status === "shipped"
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
-                                : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
-                            }`}
-                          >
-                            {order.status}
+                        <td className="px-3 py-2">
+                          <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                            {row.paymentStatus ?? "unknown"}
                           </span>
                         </td>
-                        <td className="px-3 py-2 align-top text-xs">
-                          {order.status !== "shipped" && (
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${fulfillmentBadge}`}
+                          >
+                            {row.fulfillmentStatus}
+                          </span>
+                          {row.errorMessage && (
+                            <div className="mt-1 max-w-[180px] text-[10px] text-red-700 dark:text-red-200">
+                              {row.errorMessage}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="text-[10px] text-zinc-700 dark:text-zinc-200">
+                            {row.printfulStatus ?? "n/a"}
+                          </div>
+                          {row.printfulOrderId && (
+                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                              id {row.printfulOrderId}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-col gap-1 text-[10px]">
+                            {row.printFileUrl && (
+                              <a
+                                href={row.printFileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-indigo-600 hover:underline dark:text-indigo-400"
+                              >
+                                Print file
+                              </a>
+                            )}
+                            {printfulOrderUrl && (
+                              <a
+                                href={printfulOrderUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-indigo-600 hover:underline dark:text-indigo-400"
+                              >
+                                Printful order
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-col gap-1">
                             <button
-                              onClick={() => markAsShipped(order.id)}
-                              disabled={updatingId === order.id}
-                              className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                              type="button"
+                              disabled={
+                                row.fulfillmentStatus === "shipped" ||
+                                isUpdating
+                              }
+                              onClick={() =>
+                                updateFulfillment(row.jobId, "shipped")
+                              }
+                              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {updatingId === order.id
-                                ? "Updating…"
+                              {isUpdating
+                                ? "Updating"
+                                : row.fulfillmentStatus === "shipped"
+                                ? "Shipped"
                                 : "Mark shipped"}
                             </button>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     );
