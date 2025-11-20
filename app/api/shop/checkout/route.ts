@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
             type: "fixed_amount",
             fixed_amount: {
               // amount in cents, adjust as needed
-              amount: 499, // 4.99 USD standard shipping
+              amount: 399, // 3.99 USD standard shipping
               currency: "usd",
             },
             display_name: "Standard shipping",
