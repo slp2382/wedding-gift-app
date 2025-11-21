@@ -8,12 +8,10 @@ import { useCart } from "../providers/CartProvider";
 export default function ShopPageClient() {
   const { addItem } = useCart();
 
-  // Treat this as one design with multiple sizes
   const designTemplates = CARD_TEMPLATES.filter((t) =>
     ["card1_4x6", "card1_5x7"].includes(t.id),
   );
 
-  // Fallback if something is misconfigured
   const defaultTemplate = designTemplates[0];
 
   const [selectedTemplateId, setSelectedTemplateId] = useState(
@@ -81,9 +79,7 @@ export default function ShopPageClient() {
                 >
                   {designTemplates.map((template) => (
                     <option key={template.id} value={template.id}>
-                      {template.size === "4x6"
-                        ? "four by six"
-                        : "five by seven"}
+                      {template.size === "4x6" ? "4x6" : "5x7"}
                     </option>
                   ))}
                 </select>
