@@ -1,8 +1,10 @@
 "use client";
 
 import { Suspense } from "react";
-import ShopPageClient from "./ShopPageClient";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import ShopPageClient from "./ShopPageClient";
+import { useCart } from "../providers/CartProvider";
 
 export default function ShopPage() {
   return (
@@ -17,14 +19,32 @@ export default function ShopPage() {
 }
 
 function ShopPageContent() {
-  const searchParams = new URLSearchParams(
-    typeof window !== "undefined" ? window.location.search : ""
-  );
-
+  const searchParams = useSearchParams();
   const isSuccess = searchParams.get("status") === "success";
+
+  const { items } = useCart();
+  const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-10 dark:bg-zinc-950">
+      {/* Top bar with cart link */}
+      <div className="mx-auto mb-6 flex max-w-5xl items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            GiftLink card shop
+          </h1>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Choose your card design and size, then add them to your cart.
+          </p>
+        </div>
+        <Link
+          href="/cart"
+          className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+        >
+          Cart {cartCount > 0 ? `(${cartCount})` : ""}
+        </Link>
+      </div>
+
       {/* Success Banner */}
       {isSuccess && (
         <div className="relative mx-auto mb-6 max-w-3xl">

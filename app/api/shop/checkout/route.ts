@@ -1,61 +1,89 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import {
+  CARD_TEMPLATES,
+  getCardTemplateById,
+} from "@/lib/cardTemplates";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY!;
 const stripe = new Stripe(stripeSecretKey);
 
-const priceId = process.env.STRIPE_SHOP_CARD_PRICE_ID!;
+type CartItemPayload = {
+  templateId: string;
+  quantity: number;
+};
 
 export async function POST(req: NextRequest) {
   try {
     const origin = req.headers.get("origin") ?? "";
 
-    const { product } = (await req.json()) as {
-      product?: string;
+    const { items } = (await req.json()) as {
+      items?: CartItemPayload[];
     };
 
-    if (!product || product !== "single_card") {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
-        { error: "Unsupported product" },
+        { error: "Cart is empty" },
         { status: 400 },
       );
     }
 
-    // For now quantity is fixed at 1
-    const quantity = 1;
+    // Validate cart items and build Stripe line items
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+    const metadataItems: any[] = [];
+
+    for (const item of items) {
+      if (!item.templateId || !item.quantity || item.quantity <= 0) {
+        continue;
+      }
+
+      const template = getCardTemplateById(item.templateId);
+      if (!template || !template.stripePriceId) {
+        console.error(
+          "Unknown or misconfigured card template in cart",
+          item.templateId,
+        );
+        continue;
+      }
+
+      lineItems.push({
+        price: template.stripePriceId,
+        quantity: item.quantity,
+      });
+
+      metadataItems.push({
+        sku: template.sku,
+        templateId: template.id,
+        size: template.size,
+        quantity: item.quantity,
+      });
+    }
+
+    if (lineItems.length === 0) {
+      return NextResponse.json(
+        { error: "No valid items in cart" },
+        { status: 400 },
+      );
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      line_items: [
-        {
-          price: priceId,
-          quantity,
-        },
-      ],
+      line_items: lineItems,
       success_url: `${origin}/shop?status=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/shop?status=cancelled`,
       metadata: {
         type: "card_pack_order",
-        product: "single_card",
-        items: JSON.stringify([
-          {
-            sku: "Card1",
-            product: "single_card",
-            quantity,
-          },
-        ]),
+        items: JSON.stringify(metadataItems),
       },
       shipping_address_collection: {
         allowed_countries: ["US"],
       },
-      // Charge the customer for shipping
       shipping_options: [
         {
           shipping_rate_data: {
             type: "fixed_amount",
             fixed_amount: {
-              // amount in cents, adjust as needed
-              amount: 399, // 3.99 USD standard shipping
+              amount: 399,
               currency: "usd",
             },
             display_name: "Standard shipping",
