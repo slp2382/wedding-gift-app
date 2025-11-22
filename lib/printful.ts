@@ -33,6 +33,12 @@ type CreatePrintfulOrderForCardsArgs = {
   cards: CardForPrintful[];
 };
 
+type CardPrintJobRow = {
+  id: string;
+  card_id: string;
+  pdf_path: string | null;
+};
+
 export async function createPrintfulOrderForCards(
   args: CreatePrintfulOrderForCardsArgs,
 ): Promise<{ printfulOrderId: number; status: string }> {
@@ -52,14 +58,12 @@ export async function createPrintfulOrderForCards(
     throw new Error("No cards provided for Printful order");
   }
 
-  // Look up card_print_jobs joined with cards to get print_file_url
   const cardIds = cards.map((c) => c.cardId);
 
+  // Fetch card_print_jobs for these cards
   const { data: jobs, error: jobsError } = await supabaseAdmin
     .from("card_print_jobs")
-    .select(
-      "id, card_id, pdf_path, printful_order_id, status, cards(print_file_url)",
-    )
+    .select("id, card_id, pdf_path")
     .in("card_id", cardIds);
 
   if (jobsError) {
@@ -70,16 +74,17 @@ export async function createPrintfulOrderForCards(
     throw jobsError;
   }
 
-  // Build Printful items: one item per card with its own file url
-  const items = (jobs || []).map((job: any) => {
-    const fileUrl =
-      Array.isArray(job.cards) && job.cards.length > 0
-        ? job.cards[0].print_file_url
-        : null;
+  const typedJobs: CardPrintJobRow[] = (jobs || []) as CardPrintJobRow[];
+
+  // Build Printful items: one item per card using pdf_path to construct file url
+  const items = typedJobs.map((job) => {
+    const fileUrl = job.pdf_path
+      ? `${SUPABASE_URL}/storage/v1/object/public/printfiles/${job.pdf_path}`
+      : null;
 
     if (!fileUrl) {
       console.warn(
-        "[printful] Missing print_file_url for card",
+        "[printful] Missing pdf_path for card",
         job.card_id,
         "job",
         job.id,
@@ -106,7 +111,7 @@ export async function createPrintfulOrderForCards(
     throw new Error("No valid items with file urls to send to Printful");
   }
 
-  // Optional: look up shipping info from orders table
+  // Look up shipping info from orders table
   const { data: orderRow, error: orderError } = await supabaseAdmin
     .from("orders")
     .select(
@@ -138,7 +143,7 @@ export async function createPrintfulOrderForCards(
     );
   }
 
-  // Create one Printful order with all items
+  // Single Printful order with all cards as items
   const response = await fetch("https://api.printful.com/orders", {
     method: "POST",
     headers: {
