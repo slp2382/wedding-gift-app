@@ -1,186 +1,186 @@
 // lib/printful.ts
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY!;
-const PRINTFUL_SYNC_VARIANT_ID = Number(
-  process.env.PRINTFUL_SYNC_VARIANT_ID,
-); // 5064628437
+import { createClient } from "@supabase/supabase-js";
 
+const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
+const PRINTFUL_SYNC_VARIANT_ID = process.env.PRINTFUL_SYNC_VARIANT_ID;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!PRINTFUL_API_KEY || !PRINTFUL_SYNC_VARIANT_ID) {
+  console.warn(
+    "[printful] Missing PRINTFUL_API_KEY or PRINTFUL_SYNC_VARIANT_ID env vars",
+  );
+}
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("Supabase server env vars missing");
-}
-if (!PRINTFUL_API_KEY) {
-  throw new Error("PRINTFUL_API_KEY missing");
-}
-if (!PRINTFUL_SYNC_VARIANT_ID || Number.isNaN(PRINTFUL_SYNC_VARIANT_ID)) {
-  throw new Error("PRINTFUL_SYNC_VARIANT_ID missing or invalid");
+  console.warn("[printful] Missing Supabase env vars in printful lib");
 }
 
-// Supabase admin client – server side only
-const supabaseAdmin: SupabaseClient = createClient(
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: { persistSession: false },
-  },
-);
+const supabaseAdmin =
+  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+      })
+    : null;
 
-/**
- * Build a public URL to a file in the "printfiles" bucket
- * given a relative path like "cards/card_abc123.png".
- */
-function buildPrintfilePublicUrl(relativePath: string): string {
-  const base = SUPABASE_URL.replace(/\/$/, "");
-  return `${base}/storage/v1/object/public/printfiles/${relativePath}`;
-}
-
-type GiftlinkPrintfulOrderResult = {
-  printfulOrderId: number;
-  status: string;
-  raw: any;
+type CardForPrintful = {
+  cardId: string;
+  storagePath: string | null;
 };
 
-/**
- * Create a Printful order for a single GiftLink card.
- *
- * Uses:
- *  - card_print_jobs: to find print file path (stored in pdf_path) + order_id for cardId
- *  - orders: to load shipping + email from order_id
- *  - PRINTFUL_SYNC_VARIANT_ID: your "Wedding Card 1" listing
- *  - pdf_path: inside-right print asset (now a PNG), attached as type "inside2"
- */
-export async function createPrintfulOrderForCard(
-  cardId: string,
-): Promise<GiftlinkPrintfulOrderResult> {
-  // 1) Find most recent print job for this card
-  const { data: job, error: jobError } = await supabaseAdmin
+type CreatePrintfulOrderForCardsArgs = {
+  orderId: string | null;
+  cards: CardForPrintful[];
+};
+
+export async function createPrintfulOrderForCards(
+  args: CreatePrintfulOrderForCardsArgs,
+): Promise<{ printfulOrderId: number; status: string }> {
+  if (!PRINTFUL_API_KEY || !PRINTFUL_SYNC_VARIANT_ID) {
+    throw new Error("Printful env vars missing");
+  }
+  if (!supabaseAdmin) {
+    throw new Error("Supabase admin client not available in printful lib");
+  }
+
+  const { orderId, cards } = args;
+
+  if (!orderId) {
+    throw new Error("orderId is required to create Printful order");
+  }
+  if (!cards || cards.length === 0) {
+    throw new Error("No cards provided for Printful order");
+  }
+
+  // Look up card_print_jobs joined with cards to get print_file_url
+  const cardIds = cards.map((c) => c.cardId);
+
+  const { data: jobs, error: jobsError } = await supabaseAdmin
     .from("card_print_jobs")
-    .select("id, card_id, order_id, status, pdf_path")
-    .eq("card_id", cardId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+    .select("id, card_id, pdf_path, printful_order_id, status, cards(print_file_url)")
+    .in("card_id", cardIds);
 
-  if (jobError || !job) {
-    console.error("No card_print_job found for card", cardId, jobError);
-    throw new Error("No card_print_job found for card " + cardId);
+  if (jobsError) {
+    console.error("[printful] Error fetching card_print_jobs for cards", jobsError);
+    throw jobsError;
   }
 
-  if (!job.order_id) {
-    throw new Error(
-      `card_print_jobs row for ${cardId} has no order_id; link it to orders.id first`,
-    );
+  // Build Printful items: one item per card with its own file url
+  const items = (jobs || []).map((job) => {
+    const fileUrl = job.cards?.print_file_url as string | null;
+
+    if (!fileUrl) {
+      console.warn(
+        "[printful] Missing print_file_url for card",
+        job.card_id,
+        "job",
+        job.id,
+      );
+    }
+
+    return {
+      sync_variant_id: Number(PRINTFUL_SYNC_VARIANT_ID),
+      quantity: 1,
+      files: fileUrl
+        ? [
+            {
+              type: "default",
+              url: fileUrl,
+            },
+          ]
+        : [],
+    };
+  });
+
+  const validItems = items.filter((it) => it.files && it.files.length > 0);
+
+  if (validItems.length === 0) {
+    throw new Error("No valid items with file urls to send to Printful");
   }
 
-  if (!job.pdf_path) {
-    throw new Error(
-      `card_print_jobs row for ${cardId} has no print file path (pdf_path); cannot create Printful order`,
-    );
-  }
-
-  // 2) Load the related order for shipping + email
-  const { data: order, error: orderError } = await supabaseAdmin
+  // Optional: look up shipping info from orders table
+  const { data: orderRow, error: orderError } = await supabaseAdmin
     .from("orders")
     .select(
-      `
-      id,
-      email,
-      shipping_name,
-      shipping_address_line1,
-      shipping_address_line2,
-      shipping_city,
-      shipping_state,
-      shipping_postal_code,
-      shipping_country
-    `,
+      "shipping_name, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country",
     )
-    .eq("id", job.order_id)
-    .single();
+    .eq("id", orderId)
+    .maybeSingle();
 
-  if (orderError || !order) {
-    console.error("Order not found for print job", job.order_id, orderError);
-    throw new Error("Order not found for print job " + job.order_id);
+  if (orderError) {
+    console.error("[printful] Error fetching order for shipping", orderError);
+    throw orderError;
   }
 
-  // 3) Public URL for inside-right print asset (now PNG)
-  const insideRightUrl = buildPrintfilePublicUrl(job.pdf_path);
+  const recipient = orderRow
+    ? {
+        name: orderRow.shipping_name ?? "",
+        address1: orderRow.shipping_address_line1 ?? "",
+        address2: orderRow.shipping_address_line2 ?? "",
+        city: orderRow.shipping_city ?? "",
+        state_code: orderRow.shipping_state ?? "",
+        country_code: orderRow.shipping_country ?? "",
+        zip: orderRow.shipping_postal_code ?? "",
+      }
+    : null;
 
-  // 4) Build Printful order payload
-  const payload = {
-    external_id: `giftlink_${cardId}`,
-    shipping: "STANDARD",
-    confirm: false, // keep false to ensure orders don't autofill. Change to true when ready to auto-fulfill.
-    recipient: {
-      name: order.shipping_name,
-      address1: order.shipping_address_line1,
-      address2: order.shipping_address_line2,
-      city: order.shipping_city,
-      state_code: order.shipping_state,
-      country_code: order.shipping_country,
-      zip: order.shipping_postal_code,
-      email: order.email,
-    },
-    items: [
-      {
-        // Use your existing store listing: "Wedding Card 1"
-        sync_variant_id: PRINTFUL_SYNC_VARIANT_ID,
-        quantity: 1,
-        // Attach just the inside QR panel; front/back stay as designed in Printful
-        files: [
-          {
-            // For 4×6 Greeting Card the inside panel is usually "inside2"
-            type: "inside2",
-            url: insideRightUrl,
-          },
-        ],
-      },
-    ],
-  };
+  if (!recipient) {
+    throw new Error(
+      "Missing shipping data on order; cannot create Printful order",
+    );
+  }
 
-  // 5) Call Printful API
-  const res = await fetch("https://api.printful.com/orders", {
+  // Create one Printful order with all items
+  const response = await fetch("https://api.printful.com/orders", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${PRINTFUL_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      external_id: orderId,
+      recipient,
+      items: validItems,
+      confirm: false, // still send as draft
+    }),
   });
 
-  const body = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    console.error("Printful order create failed", {
-      status: res.status,
-      body,
-    });
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(
+      "[printful] Printful API error",
+      response.status,
+      response.statusText,
+      errorText,
+    );
     throw new Error(
-      `Printful order creation failed: ${res.status} ${JSON.stringify(body)}`,
+      `Printful API error ${response.status} ${response.statusText}`,
     );
   }
 
-  const result = body?.result ?? body;
-  const printfulOrderId = result?.id;
-  const status = result?.status ?? "unknown";
+  const json = await response.json();
 
-  // 6) Update card_print_jobs with Printful tracking info (if columns exist)
-  try {
-    await supabaseAdmin
-      .from("card_print_jobs")
-      .update({
-        printful_order_id: printfulOrderId,
-        printful_status: status,
-      })
-      .eq("id", job.id);
-  } catch (err) {
-    console.error("Failed to update card_print_jobs with Printful info", err);
+  const printfulOrderId = json?.result?.id;
+  const status = json?.result?.status ?? "draft";
+
+  // Update all related card_print_jobs with this Printful order id and status
+  const { error: updateError } = await supabaseAdmin
+    .from("card_print_jobs")
+    .update({
+      printful_order_id: printfulOrderId,
+      printful_status: status,
+    })
+    .in("card_id", cardIds);
+
+  if (updateError) {
+    console.error(
+      "[printful] Error updating card_print_jobs with Printful order id",
+      updateError,
+    );
   }
 
   return {
     printfulOrderId,
     status,
-    raw: body,
   };
 }
