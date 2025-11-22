@@ -35,21 +35,19 @@ async function generateGiftlinkInsidePng(
   let height: number;
 
   if (size === "5x7") {
-    width = 1500; // ~5 in at 300 dpi
-    height = 2100; // ~7 in at 300 dpi
+    width = 1500; // about 5 in at 300 dpi
+    height = 2100; // about 7 in at 300 dpi
   } else {
-    width = 1245; // ~4.15 in at 300 dpi
-    height = 1845; // ~6.15 in at 300 dpi
+    width = 1245; // about 4.15 in at 300 dpi
+    height = 1845; // about 6.15 in at 300 dpi
   }
 
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
 
-  // White background
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
 
-  // QR code data
   const cardUrl = `${giftlinkBaseUrl}/card/${cardId}`;
 
   const qrSize = 300;
@@ -77,7 +75,6 @@ async function generateGiftlinkInsidePng(
 
   ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
-  // Optional logo under the code
   const logoPath = "public/print-templates/giftlink-logo.png";
 
   try {
@@ -97,13 +94,12 @@ async function generateGiftlinkInsidePng(
       logoTargetHeight,
     );
   } catch {
-    // If logo is missing just leave the card blank under the code
+    // logo is optional
   }
 
   return canvas.toBuffer("image/png");
 }
 
-// Map Stripe price id to template + size + pack quantity
 function resolvePackConfigForPriceId(priceId: string | null | undefined): {
   templateId: string;
   size: CardSize;
@@ -196,15 +192,8 @@ export async function POST(req: NextRequest) {
 
         const stripeSessionId = session.id;
 
-        // 1) Build or reuse order
         let orderId: string | null = null;
         let hasValidShipping = false;
-
-        // Collect all cards that should go to Printful in this order
-        const cardsForPrintful: Array<{
-          cardId: string;
-          storagePath: string | null;
-        }> = [];
 
         try {
           const { data: existingOrder, error: existingOrderError } =
@@ -264,11 +253,7 @@ export async function POST(req: NextRequest) {
             if (!hasValidShipping) {
               console.warn(
                 "[stripewebhook] Missing or incomplete shipping address for card_pack_order",
-                {
-                  stripeSessionId,
-                  shipping,
-                  address,
-                },
+                { stripeSessionId, shipping, address },
               );
             }
 
@@ -298,7 +283,9 @@ export async function POST(req: NextRequest) {
                   shipping_postal_code: address?.postal_code ?? null,
                   shipping_country: address?.country ?? null,
                   items: itemsForOrder,
-                  amount_total: session.amount_total ?? null, // store in cents as integer
+                  amount_total: session.amount_total
+                    ? session.amount_total / 100
+                    : null,
                   status: session.payment_status ?? "paid",
                 })
                 .select("id")
@@ -320,38 +307,6 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Fallback lookup by session id if needed
-        if (!orderId) {
-          try {
-            const { data: fallbackOrder, error: fallbackError } =
-              await supabaseAdmin
-                .from("orders")
-                .select("id")
-                .eq("stripe_session_id", stripeSessionId)
-                .maybeSingle();
-
-            if (fallbackError) {
-              console.error(
-                "[stripewebhook] Fallback error looking up order by session id",
-                fallbackError,
-              );
-            }
-
-            if (fallbackOrder) {
-              orderId = fallbackOrder.id;
-              console.log(
-                "[stripewebhook] Fallback order id resolved",
-                orderId,
-              );
-            }
-          } catch (fallbackErr) {
-            console.error(
-              "[stripewebhook] Unexpected fallback error while resolving order id",
-              fallbackErr,
-            );
-          }
-        }
-
         if (!orderId) {
           console.error(
             "[stripewebhook] Could not determine orderId for session; skipping card and print job creation",
@@ -360,7 +315,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        // 2) Derive how many cards to create from Stripe line items
+        // derive how many cards to create from Stripe line items
         let totalCardConfigs: Array<{
           size: CardSize;
           cardsToCreate: number;
@@ -439,7 +394,9 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        // 3) For each config, create that many cards and print jobs
+        // create all cards and print jobs and track card ids for Printful
+        const allCardIds: string[] = [];
+
         for (const cfg of totalCardConfigs) {
           const size = cfg.size;
           const quantity = cfg.cardsToCreate;
@@ -448,6 +405,8 @@ export async function POST(req: NextRequest) {
             const cardId = `card_${randomUUID()
               .replace(/-/g, "")
               .slice(0, 8)}`;
+
+            allCardIds.push(cardId);
 
             let cardRowId: string | null = null;
 
@@ -543,35 +502,27 @@ export async function POST(req: NextRequest) {
               }
             }
 
-            let printJobId: string | null = null;
-
             try {
-              const { data: printJob, error: printJobError } =
-                await supabaseAdmin
-                  .from("card_print_jobs")
-                  .insert({
-                    card_id: cardId,
-                    order_id: orderId,
-                    pdf_path: storagePath ?? null,
-                    status: uploadFailed ? "error" : "generated",
-                    error_message: uploadFailed
-                      ? "PNG generation or upload failed"
-                      : null,
-                  })
-                  .select("id")
-                  .single();
+              const { error: printJobError } = await supabaseAdmin
+                .from("card_print_jobs")
+                .insert({
+                  card_id: cardId,
+                  order_id: orderId,
+                  pdf_path: storagePath ?? null,
+                  status: uploadFailed ? "error" : "generated",
+                  error_message: uploadFailed
+                    ? "PNG generation or upload failed"
+                    : null,
+                });
 
-              if (printJobError || !printJob) {
+              if (printJobError) {
                 console.error(
                   "[stripewebhook] Error inserting card_print_jobs row",
                   printJobError,
                 );
               } else {
-                printJobId = printJob.id;
                 console.log(
-                  "[stripewebhook] Created card_print_jobs row",
-                  printJobId,
-                  "for card",
+                  "[stripewebhook] Created card_print_jobs row for card",
                   cardId,
                 );
               }
@@ -581,36 +532,22 @@ export async function POST(req: NextRequest) {
                 jobErr,
               );
             }
-
-            // Collect cards to send to Printful later as a single combined order
-            if (!uploadFailed && printJobId) {
-              cardsForPrintful.push({
-                cardId,
-                storagePath: storagePath ?? null,
-              });
-            } else if (!uploadFailed && !printJobId) {
-              console.log(
-                "[stripewebhook] Skipping Printful collection because print job insert failed for card",
-                cardId,
-              );
-            } else {
-              console.log(
-                "[stripewebhook] Skipping Printful collection because PNG upload failed for card",
-                cardId,
-              );
-            }
           }
         }
 
-        // 4) After all cards and print jobs are created, create one Printful order
-        if (hasValidShipping && cardsForPrintful.length > 0) {
+        // create one Printful order for all cards
+        if (hasValidShipping && allCardIds.length > 0) {
           try {
             console.log(
-              "[stripewebhook] Creating single Printful order for",
-              cardsForPrintful.length,
-              "cards in order",
-              orderId,
+              "[stripewebhook] Calling createPrintfulOrderForCards for",
+              allCardIds.length,
+              "cards",
             );
+
+            const cardsForPrintful = allCardIds.map((cardId) => ({
+              cardId,
+              storagePath: null as string | null,
+            }));
 
             const { printfulOrderId, status } =
               await createPrintfulOrderForCards({
@@ -619,28 +556,24 @@ export async function POST(req: NextRequest) {
               });
 
             console.log(
-              "[stripewebhook] Combined Printful order created",
+              "[stripewebhook] Printful order created",
               printfulOrderId,
               status,
             );
           } catch (printfulErr) {
             console.error(
-              "[stripewebhook] Combined Printful order failed for order",
-              orderId,
+              "[stripewebhook] Printful order failed for cards",
+              allCardIds,
               printfulErr,
             );
+            // We already logged, jobs remain with status generated
           }
-        } else if (!hasValidShipping && cardsForPrintful.length > 0) {
-          console.log(
-            "[stripewebhook] Not creating Printful order because shipping address is missing; card_print_jobs remain without Printful order id",
-          );
         } else {
           console.log(
-            "[stripewebhook] No cards collected for Printful from this session; nothing to send",
+            "[stripewebhook] Skipping Printful order creation because shipping missing or no cards",
           );
         }
       } else {
-        // Gift load flow
         console.log(
           "[stripewebhook] Handling gift load checkout.session.completed",
         );
@@ -694,7 +627,6 @@ export async function POST(req: NextRequest) {
         }
       }
     } else {
-      // Other Stripe events can be logged if desired
       console.log(
         "[stripewebhook] Received unsupported event type",
         event.type,
@@ -702,9 +634,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     console.error("[stripewebhook] Top level handler error", err);
-    // Still return 200 so Stripe does not retry forever while we debug
   }
 
-  // Always respond 200 so Stripe does not retry forever
   return NextResponse.json({ received: true });
 }
