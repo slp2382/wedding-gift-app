@@ -1,76 +1,56 @@
 // app/api/printful-test/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { createPrintfulOrderForCard } from "@/lib/printful";
+import { createPrintfulOrderForCards } from "@/lib/printful";
 
 export const runtime = "nodejs";
 
-/**
- * Test endpoint to manually trigger a Printful order for a given cardId.
- * Usage:
- *   GET /api/printful-test?cardId=card_abc123
- *
- * This is for debugging only and should not be used by end users.
- */
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const cardId = searchParams.get("cardId") ?? "card_demo123";
-
-  // Do env checks *inside* the handler, not at module load, so build does not break.
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const printfulApiKey = process.env.PRINTFUL_API_KEY;
-  const printfulSyncVariantId = process.env.PRINTFUL_SYNC_VARIANT_ID;
-
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    console.error("[printful-test] Missing Supabase server env vars");
-    return NextResponse.json(
-      { ok: false, error: "Supabase server env vars missing" },
-      { status: 500 },
-    );
-  }
-
-  if (!printfulApiKey || !printfulSyncVariantId) {
-    console.error("[printful-test] Missing Printful env vars");
-    return NextResponse.json(
-      { ok: false, error: "Printful env vars missing" },
-      { status: 500 },
-    );
-  }
-
+// Simple test endpoint to trigger a single combined Printful order
+// Body:
+//
+// {
+//   "orderId": "uuid from orders table",
+//   "cardIds": ["card_abc12345", "card_def67890"]
+// }
+export async function POST(req: NextRequest) {
   try {
-    console.log("[printful-test] Triggering createPrintfulOrderForCard for", cardId);
+    const body = await req.json().catch(() => null);
 
-    const { printfulOrderId, status, raw } = await createPrintfulOrderForCard(cardId);
+    const orderId = body?.orderId as string | null;
+    const cardIds = (body?.cardIds as string[] | null) ?? [];
 
-    console.log(
-      "[printful-test] Printful order created",
-      printfulOrderId,
-      status,
-    );
+    if (!orderId || !Array.isArray(cardIds) || cardIds.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Provide orderId and cardIds array in body example { orderId, cardIds: [cardId1, cardId2] }",
+        },
+        { status: 400 },
+      );
+    }
+
+    const cards = cardIds.map((cardId) => ({
+      cardId,
+      storagePath: null as string | null,
+    }));
+
+    const { printfulOrderId, status } = await createPrintfulOrderForCards({
+      orderId,
+      cards,
+    });
 
     return NextResponse.json(
       {
         ok: true,
-        cardId,
         printfulOrderId,
         status,
-        raw,
       },
       { status: 200 },
     );
   } catch (err) {
-    console.error("[printful-test] Error creating Printful order for", cardId, err);
-
-    const message =
-      err instanceof Error ? err.message : JSON.stringify(err);
-
+    console.error("[printful test] Error creating Printful order", err);
     return NextResponse.json(
-      {
-        ok: false,
-        cardId,
-        error: message,
-      },
+      { error: "Failed to create Printful test order" },
       { status: 500 },
     );
   }
