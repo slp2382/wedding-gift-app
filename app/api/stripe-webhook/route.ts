@@ -285,9 +285,7 @@ export async function POST(req: NextRequest) {
                   shipping_postal_code: address?.postal_code ?? null,
                   shipping_country: address?.country ?? null,
                   items: itemsForOrder,
-                  amount_total: session.amount_total
-                    ? session.amount_total / 100
-                    : null,
+                  amount_total: session.amount_total ?? null,
                   status: session.payment_status ?? "paid",
                 })
                 .select("id")
