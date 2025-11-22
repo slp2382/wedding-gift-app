@@ -57,17 +57,25 @@ export async function createPrintfulOrderForCards(
 
   const { data: jobs, error: jobsError } = await supabaseAdmin
     .from("card_print_jobs")
-    .select("id, card_id, pdf_path, printful_order_id, status, cards(print_file_url)")
+    .select(
+      "id, card_id, pdf_path, printful_order_id, status, cards(print_file_url)",
+    )
     .in("card_id", cardIds);
 
   if (jobsError) {
-    console.error("[printful] Error fetching card_print_jobs for cards", jobsError);
+    console.error(
+      "[printful] Error fetching card_print_jobs for cards",
+      jobsError,
+    );
     throw jobsError;
   }
 
   // Build Printful items: one item per card with its own file url
-  const items = (jobs || []).map((job) => {
-    const fileUrl = job.cards?.print_file_url as string | null;
+  const items = (jobs || []).map((job: any) => {
+    const fileUrl =
+      Array.isArray(job.cards) && job.cards.length > 0
+        ? job.cards[0].print_file_url
+        : null;
 
     if (!fileUrl) {
       console.warn(
