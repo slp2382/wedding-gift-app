@@ -144,6 +144,15 @@ export async function createPrintfulOrderForCards(
   }
 
   // Single Printful order with all cards as items
+  const externalId = `giftlink_${orderId}`;
+
+  console.log(
+    "[printful] Creating Printful order with external_id",
+    externalId,
+    "items:",
+    validItems.length,
+  );
+
   const response = await fetch("https://api.printful.com/orders", {
     method: "POST",
     headers: {
@@ -151,10 +160,10 @@ export async function createPrintfulOrderForCards(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      external_id: orderId,
+      external_id: externalId,
       recipient,
       items: validItems,
-      confirm: false, // still send as draft
+      confirm: false, // send as draft
     }),
   });
 
