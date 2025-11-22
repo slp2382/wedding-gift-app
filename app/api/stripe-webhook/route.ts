@@ -35,11 +35,11 @@ async function generateGiftlinkInsidePng(
   let height: number;
 
   if (size === "5x7") {
-    width = 1500; // ~5 in at 300 dpi
-    height = 2100; // ~7 in at 300 dpi
+    width = 1500; // ~5 in at 300dpi
+    height = 2100; // ~7 in at 300dpi
   } else {
-    width = 1245; // ~4.15 in at 300 dpi
-    height = 1845; // ~6.15 in at 300 dpi
+    width = 1245; // ~4.15 in at 300dpi
+    height = 1845; // ~6.15 in at 300dpi
   }
 
   const canvas = createCanvas(width, height);
@@ -94,13 +94,13 @@ async function generateGiftlinkInsidePng(
       logoTargetHeight,
     );
   } catch {
-    // no logo is fine
+    // logo optional
   }
 
   return canvas.toBuffer("image/png");
 }
 
-// helper: map Stripe price id to template + size + pack quantity
+// Map a Stripe Price ID to template + size + pack quantity
 function resolvePackConfigForPriceId(priceId: string | null | undefined): {
   templateId: string;
   size: CardSize;
@@ -112,11 +112,11 @@ function resolvePackConfigForPriceId(priceId: string | null | undefined): {
     const entries = Object.entries(template.stripePrices ?? {}) as Array<
       [string, string]
     >;
+
     for (const [qtyStr, mappedPriceId] of entries) {
       if (mappedPriceId && mappedPriceId === priceId) {
         const packQuantity = Number(qtyStr) || 1;
-        const size: CardSize =
-          template.size === "5x7" ? "5x7" : "4x6";
+        const size: CardSize = template.size === "5x7" ? "5x7" : "4x6";
         return {
           templateId: template.id,
           size,
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
 
       const stripeSessionId = session.id;
 
-      // 1) Build or reuse order row
+      // 1) Build or reuse order
       let orderId: string | null = null;
       let hasValidShipping = false;
 
@@ -225,6 +225,7 @@ export async function POST(req: NextRequest) {
               if (pi.shipping) {
                 shipping = pi.shipping;
                 address = pi.shipping.address;
+
                 if (!email && (pi as any).receipt_email) {
                   email = (pi as any).receipt_email;
                 }
@@ -246,7 +247,11 @@ export async function POST(req: NextRequest) {
           if (!hasValidShipping) {
             console.warn(
               "[stripewebhook] Missing or incomplete shipping address for card_pack_order",
-              { stripeSessionId, shipping, address },
+              {
+                stripeSessionId,
+                shipping,
+                address,
+              },
             );
           }
 
@@ -300,10 +305,44 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Final safety: fallback lookup by session id
+      if (!orderId) {
+        try {
+          const { data: fallbackOrder, error: fallbackError } =
+            await supabaseAdmin
+              .from("orders")
+              .select("id")
+              .eq("stripe_session_id", stripeSessionId)
+              .maybeSingle();
+
+          if (fallbackError) {
+            console.error(
+              "[stripewebhook] Fallback error looking up order by session id",
+              fallbackError,
+            );
+          }
+
+          if (fallbackOrder) {
+            orderId = fallbackOrder.id;
+            console.log(
+              "[stripewebhook] Fallback order id resolved",
+              orderId,
+            );
+          }
+        } catch (fallbackErr) {
+          console.error(
+            "[stripewebhook] Unexpected fallback error while resolving order id",
+            fallbackErr,
+          );
+        }
+      }
+
       if (!orderId) {
         console.error(
-          "[stripewebhook] No orderId could be created for card_pack_order",
+          "[stripewebhook] Could not determine orderId for session; skipping card and print job creation",
+          stripeSessionId,
         );
+        return NextResponse.json({ received: true });
       }
 
       // 2) Derive how many cards to create from Stripe line items
@@ -318,13 +357,30 @@ export async function POST(req: NextRequest) {
           { limit: 100 },
         );
 
+        console.log(
+          "[stripewebhook] Line items for session",
+          stripeSessionId,
+          JSON.stringify(
+            lineItems.data.map((li) => ({
+              description: li.description,
+              quantity: li.quantity,
+              priceId: (li.price as Stripe.Price | null)?.id,
+              unitAmount: (li.price as Stripe.Price | null)?.unit_amount,
+            })),
+          ),
+        );
+
         for (const li of lineItems.data) {
           const priceObj = li.price as Stripe.Price | null;
           const priceId = priceObj?.id ?? null;
 
           const config = resolvePackConfigForPriceId(priceId);
           if (!config) {
-            // probably shipping or some non card line item
+            console.log(
+              "[stripewebhook] Skipping non card line item",
+              li.description,
+              priceId,
+            );
             continue;
           }
 
@@ -332,11 +388,28 @@ export async function POST(req: NextRequest) {
           const cardsToCreate =
             config.packQuantity * (quantity > 0 ? quantity : 1);
 
+          console.log(
+            "[stripewebhook] Card line item resolved",
+            {
+              description: li.description,
+              priceId,
+              packQuantity: config.packQuantity,
+              lineQuantity: quantity,
+              cardsToCreate,
+              size: config.size,
+            },
+          );
+
           totalCardConfigs.push({
             size: config.size,
             cardsToCreate,
           });
         }
+
+        console.log(
+          "[stripewebhook] totalCardConfigs",
+          JSON.stringify(totalCardConfigs),
+        );
       } catch (lineErr) {
         console.error(
           "[stripewebhook] Error listing Stripe line items",
@@ -348,6 +421,7 @@ export async function POST(req: NextRequest) {
         console.warn(
           "[stripewebhook] No card line items detected for this order; skipping card generation",
         );
+        return NextResponse.json({ received: true });
       }
 
       // 3) For each config, create that many cards and print jobs
@@ -575,7 +649,7 @@ export async function POST(req: NextRequest) {
         }
       }
     } else {
-      // gift load flow
+      // Gift load flow
       console.log(
         "[stripewebhook] Handling gift load checkout.session.completed",
       );
