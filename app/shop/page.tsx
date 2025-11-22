@@ -27,33 +27,39 @@ function ShopPageContent() {
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-10 dark:bg-zinc-950">
-      {/* Top bar with cart link */}
+      {/* Top bar with home and cart links */}
       <div className="mx-auto mb-6 flex max-w-5xl items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             GiftLink card shop
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Choose your card design and size, then add them to your cart.
+            Choose your card size and quantity, then add them to your cart.
           </p>
         </div>
-        <Link
-          href="/cart"
-          className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
-        >
-          Cart {cartCount > 0 ? `(${cartCount})` : ""}
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+          >
+            Return home
+          </Link>
+          <Link
+            href="/cart"
+            className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+          >
+            Cart {cartCount > 0 ? `(${cartCount})` : ""}
+          </Link>
+        </div>
       </div>
 
       {/* Success Banner */}
       {isSuccess && (
         <div className="relative mx-auto mb-6 max-w-3xl">
-          {/* Glow */}
           <div className="pointer-events-none absolute inset-x-0 -top-6 h-24 rounded-full bg-emerald-400/20 blur-3xl" />
 
           <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-4 py-5 text-emerald-900 shadow-sm dark:border-emerald-700/60 dark:bg-gradient-to-br dark:from-emerald-950 dark:to-emerald-900/60 dark:text-emerald-50 sm:px-6 sm:py-6">
             <div className="flex items-start gap-3 sm:gap-4">
-              {/* Check Icon */}
               <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 shadow-inner dark:bg-emerald-800/80 dark:text-emerald-50">
                 <span className="text-xl">✓</span>
               </div>
@@ -68,7 +74,6 @@ function ShopPageContent() {
                   receive updates as it moves through printing and shipping.
                 </p>
 
-                {/* Buttons */}
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:gap-2">
                   <Link
                     href="/shop"
