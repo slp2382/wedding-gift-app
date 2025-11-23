@@ -39,9 +39,7 @@ type CardPrintJobRow = {
   pdf_path: string | null;
   printful_order_id: number | null;
   status: string | null;
-  cards: {
-    print_file_url: string | null;
-  } | null;
+  cards: { print_file_url: string | null }[] | null;
 };
 
 export async function createPrintfulOrderForCards(
@@ -81,11 +79,11 @@ export async function createPrintfulOrderForCards(
     throw jobsError;
   }
 
-  const jobs = (data || []) as CardPrintJobRow[];
+  const jobs = (data ?? []) as unknown as CardPrintJobRow[];
 
   // Build Printful items, one per card, using inside2 so it prints on the inner right panel
   const items = jobs.map((job) => {
-    const fileUrl = job.cards?.print_file_url ?? null;
+    const fileUrl = job.cards?.[0]?.print_file_url ?? null;
 
     if (!fileUrl) {
       console.warn(
@@ -160,8 +158,8 @@ export async function createPrintfulOrderForCards(
     method: "POST",
     headers: {
       Authorization: `Bearer ${PRINTFUL_API_KEY}`,
-      "ContentType": "application/json",
-    } as any,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       recipient,
       items: validItems,
