@@ -25,6 +25,7 @@ const supabaseAdmin: any =
       })
     : null;
 
+// we are now 4x6 only in this webhook
 type CardSize = "4x6";
 
 async function generateGiftlinkInsidePng(
@@ -132,7 +133,7 @@ function resolvePackConfigForPriceId(priceId: string | null | undefined): {
 
     for (const [qtyStr, mappedPriceId] of entries) {
       if (mappedPriceId && mappedPriceId === priceId) {
-        const packQuantity = Number(qtyStr) || 1;
+        const packQuantity = Number(qtyStr) || 1; // 1, 3, 5
         const size: CardSize = "4x6";
         return {
           templateId: template.id,
@@ -172,41 +173,7 @@ async function handleCardPackOrder(
     stripeSessionId,
   );
 
-  // Fetch actual line items from Stripe instead of relying on metadata
-  let stripeLineItems: Stripe.ApiList<Stripe.LineItem> | null = null;
-  try {
-    stripeLineItems = await stripeClient.checkout.sessions.listLineItems(
-      session.id,
-      { limit: 100 },
-    );
-  } catch (err) {
-    console.error(
-      "[stripewebhook] Error listing Checkout Session line items",
-      err,
-    );
-  }
-
-  if (!stripeLineItems || stripeLineItems.data.length === 0) {
-    console.warn(
-      "[stripewebhook] No line items found for session, skipping card creation",
-      stripeSessionId,
-    );
-    return;
-  }
-
-  const simpleLineItems = stripeLineItems.data.map((li) => ({
-    price_id: li.price?.id as string | undefined,
-    quantity: li.quantity ?? 1,
-  }));
-
-  console.log(
-    "[stripewebhook] Resolved Stripe line items",
-    simpleLineItems.map((li) => ({
-      price_id: li.price_id,
-      quantity: li.quantity,
-    })),
-  );
-
+  // 1) Resolve or create order row and shipping
   let orderId: string | null = null;
   let hasValidShipping = false;
 
@@ -229,9 +196,6 @@ async function handleCardPackOrder(
       orderId = existingOrder.id;
       hasValidShipping = true;
     } else {
-      // Resolve shipping robustly:
-      // 1) Try Checkout Session shipping / shipping_details
-      // 2) Fall back to PaymentIntent.shipping or charge.shipping
       let shipping: any =
         (session as any).shipping ??
         (session as any).shipping_details ??
@@ -242,6 +206,7 @@ async function handleCardPackOrder(
         (session as any).customer_email ??
         null;
 
+      // PaymentIntent fallback for shipping
       if (!shipping && session.payment_intent) {
         try {
           const piId =
@@ -335,6 +300,69 @@ async function handleCardPackOrder(
     return;
   }
 
+  // 1.5) Idempotency guard: if card_print_jobs already exist for this order, skip
+  try {
+    const { data: existingJobs, error: jobsCheckError } = await supabaseAdmin
+      .from("card_print_jobs")
+      .select("id")
+      .eq("order_id", orderId)
+      .limit(1);
+
+    if (jobsCheckError) {
+      console.error(
+        "[stripewebhook] Error checking existing card_print_jobs for order",
+        jobsCheckError,
+      );
+    } else if (existingJobs && existingJobs.length > 0) {
+      console.log(
+        "[stripewebhook] card_print_jobs already exist for order; skipping duplicate processing",
+        orderId,
+      );
+      return;
+    }
+  } catch (checkErr) {
+    console.error(
+      "[stripewebhook] Unexpected error checking card_print_jobs for order",
+      checkErr,
+    );
+  }
+
+  // 2) Fetch actual line items from Stripe
+  let stripeLineItems: Stripe.ApiList<Stripe.LineItem> | null = null;
+  try {
+    stripeLineItems = await stripeClient.checkout.sessions.listLineItems(
+      session.id,
+      { limit: 100 },
+    );
+  } catch (err) {
+    console.error(
+      "[stripewebhook] Error listing Checkout Session line items",
+      err,
+    );
+  }
+
+  if (!stripeLineItems || stripeLineItems.data.length === 0) {
+    console.warn(
+      "[stripewebhook] No line items found for session, skipping card creation",
+      stripeSessionId,
+    );
+    return;
+  }
+
+  const simpleLineItems = stripeLineItems.data.map((li) => ({
+    price_id: li.price?.id as string | undefined,
+    quantity: li.quantity ?? 1,
+  }));
+
+  console.log(
+    "[stripewebhook] Resolved Stripe line items",
+    simpleLineItems.map((li) => ({
+      price_id: li.price_id,
+      quantity: li.quantity,
+    })),
+  );
+
+  // 3) Create card rows + PNGs + print jobs
   let totalCardsToCreate = 0;
   const allCardIds: string[] = [];
 
@@ -352,8 +380,8 @@ async function handleCardPackOrder(
     }
 
     const { templateId, packQuantity } = packConfig;
-    const totalCardsForItem = packQuantity * qty;
-    totalCardsToCreate += totalCardsForItem;
+    const cardsForThisLine = packQuantity * qty;
+    totalCardsToCreate += cardsForThisLine;
 
     console.log(
       "[stripewebhook] Creating cards for template",
@@ -362,11 +390,12 @@ async function handleCardPackOrder(
       packQuantity,
       "cart quantity",
       qty,
-      "totalCardsForItem",
-      totalCardsForItem,
+      "cardsForThisLine",
+      cardsForThisLine,
     );
 
-    for (let i = 0; i < qty; i++) {
+    // BUG FIX: generate cardsForThisLine cards, not just qty
+    for (let i = 0; i < cardsForThisLine; i++) {
       const cardId = `card_${randomUUID()
         .replace(/-/g, "")
         .slice(0, 8)}`;
@@ -508,6 +537,7 @@ async function handleCardPackOrder(
     totalCardsToCreate,
   );
 
+  // 4) Create one Printful order for all cards
   if (hasValidShipping && allCardIds.length > 0) {
     try {
       console.log(
