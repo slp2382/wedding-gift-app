@@ -33,6 +33,17 @@ type CreatePrintfulOrderForCardsArgs = {
   cards: CardForPrintful[];
 };
 
+type CardPrintJobRow = {
+  id: string;
+  card_id: string;
+  pdf_path: string | null;
+  printful_order_id: number | null;
+  status: string | null;
+  cards: {
+    print_file_url: string | null;
+  } | null;
+};
+
 export async function createPrintfulOrderForCards(
   args: CreatePrintfulOrderForCardsArgs,
 ): Promise<{ printfulOrderId: number; status: string }> {
@@ -55,19 +66,10 @@ export async function createPrintfulOrderForCards(
   // Look up card_print_jobs joined with cards to get print_file_url
   const cardIds = cards.map((c) => c.cardId);
 
-  const { data: jobs, error: jobsError } = await supabaseAdmin
+  const { data, error: jobsError } = await supabaseAdmin
     .from("card_print_jobs")
     .select(
-      `
-        id,
-        card_id,
-        pdf_path,
-        printful_order_id,
-        status,
-        cards (
-          print_file_url
-        )
-      `,
+      "id, card_id, pdf_path, printful_order_id, status, cards(print_file_url)",
     )
     .in("card_id", cardIds);
 
@@ -79,9 +81,11 @@ export async function createPrintfulOrderForCards(
     throw jobsError;
   }
 
-  // Build Printful items: one item per card with its own file url
-  const items = (jobs || []).map((job: any) => {
-    const fileUrl = job.cards?.print_file_url as string | null;
+  const jobs = (data || []) as CardPrintJobRow[];
+
+  // Build Printful items, one per card, using inside2 so it prints on the inner right panel
+  const items = jobs.map((job) => {
+    const fileUrl = job.cards?.print_file_url ?? null;
 
     if (!fileUrl) {
       console.warn(
@@ -98,9 +102,7 @@ export async function createPrintfulOrderForCards(
       files: fileUrl
         ? [
             {
-              // Place on inside right panel
-              // Allowed values: front, inside1, inside2, back, mockup
-              type: "inside2",
+              type: "inside2", // inner right panel
               url: fileUrl,
             },
           ]
@@ -108,25 +110,19 @@ export async function createPrintfulOrderForCards(
     };
   });
 
-  const validItems = items.filter((it) => it.files && it.files.length > 0);
+  const validItems = items.filter(
+    (it) => Array.isArray(it.files) && it.files.length > 0,
+  );
 
   if (validItems.length === 0) {
     throw new Error("No valid items with file urls to send to Printful");
   }
 
-  // Optional: look up shipping info from orders table
+  // Look up shipping info from orders table
   const { data: orderRow, error: orderError } = await supabaseAdmin
     .from("orders")
     .select(
-      `
-        shipping_name,
-        shipping_address_line1,
-        shipping_address_line2,
-        shipping_city,
-        shipping_state,
-        shipping_postal_code,
-        shipping_country
-      `,
+      "shipping_name, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -154,29 +150,22 @@ export async function createPrintfulOrderForCards(
     );
   }
 
-  // Sanitize order id for Printful external_id
-  const sanitizedOrderId = orderId.replace(/[^A-Za-z0-9]/g, "");
-  const externalId = `giftlink_${sanitizedOrderId}`;
-
-  console.log(
-    "[printful] Creating Printful order with external_id",
-    externalId,
-    "items:",
+  console.info(
+    "[printful] Creating Printful order with items:",
     validItems.length,
   );
 
-  // Create one Printful order with all items
+  // Create Printful order without custom external_id to avoid External ID errors
   const response = await fetch("https://api.printful.com/orders", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${PRINTFUL_API_KEY}`,
-      "Content-Type": "application/json",
-    },
+      "ContentType": "application/json",
+    } as any,
     body: JSON.stringify({
-      external_id: externalId,
       recipient,
       items: validItems,
-      confirm: false, // still send as draft
+      confirm: false, // send as draft
     }),
   });
 
