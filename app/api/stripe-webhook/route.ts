@@ -146,6 +146,349 @@ function resolvePackConfigForPriceId(priceId: string | null | undefined): {
   return null;
 }
 
+async function handleCardPackOrder(session: Stripe.Checkout.Session) {
+  if (!supabaseAdmin) {
+    console.error("[stripewebhook] Supabase env vars missing in handler");
+    return;
+  }
+
+  const stripeSessionId = session.id;
+  const metadata = session.metadata || {};
+  const type = metadata.type;
+
+  if (type !== "card_pack_order") {
+    console.log(
+      "[stripewebhook] handleCardPackOrder called for non-card_pack_order type",
+      type,
+    );
+    return;
+  }
+
+  console.log(
+    "[stripewebhook] Handling card_pack_order for session",
+    stripeSessionId,
+  );
+
+  let orderId: string | null = null;
+  let hasValidShipping = false;
+
+  try {
+    const { data: existingOrder, error: existingOrderError } =
+      await supabaseAdmin
+        .from("orders")
+        .select("id")
+        .eq("stripe_session_id", stripeSessionId)
+        .maybeSingle();
+
+    if (existingOrderError) {
+      console.error(
+        "[stripewebhook] Error checking existing order",
+        existingOrderError,
+      );
+    }
+
+    if (existingOrder) {
+      orderId = existingOrder.id;
+      hasValidShipping = true;
+    } else {
+      // Resolve shipping robustly:
+      // 1) Try Checkout Session shipping / shipping_details
+      // 2) Fall back to PaymentIntent.shipping or charge.shipping
+      let shipping: any =
+        (session as any).shipping ??
+        (session as any).shipping_details ??
+        null;
+
+      let email: string | null =
+        session.customer_details?.email ??
+        (session as any).customer_email ??
+        null;
+
+      if (!shipping && session.payment_intent && stripe) {
+        try {
+          const piId =
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : session.payment_intent.id;
+
+          const pi = await stripe.paymentIntents.retrieve(piId);
+          const piAny: any = pi;
+
+          if (piAny.shipping) {
+            shipping = piAny.shipping;
+          } else if (piAny.charges?.data?.length) {
+            const charge = piAny.charges.data[0];
+
+            if (charge.shipping) {
+              shipping = charge.shipping;
+            }
+
+            if (!email && charge.billing_details?.email) {
+              email = charge.billing_details.email;
+            }
+          }
+        } catch (piErr) {
+          console.error(
+            "[stripewebhook] Error retrieving PaymentIntent for shipping fallback",
+            piErr,
+          );
+        }
+      }
+
+      const address: any = shipping?.address ?? null;
+
+      if (
+        address &&
+        address.line1 &&
+        address.postal_code &&
+        address.country
+      ) {
+        hasValidShipping = true;
+      } else {
+        console.warn(
+          "[stripewebhook] Missing or incomplete shipping details; cannot create Printful order",
+          { shipping, address },
+        );
+      }
+
+      const { data: newOrder, error: insertOrderError } =
+        await supabaseAdmin
+          .from("orders")
+          .insert({
+            stripe_session_id: stripeSessionId,
+            email,
+            shipping_name: shipping?.name ?? null,
+            shipping_address_line1: address?.line1 ?? null,
+            shipping_address_line2: address?.line2 ?? null,
+            shipping_city: address?.city ?? null,
+            shipping_state: address?.state ?? null,
+            shipping_postal_code: address?.postal_code ?? null,
+            shipping_country: address?.country ?? null,
+            amount_total:
+              typeof session.amount_total == "number"
+                ? session.amount_total
+                : null,
+            status: session.payment_status ?? "paid",
+          })
+          .select("id")
+          .single();
+
+      if (insertOrderError || !newOrder) {
+        console.error(
+          "[stripewebhook] Error inserting order",
+          insertOrderError,
+        );
+      } else {
+        orderId = newOrder.id;
+      }
+    }
+  } catch (orderErr) {
+    console.error(
+      "[stripewebhook] Unexpected error while handling order",
+      orderErr,
+    );
+  }
+
+  if (!orderId) {
+    console.error(
+      "[stripewebhook] Could not determine orderId for session; skipping card and print job creation",
+      stripeSessionId,
+    );
+    return;
+  }
+
+  const lineItems = metadata.line_items
+    ? JSON.parse(metadata.line_items)
+    : null;
+
+  let totalCardsToCreate = 0;
+  const allCardIds: string[] = [];
+
+  if (Array.isArray(lineItems)) {
+    for (const item of lineItems) {
+      const priceId = item.price_id as string | undefined;
+      const quantity = Number(item.quantity) || 1;
+      const packConfig = resolvePackConfigForPriceId(priceId ?? null);
+
+      if (!packConfig) {
+        console.warn(
+          "[stripewebhook] No packConfig resolved for price_id",
+          priceId,
+        );
+        continue;
+      }
+
+      const { templateId, packQuantity } = packConfig;
+      const totalCardsForItem = packQuantity * quantity;
+      totalCardsToCreate += totalCardsForItem;
+
+      for (let i = 0; i < quantity; i++) {
+        const cardId = `card_${randomUUID()
+          .replace(/-/g, "")
+          .slice(0, 8)}`;
+
+        allCardIds.push(cardId);
+
+        let cardRowId: string | null = null;
+
+        try {
+          const { data: cardRow, error: cardInsertError } =
+            await supabaseAdmin
+              .from("cards")
+              .insert({
+                card_id: cardId,
+                giver_name: "Store card",
+                amount: 0,
+                note: null,
+                claimed: false,
+                funded: false,
+                printed: false,
+                print_file_url: null,
+              })
+              .select("id")
+              .single();
+
+          if (cardInsertError || !cardRow) {
+            console.error(
+              "[stripewebhook] Error inserting card row",
+              cardInsertError,
+            );
+            continue;
+          }
+
+          cardRowId = cardRow.id;
+        } catch (cardErr) {
+          console.error(
+            "[stripewebhook] Unexpected error inserting card row",
+            cardErr,
+          );
+          continue;
+        }
+
+        if (!cardRowId) continue;
+
+        let uploadFailed = false;
+        let publicUrl: string | null = null;
+
+        try {
+          const pngBuffer = await generateGiftlinkInsidePng(cardId);
+
+          const filePath = `cards/${cardId}.png`;
+
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from("printfiles")
+            .upload(filePath, pngBuffer, {
+              contentType: "image/png",
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.error(
+              "[stripewebhook] Error uploading PNG to Supabase",
+              uploadError,
+            );
+            uploadFailed = true;
+          } else {
+            const {
+              data: { publicUrl: url },
+            } = supabaseAdmin.storage
+              .from("printfiles")
+              .getPublicUrl(filePath);
+
+            publicUrl = url;
+
+            const { error: updateCardError } = await supabaseAdmin
+              .from("cards")
+              .update({
+                print_file_url: publicUrl,
+              })
+              .eq("card_id", cardId);
+
+            if (updateCardError) {
+              console.error(
+                "[stripewebhook] Error updating card print_file_url",
+                updateCardError,
+              );
+            } else {
+              console.log(
+                "[stripewebhook] Updated card print_file_url for card",
+                cardId,
+              );
+            }
+          }
+        } catch (pngErr) {
+          console.error(
+            "[stripewebhook] Error generating or uploading PNG",
+            pngErr,
+          );
+          uploadFailed = true;
+        }
+
+        try {
+          const { error: printJobError } = await supabaseAdmin
+            .from("card_print_jobs")
+            .insert({
+              card_id: cardId,
+              order_id: orderId,
+              pdf_path: publicUrl ? `cards/${cardId}.png` : null,
+              status: uploadFailed ? "error" : "generated",
+              error_message: uploadFailed
+                ? "PNG generation or upload failed"
+                : null,
+            });
+
+          if (printJobError) {
+            console.error(
+              "[stripewebhook] Error inserting card_print_jobs row",
+              printJobError,
+            );
+          } else {
+            console.log(
+              "[stripewebhook] Created card_print_jobs row for card",
+              cardId,
+            );
+          }
+        } catch (jobErr) {
+          console.error(
+            "[stripewebhook] Unexpected error inserting card_print_jobs row",
+            jobErr,
+          );
+        }
+      }
+    }
+  }
+
+  if (hasValidShipping && allCardIds.length > 0) {
+    try {
+      console.log(
+        "[stripewebhook] Creating Printful order for cards",
+        allCardIds,
+      );
+
+      await createPrintfulOrderForCards({
+        orderId,
+        cards: allCardIds.map((cardId) => ({
+          cardId,
+          storagePath: null,
+        })),
+      });
+
+      console.log(
+        "[stripewebhook] Successfully created Printful order for cards",
+      );
+    } catch (printfulErr) {
+      console.error(
+        "[stripewebhook] Error creating Printful order",
+        printfulErr,
+      );
+    }
+  } else if (!hasValidShipping) {
+    console.warn(
+      "[stripewebhook] Skipping Printful order creation due to missing shipping",
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!stripe || !stripeWebhookSecret) {
     console.error(
@@ -196,342 +539,50 @@ export async function POST(req: NextRequest) {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const mode = session.mode;
-      const metadata = session.metadata || {};
-
-      const type = metadata.type;
-
       console.log(
         "[stripewebhook] checkout.session.completed for mode",
         mode,
-        "type",
-        type,
+        "metadata.type",
+        session.metadata?.type,
       );
 
-      if (type === "card_pack_order") {
-        console.log(
-          "[stripewebhook] Handling card_pack_order checkout.session.completed",
-        );
+      await handleCardPackOrder(session);
+    } else if (event.type === "payment_intent.succeeded") {
+      const pi = event.data.object as Stripe.PaymentIntent;
+      console.log(
+        "[stripewebhook] payment_intent.succeeded",
+        pi.id,
+        "status",
+        pi.status,
+      );
 
-        const stripeSessionId = session.id;
-
-        let orderId: string | null = null;
-        let hasValidShipping = false;
-
+      // Try to find a Checkout Session associated with this PaymentIntent
+      if (stripe) {
         try {
-          const { data: existingOrder, error: existingOrderError } =
-            await supabaseAdmin
-              .from("orders")
-              .select("id")
-              .eq("stripe_session_id", stripeSessionId)
-              .maybeSingle();
+          const list = await stripe.checkout.sessions.list({
+            payment_intent: pi.id,
+            limit: 1,
+          });
 
-          if (existingOrderError) {
-            console.error(
-              "[stripewebhook] Error checking existing order",
-              existingOrderError,
+          const session = list.data[0];
+          if (!session) {
+            console.warn(
+              "[stripewebhook] No Checkout Session found for payment_intent",
+              pi.id,
             );
-          }
-
-          if (existingOrder) {
-            orderId = existingOrder.id;
-            hasValidShipping = true;
           } else {
-            // Resolve shipping robustly:
-            // 1) Try Checkout Session shipping / shipping_details
-            // 2) Fall back to PaymentIntent.shipping or charge.shipping
-            let shipping: any =
-              (session as any).shipping ??
-              (session as any).shipping_details ??
-              null;
-
-            let email: string | null =
-              session.customer_details?.email ??
-              (session as any).customer_email ??
-              null;
-
-            // PaymentIntent fallback for shipping
-            if (!shipping && session.payment_intent && stripe) {
-              try {
-                const piId =
-                  typeof session.payment_intent === "string"
-                    ? session.payment_intent
-                    : session.payment_intent.id;
-
-                const pi = await stripe.paymentIntents.retrieve(piId);
-                const piAny: any = pi;
-
-                if (piAny.shipping) {
-                  shipping = piAny.shipping;
-                } else if (piAny.charges?.data?.length) {
-                  const charge = piAny.charges.data[0];
-
-                  if (charge.shipping) {
-                    shipping = charge.shipping;
-                  }
-
-                  if (!email && charge.billing_details?.email) {
-                    email = charge.billing_details.email;
-                  }
-                }
-              } catch (piErr) {
-                console.error(
-                  "[stripewebhook] Error retrieving PaymentIntent for shipping fallback",
-                  piErr,
-                );
-              }
-            }
-
-            const address: any = shipping?.address ?? null;
-
-            if (
-              address &&
-              address.line1 &&
-              address.postal_code &&
-              address.country
-            ) {
-              hasValidShipping = true;
-            } else {
-              console.warn(
-                "[stripewebhook] Missing or incomplete shipping details; cannot create Printful order",
-                { shipping, address },
-              );
-            }
-
-            const { data: newOrder, error: insertOrderError } =
-              await supabaseAdmin
-                .from("orders")
-                .insert({
-                  stripe_session_id: stripeSessionId,
-                  email,
-                  shipping_name: shipping?.name ?? null,
-                  shipping_address_line1: address?.line1 ?? null,
-                  shipping_address_line2: address?.line2 ?? null,
-                  shipping_city: address?.city ?? null,
-                  shipping_state: address?.state ?? null,
-                  shipping_postal_code: address?.postal_code ?? null,
-                  shipping_country: address?.country ?? null,
-                  amount_total:
-                    typeof session.amount_total == "number"
-                      ? session.amount_total
-                      : null,
-                  status: session.payment_status ?? "paid",
-                })
-                .select("id")
-                .single();
-
-            if (insertOrderError || !newOrder) {
-              console.error(
-                "[stripewebhook] Error inserting order",
-                insertOrderError,
-              );
-            } else {
-              orderId = newOrder.id;
-            }
-          }
-        } catch (orderErr) {
-          console.error(
-            "[stripewebhook] Unexpected error while handling order",
-            orderErr,
-          );
-        }
-
-        if (!orderId) {
-          console.error(
-            "[stripewebhook] Could not determine orderId for session; skipping card and print job creation",
-            stripeSessionId,
-          );
-          return NextResponse.json({ received: true });
-        }
-
-        const lineItems = metadata.line_items
-          ? JSON.parse(metadata.line_items)
-          : null;
-
-        let totalCardsToCreate = 0;
-        const allCardIds: string[] = [];
-
-        if (Array.isArray(lineItems)) {
-          for (const item of lineItems) {
-            const priceId = item.price_id as string | undefined;
-            const quantity = Number(item.quantity) || 1;
-            const packConfig = resolvePackConfigForPriceId(priceId ?? null);
-
-            if (!packConfig) {
-              console.warn(
-                "[stripewebhook] No packConfig resolved for price_id",
-                priceId,
-              );
-              continue;
-            }
-
-            const { templateId, packQuantity } = packConfig;
-            const totalCardsForItem = packQuantity * quantity;
-            totalCardsToCreate += totalCardsForItem;
-
-            for (let i = 0; i < quantity; i++) {
-              const cardId = `card_${randomUUID()
-                .replace(/-/g, "")
-                .slice(0, 8)}`;
-
-              allCardIds.push(cardId);
-
-              let cardRowId: string | null = null;
-
-              try {
-                const { data: cardRow, error: cardInsertError } =
-                  await supabaseAdmin
-                    .from("cards")
-                    .insert({
-                      card_id: cardId,
-                      giver_name: "Store card",
-                      amount: 0,
-                      note: null,
-                      claimed: false,
-                      funded: false,
-                      printed: false,
-                      print_file_url: null,
-                    })
-                    .select("id")
-                    .single();
-
-                if (cardInsertError || !cardRow) {
-                  console.error(
-                    "[stripewebhook] Error inserting card row",
-                    cardInsertError,
-                  );
-                  continue;
-                }
-
-                cardRowId = cardRow.id;
-              } catch (cardErr) {
-                console.error(
-                  "[stripewebhook] Unexpected error inserting card row",
-                  cardErr,
-                );
-                continue;
-              }
-
-              if (!cardRowId) continue;
-
-              let uploadFailed = false;
-              let publicUrl: string | null = null;
-
-              try {
-                const pngBuffer = await generateGiftlinkInsidePng(cardId);
-
-                const filePath = `cards/${cardId}.png`;
-
-                const { error: uploadError } = await supabaseAdmin.storage
-                  .from("printfiles")
-                  .upload(filePath, pngBuffer, {
-                    contentType: "image/png",
-                    upsert: true,
-                  });
-
-                if (uploadError) {
-                  console.error(
-                    "[stripewebhook] Error uploading PNG to Supabase",
-                    uploadError,
-                  );
-                  uploadFailed = true;
-                } else {
-                  const {
-                    data: { publicUrl: url },
-                  } = supabaseAdmin.storage
-                    .from("printfiles")
-                    .getPublicUrl(filePath);
-
-                  publicUrl = url;
-
-                  const { error: updateCardError } = await supabaseAdmin
-                    .from("cards")
-                    .update({
-                      print_file_url: publicUrl,
-                    })
-                    .eq("card_id", cardId);
-
-                  if (updateCardError) {
-                    console.error(
-                      "[stripewebhook] Error updating card print_file_url",
-                      updateCardError,
-                    );
-                  } else {
-                    console.log(
-                      "[stripewebhook] Updated card print_file_url for card",
-                      cardId,
-                    );
-                  }
-                }
-              } catch (pngErr) {
-                console.error(
-                  "[stripewebhook] Error generating or uploading PNG",
-                  pngErr,
-                );
-                uploadFailed = true;
-              }
-
-              try {
-                const { error: printJobError } = await supabaseAdmin
-                  .from("card_print_jobs")
-                  .insert({
-                    card_id: cardId,
-                    order_id: orderId,
-                    pdf_path: publicUrl ? `cards/${cardId}.png` : null,
-                    status: uploadFailed ? "error" : "generated",
-                    error_message: uploadFailed
-                      ? "PNG generation or upload failed"
-                      : null,
-                  });
-
-                if (printJobError) {
-                  console.error(
-                    "[stripewebhook] Error inserting card_print_jobs row",
-                    printJobError,
-                  );
-                } else {
-                  console.log(
-                    "[stripewebhook] Created card_print_jobs row for card",
-                    cardId,
-                  );
-                }
-              } catch (jobErr) {
-                console.error(
-                  "[stripewebhook] Unexpected error inserting card_print_jobs row",
-                  jobErr,
-                );
-              }
-            }
-          }
-        }
-
-        // create one Printful order for all cards
-        if (hasValidShipping && allCardIds.length > 0) {
-          try {
             console.log(
-              "[stripewebhook] Creating Printful order for cards",
-              allCardIds,
+              "[stripewebhook] Found Checkout Session from payment_intent",
+              session.id,
+              "metadata.type",
+              session.metadata?.type,
             );
-
-            await createPrintfulOrderForCards({
-              orderId,
-              cards: allCardIds.map((cardId) => ({
-                cardId,
-                storagePath: null,
-              })),
-            });
-
-            console.log(
-              "[stripewebhook] Successfully created Printful order for cards",
-            );
-          } catch (printfulErr) {
-            console.error(
-              "[stripewebhook] Error creating Printful order",
-              printfulErr,
-            );
+            await handleCardPackOrder(session as Stripe.Checkout.Session);
           }
-        } else if (!hasValidShipping) {
-          console.warn(
-            "[stripewebhook] Skipping Printful order creation due to missing shipping",
+        } catch (listErr) {
+          console.error(
+            "[stripewebhook] Error listing Checkout Sessions for payment_intent",
+            listErr,
           );
         }
       }
