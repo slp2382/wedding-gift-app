@@ -3,13 +3,18 @@
 import { createClient } from "@supabase/supabase-js";
 
 const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
-const PRINTFUL_SYNC_VARIANT_ID = process.env.PRINTFUL_SYNC_VARIANT_ID;
+
+// New: explicit 4x6 env, falling back to the old generic one for compatibility
+const PRINTFUL_SYNC_VARIANT_ID_4X6 =
+  process.env.PRINTFUL_SYNC_VARIANT_ID_4X6 ??
+  process.env.PRINTFUL_SYNC_VARIANT_ID;
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!PRINTFUL_API_KEY || !PRINTFUL_SYNC_VARIANT_ID) {
+if (!PRINTFUL_API_KEY || !PRINTFUL_SYNC_VARIANT_ID_4X6) {
   console.warn(
-    "[printful] Missing PRINTFUL_API_KEY or PRINTFUL_SYNC_VARIANT_ID env vars",
+    "[printful] Missing PRINTFUL_API_KEY or PRINTFUL_SYNC_VARIANT_ID_4X6 env vars",
   );
 }
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -49,7 +54,7 @@ type CardRow = {
 export async function createPrintfulOrderForCards(
   args: CreatePrintfulOrderForCardsArgs,
 ): Promise<{ printfulOrderId: number; status: string }> {
-  if (!PRINTFUL_API_KEY || !PRINTFUL_SYNC_VARIANT_ID) {
+  if (!PRINTFUL_API_KEY || !PRINTFUL_SYNC_VARIANT_ID_4X6) {
     throw new Error("Printful env vars missing");
   }
   if (!supabaseAdmin) {
@@ -116,7 +121,7 @@ export async function createPrintfulOrderForCards(
     }
 
     return {
-      sync_variant_id: Number(PRINTFUL_SYNC_VARIANT_ID),
+      sync_variant_id: Number(PRINTFUL_SYNC_VARIANT_ID_4X6),
       quantity: 1,
       files: fileUrl
         ? [

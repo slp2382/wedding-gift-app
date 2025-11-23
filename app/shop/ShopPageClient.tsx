@@ -30,26 +30,19 @@ export default function ShopPageClient() {
     selectedTemplate.images[activeImageIndex] ??
     selectedTemplate.images[0];
 
-  // pricing logic based on size and quantity
+  // pricing logic for 4x6 based on quantity
   const { unitPrice, totalPrice } = useMemo(() => {
     let unit = 0;
 
-    if (selectedTemplate.size === "4x6") {
-      if (quantity === 1) unit = 5.99;
-      else if (quantity === 3) unit = 5.49;
-      else if (quantity === 5) unit = 4.99;
-    } else {
-      // 5x7
-      if (quantity === 1) unit = 6.99;
-      else if (quantity === 3) unit = 6.49;
-      else if (quantity === 5) unit = 5.99;
-    }
+    if (quantity === 1) unit = 5.99;
+    else if (quantity === 3) unit = 5.49;
+    else if (quantity === 5) unit = 4.99;
 
     return {
       unitPrice: unit,
       totalPrice: unit * quantity,
     };
-  }, [selectedTemplate.size, quantity]);
+  }, [quantity]);
 
   const handleQuantityChange = (value: string) => {
     const q = Number(value) as 1 | 3 | 5;
@@ -117,7 +110,7 @@ export default function ShopPageClient() {
             </div>
 
             <div className="space-y-4">
-              {/* Size selector */}
+              {/* Design / size selector (currently only 4x6) */}
               <div className="space-y-1">
                 <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   Card size
