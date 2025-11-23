@@ -236,24 +236,64 @@ export async function POST(req: NextRequest) {
             orderId = existingOrder.id;
             hasValidShipping = true;
           } else {
-            // Stripe typings for Checkout Session may not expose shipping fields,
-            // so we read them through a loose any cast
-            const shippingDetails: any =
+            // Resolve shipping robustly:
+            // 1) Try Checkout Session shipping / shipping_details
+            // 2) Fall back to PaymentIntent.shipping or charge.shipping
+            let shipping: any =
               (session as any).shipping ??
               (session as any).shipping_details ??
               null;
 
+            let email: string | null =
+              session.customer_details?.email ??
+              (session as any).customer_email ??
+              null;
+
+            // PaymentIntent fallback for shipping
+            if (!shipping && session.payment_intent && stripe) {
+              try {
+                const piId =
+                  typeof session.payment_intent === "string"
+                    ? session.payment_intent
+                    : session.payment_intent.id;
+
+                const pi = await stripe.paymentIntents.retrieve(piId);
+                const piAny: any = pi;
+
+                if (piAny.shipping) {
+                  shipping = piAny.shipping;
+                } else if (piAny.charges?.data?.length) {
+                  const charge = piAny.charges.data[0];
+
+                  if (charge.shipping) {
+                    shipping = charge.shipping;
+                  }
+
+                  if (!email && charge.billing_details?.email) {
+                    email = charge.billing_details.email;
+                  }
+                }
+              } catch (piErr) {
+                console.error(
+                  "[stripewebhook] Error retrieving PaymentIntent for shipping fallback",
+                  piErr,
+                );
+              }
+            }
+
+            const address: any = shipping?.address ?? null;
+
             if (
-              shippingDetails &&
-              shippingDetails.address &&
-              shippingDetails.address.line1 &&
-              shippingDetails.address.postal_code &&
-              shippingDetails.address.country
+              address &&
+              address.line1 &&
+              address.postal_code &&
+              address.country
             ) {
               hasValidShipping = true;
             } else {
               console.warn(
                 "[stripewebhook] Missing or incomplete shipping details; cannot create Printful order",
+                { shipping, address },
               );
             }
 
@@ -262,17 +302,14 @@ export async function POST(req: NextRequest) {
                 .from("orders")
                 .insert({
                   stripe_session_id: stripeSessionId,
-                  email: session.customer_details?.email ?? null,
-                  shipping_name: shippingDetails?.name ?? null,
-                  shipping_address_line1:
-                    shippingDetails?.address?.line1 ?? null,
-                  shipping_address_line2:
-                    shippingDetails?.address?.line2 ?? null,
-                  shipping_city: shippingDetails?.address?.city ?? null,
-                  shipping_state: shippingDetails?.address?.state ?? null,
-                  shipping_postal_code:
-                    shippingDetails?.address?.postal_code ?? null,
-                  shipping_country: shippingDetails?.address?.country ?? null,
+                  email,
+                  shipping_name: shipping?.name ?? null,
+                  shipping_address_line1: address?.line1 ?? null,
+                  shipping_address_line2: address?.line2 ?? null,
+                  shipping_city: address?.city ?? null,
+                  shipping_state: address?.state ?? null,
+                  shipping_postal_code: address?.postal_code ?? null,
+                  shipping_country: address?.country ?? null,
                   amount_total:
                     typeof session.amount_total == "number"
                       ? session.amount_total
@@ -492,6 +529,10 @@ export async function POST(req: NextRequest) {
               printfulErr,
             );
           }
+        } else if (!hasValidShipping) {
+          console.warn(
+            "[stripewebhook] Skipping Printful order creation due to missing shipping",
+          );
         }
       }
     } else {
