@@ -13,7 +13,7 @@ const supabaseUrl =
   process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Stripe client (use default apiVersion)
+// Stripe client (use default apiVersion for your account)
 const stripe = new Stripe(stripeSecretKey);
 
 // Supabase admin client
@@ -28,7 +28,7 @@ const supabaseAdmin: SupabaseClient | null =
 // PNG generator: white background plus QR near bottom center
 // ------------------------------
 async function generateGiftlinkInsidePng(cardId: string) {
-  const { createCanvas, loadImage } = await import("canvas");
+  const { createCanvas } = await import("canvas");
   const QRCode = (await import("qrcode")).default;
 
   // 4.15" x 6.15" at 300 DPI
@@ -51,7 +51,7 @@ async function generateGiftlinkInsidePng(cardId: string) {
     margin: 0,
   });
 
-  const qrImage = await loadImage(qrBuffer);
+  const qrImage = await (await import("canvas")).loadImage(qrBuffer);
 
   // Position QR near bottom center
   const QR_SIZE = 300;
@@ -279,41 +279,25 @@ export async function POST(req: NextRequest) {
           return new NextResponse("Order id missing", { status: 500 });
         }
 
-        // Card id for physical card
-        const cardId =
-          metadata.cardId ??
-          metadata.card_id ??
-          `card_${Math.random().toString(36).slice(2, 10)}`;
+        // Determine pack quantity from metadata
+        const rawPackQuantity =
+          metadata.packQuantity ??
+          metadata.pack_quantity ??
+          metadata.quantity ??
+          null;
 
-        console.log("Using card id for shop order", cardId);
-
-        // Create card row
-        const { error: cardInsertError } = await supabaseAdmin
-          .from("cards")
-          .insert({
-            card_id: cardId,
-            giver_name: "Store card",
-            amount: 0,
-            note: null,
-            claimed: false,
-          });
-
-        if (cardInsertError) {
-          if (cardInsertError.code === "23505") {
-            console.log(
-              "Card already exists for shop order, reusing",
-              cardId,
-            );
-          } else {
-            console.error(
-              "Error inserting card for shop order",
-              cardInsertError,
-            );
-            return new NextResponse("Card insert error", {
-              status: 500,
-            });
+        let packQuantity = 1;
+        if (rawPackQuantity != null) {
+          const parsed = Number(rawPackQuantity);
+          if (!Number.isNaN(parsed) && parsed > 0) {
+            packQuantity = parsed;
           }
         }
+
+        console.log(
+          "Card pack order quantity (number of cards to create):",
+          packQuantity,
+        );
 
         // Sanity check bucket
         console.log(
@@ -329,119 +313,152 @@ export async function POST(req: NextRequest) {
           listCount: listData?.length ?? 0,
         });
 
-        // Generate and upload PNG, then create card_print_job and call Printful
-        try {
-          const pngBytes = await generateGiftlinkInsidePng(cardId);
-          const pngPath = `cards/${cardId}.png`;
+        // Build up cards for Printful
+        const cardsForPrintful: { cardId: string; storagePath: string }[] = [];
 
-          console.log("Uploading print PNG to Supabase at", pngPath);
+        // Create one card per pack unit
+        for (let i = 0; i < packQuantity; i++) {
+          // Card id for physical card
+          const cardId =
+            (packQuantity === 1
+              ? metadata.cardId ?? metadata.card_id
+              : undefined) ??
+            `card_${Math.random().toString(36).slice(2, 10)}`;
 
-          const { error: uploadError } = await supabaseAdmin.storage
-            .from("printfiles")
-            .upload(pngPath, pngBytes, {
-              contentType: "image/png",
-              upsert: true,
-            });
+          console.log("Using card id for shop order", cardId);
 
-          if (uploadError) {
-            console.error(
-              "Error uploading print PNG to Supabase Storage",
-              uploadError,
-            );
-          } else {
-            console.log(
-              "Generated and stored print PNG for shop card",
-              cardId,
-            );
-          }
-
-          // Public URL for cards table
-          const { data: publicUrlData } = supabaseAdmin.storage
-            .from("printfiles")
-            .getPublicUrl(pngPath);
-          const publicUrl = publicUrlData?.publicUrl ?? null;
-
-          const { error: cardUpdateError } = await supabaseAdmin
+          // Create card row
+          const { error: cardInsertError } = await supabaseAdmin
             .from("cards")
-            .update({
-              printed: uploadError ? false : true,
-              print_file_url: publicUrl,
-            })
-            .eq("card_id", cardId);
-
-          if (cardUpdateError) {
-            console.error(
-              "Error updating card with print file url",
-              cardUpdateError,
-            );
-          }
-
-          // Insert card_print_jobs row
-          const { data: jobRow, error: jobError } = await supabaseAdmin
-            .from("card_print_jobs")
             .insert({
               card_id: cardId,
-              order_id: orderId,
-              pdf_path: pngPath, // storing PNG path in this column
-              status: uploadError ? "error" : "generated",
-              error_message: uploadError
-                ? uploadError.message
-                : null,
-              fulfillment_status: "pending",
-            })
-            .select("id")
-            .single();
+              giver_name: "Store card",
+              amount: 0,
+              note: null,
+              claimed: false,
+            });
 
-          if (jobError) {
-            console.error(
-              "Error inserting card_print_job row",
-              jobError,
-            );
-          } else {
-            console.log(
-              "Created card_print_job",
-              jobRow?.id,
-              "for card",
-              cardId,
-            );
-
-            // Call Printful automatically if upload worked
-            if (!uploadError) {
-              try {
-                const printfulResult =
-                  await createPrintfulOrderForCards({
-                    orderId,
-                    cards: [
-                      {
-                        cardId,
-                        storagePath: pngPath,
-                      },
-                    ],
-                  });
-                console.log(
-                  "Created Printful order from webhook",
-                  printfulResult.printfulOrderId,
-                  printfulResult.status,
-                );
-              } catch (err) {
-                console.error(
-                  "Failed to create Printful order from webhook",
-                  err,
-                );
-                await supabaseAdmin
-                  .from("card_print_jobs")
-                  .update({
-                    status: "error",
-                    error_message: String(
-                      err instanceof Error ? err.message : err,
-                    ),
-                  })
-                  .eq("id", jobRow.id);
-              }
+          if (cardInsertError) {
+            if (cardInsertError.code === "23505") {
+              console.log(
+                "Card already exists for shop order, reusing",
+                cardId,
+              );
+            } else {
+              console.error(
+                "Error inserting card for shop order",
+                cardInsertError,
+              );
+              // Skip this card and continue with others
+              continue;
             }
           }
-        } catch (err) {
-          console.error("Error generating or uploading print PNG", err);
+
+          try {
+            // Generate and upload PNG for this card
+            const pngBytes = await generateGiftlinkInsidePng(cardId);
+            const pngPath = `cards/${cardId}.png`;
+
+            console.log("Uploading print PNG to Supabase at", pngPath);
+
+            const { error: uploadError } = await supabaseAdmin.storage
+              .from("printfiles")
+              .upload(pngPath, pngBytes, {
+                contentType: "image/png",
+                upsert: true,
+              });
+
+            if (uploadError) {
+              console.error(
+                "Error uploading print PNG to Supabase Storage",
+                uploadError,
+              );
+            } else {
+              console.log(
+                "Generated and stored print PNG for shop card",
+                cardId,
+              );
+            }
+
+            // Public URL for cards table
+            const { data: publicUrlData } = supabaseAdmin.storage
+              .from("printfiles")
+              .getPublicUrl(pngPath);
+            const publicUrl = publicUrlData?.publicUrl ?? null;
+
+            const { error: cardUpdateError } = await supabaseAdmin
+              .from("cards")
+              .update({
+                printed: uploadError ? false : true,
+                print_file_url: publicUrl,
+              })
+              .eq("card_id", cardId);
+
+            if (cardUpdateError) {
+              console.error(
+                "Error updating card with print file url",
+                cardUpdateError,
+              );
+            }
+
+            // Insert card_print_jobs row
+            const { error: jobError } = await supabaseAdmin
+              .from("card_print_jobs")
+              .insert({
+                card_id: cardId,
+                order_id: orderId,
+                pdf_path: pngPath, // storing PNG path in this column
+                status: uploadError ? "error" : "generated",
+                error_message: uploadError
+                  ? uploadError.message
+                  : null,
+                fulfillment_status: "pending",
+              });
+
+            if (jobError) {
+              console.error(
+                "Error inserting card_print_job row",
+                jobError,
+              );
+            } else if (!uploadError) {
+              // Only include successfully uploaded cards in Printful payload
+              cardsForPrintful.push({
+                cardId,
+                storagePath: pngPath,
+              });
+            }
+          } catch (err) {
+            console.error(
+              "Error generating or uploading print PNG for card",
+              cardId,
+              err,
+            );
+          }
+        }
+
+        // Call Printful automatically if at least one card was successfully uploaded
+        if (cardsForPrintful.length > 0) {
+          try {
+            const printfulResult = await createPrintfulOrderForCards({
+              orderId,
+              cards: cardsForPrintful,
+            });
+            console.log(
+              "Created Printful order from webhook",
+              printfulResult.printfulOrderId,
+              printfulResult.status,
+            );
+          } catch (err) {
+            console.error(
+              "Failed to create Printful order from webhook",
+              err,
+            );
+            // Optional: you could also mark all related card_print_jobs as error here
+          }
+        } else {
+          console.error(
+            "No cards were successfully uploaded to storage; skipping Printful order creation",
+          );
         }
 
         // 2) GIFT LOADS (existing virtual card flow)
