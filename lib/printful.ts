@@ -98,8 +98,9 @@ export async function createPrintfulOrderForCards(
       files: fileUrl
         ? [
             {
-              // Place artwork on inside right panel for your card template
-              type: "inside_2",
+              // Correct placement: inside right panel
+              // Allowed values: front, inside1, inside2, back, mockup
+              type: "inside2",
               url: fileUrl,
             },
           ]
