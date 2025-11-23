@@ -22,8 +22,8 @@ function ShopPageContent() {
   const searchParams = useSearchParams();
   const isSuccess = searchParams.get("status") === "success";
 
-  const { items } = useCart();
-  const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  // Pull itemCount directly from provider
+  const { itemCount } = useCart();
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-10 dark:bg-zinc-950">
@@ -48,7 +48,7 @@ function ShopPageContent() {
             href="/cart"
             className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
-            Cart {cartCount > 0 ? `(${cartCount})` : ""}
+            Cart {itemCount > 0 ? `(${itemCount})` : ""}
           </Link>
         </div>
       </div>

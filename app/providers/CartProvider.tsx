@@ -19,6 +19,7 @@ type CartState = {
 
 type CartContextValue = {
   items: CartItem[];
+  itemCount: number;
   addItem: (templateId: string, quantity?: number) => void;
   removeItem: (templateId: string) => void;
   setQuantity: (templateId: string, quantity: number) => void;
@@ -55,11 +56,13 @@ function saveCart(state: CartState) {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
+  // hydrate from localStorage on first client mount
   useEffect(() => {
     const initial = loadInitialCart();
     setItems(initial.items);
   }, []);
 
+  // persist any changes to localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     saveCart({ items });
@@ -95,10 +98,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => {
+    setItems([]);
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const value: CartContextValue = {
     items,
+    itemCount,
     addItem,
     removeItem,
     setQuantity,

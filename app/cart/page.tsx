@@ -7,11 +7,12 @@ import { useCart } from "../providers/CartProvider";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 
 export default function CartPage() {
-  const { items, removeItem, clearCart } = useCart();
+  const { items, removeItem, clearCart, itemCount } = useCart();
   const router = useRouter();
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Attach template details to each cart item, skip anything with a missing template
   const enrichedItems = items
     .map((item) => {
       const template = CARD_TEMPLATES.find(
@@ -31,15 +32,10 @@ export default function CartPage() {
       const qty = item.quantity;
       let unit = 0;
 
-      if (item.template.size === "4x6") {
-        if (qty >= 5) unit = 4.99;
-        else if (qty >= 3) unit = 5.49;
-        else unit = 5.99;
-      } else {
-        if (qty >= 5) unit = 5.99;
-        else if (qty >= 3) unit = 6.49;
-        else unit = 6.99;
-      }
+      // Only 4x6 cards exist now
+      if (qty >= 5) unit = 4.99;
+      else if (qty >= 3) unit = 5.49;
+      else unit = 5.99;
 
       subtotalAcc += unit * qty;
     }
@@ -104,12 +100,20 @@ export default function CartPage() {
               Review your cards before checkout.
             </p>
           </div>
-          <Link
-            href="/shop"
-            className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
-          >
-            Return to shop
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/shop"
+              className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+            >
+              Return to shop
+            </Link>
+            <Link
+              href="/cart"
+              className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+            >
+              Cart {itemCount > 0 ? `(${itemCount})` : ""}
+            </Link>
+          </div>
         </header>
 
         {!hasItems && (
