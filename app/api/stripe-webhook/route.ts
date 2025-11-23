@@ -32,20 +32,23 @@ async function generateGiftlinkInsidePng(
   cardId: string,
   size: CardSize = "4x6",
 ): Promise<Buffer> {
-  const width = 1245; // about 4.15 in at 300 dpi
-  const height = 1845; // about 6.15 in at 300 dpi
+  // 4x6 at 300 dpi ≈ 1200 x 1800
+  const width = 1245;
+  const height = 1845;
 
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
 
+  // Background
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
 
   const cardUrl = `${giftlinkBaseUrl}/card/${cardId}`;
 
-  const qrSize = 300;
+  // QR placement
+  const qrSize = 360;
   const qrX = (width - qrSize) / 2;
-  const qrY = height - qrSize - 260;
+  const qrY = height - qrSize - 320;
 
   const qrCanvas = createCanvas(qrSize, qrSize);
   const qrCtx = qrCanvas.getContext("2d");
@@ -71,50 +74,53 @@ async function generateGiftlinkInsidePng(
 
   ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
+  // Text styling
   ctx.fillStyle = "#000000";
-  ctx.font = "bold 40px Arial";
   ctx.textAlign = "center";
 
-  const titleText = "Scan to see your gift";
-  ctx.fillText(titleText, width / 2, qrY - 40);
+  // Main title above QR – big and readable
+  ctx.font = "bold 64px sans-serif";
+  ctx.fillText("Scan to see your gift", width / 2, qrY - 60);
 
-  ctx.font = "28px Arial";
-  ctx.fillText("Wedding gift powered by GiftLink", width / 2, qrY - 5);
-
-  ctx.font = "24px Arial";
+  // Subtitle above QR
+  ctx.font = "32px sans-serif";
   ctx.fillText(
     "Keep this card safe until the wedding day",
     width / 2,
-    qrY + qrSize + 120,
+    qrY - 10,
   );
 
-  ctx.font = "22px Arial";
-  ctx.fillText(
-    "The couple scans the same QR to claim the gift",
-    width / 2,
-    qrY + qrSize + 155,
-  );
-
+  // Logo below QR (optional)
+  let logoBottomY = qrY + qrSize + 30;
   try {
     const logoPath = process.env.GIFTLINK_LOGO_PATH ?? "public/GLlogo.png";
     const logoImage = await loadImage(logoPath);
-    const logoTargetWidth = 220;
+    const logoTargetWidth = 260;
     const aspect = logoImage.height / logoImage.width;
     const logoTargetHeight = logoTargetWidth * aspect;
 
     const logoX = (width - logoTargetWidth) / 2;
-    const logoY = qrY + qrSize + 30;
 
     ctx.drawImage(
       logoImage,
       logoX,
-      logoY,
+      logoBottomY,
       logoTargetWidth,
       logoTargetHeight,
     );
+
+    logoBottomY += logoTargetHeight + 20;
   } catch {
     // logo is optional
   }
+
+  // Short line of help text below logo
+  ctx.font = "30px sans-serif";
+  ctx.fillText(
+    "The couple scans this same QR code to claim the gift",
+    width / 2,
+    logoBottomY + 20,
+  );
 
   return canvas.toBuffer("image/png");
 }
