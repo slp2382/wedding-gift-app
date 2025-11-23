@@ -39,7 +39,11 @@ type CardPrintJobRow = {
   pdf_path: string | null;
   printful_order_id: number | null;
   status: string | null;
-  cards: { print_file_url: string | null }[] | null;
+};
+
+type CardRow = {
+  card_id: string;
+  print_file_url: string | null;
 };
 
 export async function createPrintfulOrderForCards(
@@ -61,14 +65,12 @@ export async function createPrintfulOrderForCards(
     throw new Error("No cards provided for Printful order");
   }
 
-  // Look up card_print_jobs joined with cards to get print_file_url
   const cardIds = cards.map((c) => c.cardId);
 
-  const { data, error: jobsError } = await supabaseAdmin
+  // 1) Fetch card_print_jobs for these cards
+  const { data: jobsData, error: jobsError } = await supabaseAdmin
     .from("card_print_jobs")
-    .select(
-      "id, card_id, pdf_path, printful_order_id, status, cards(print_file_url)",
-    )
+    .select("id, card_id, pdf_path, printful_order_id, status")
     .in("card_id", cardIds);
 
   if (jobsError) {
@@ -79,11 +81,30 @@ export async function createPrintfulOrderForCards(
     throw jobsError;
   }
 
-  const jobs = (data ?? []) as unknown as CardPrintJobRow[];
+  const jobs = (jobsData ?? []) as CardPrintJobRow[];
 
-  // Build Printful items, one per card, using inside2 so it prints on the inner right panel
+  // 2) Fetch card rows to get print_file_url
+  const { data: cardsData, error: cardsError } = await supabaseAdmin
+    .from("cards")
+    .select("card_id, print_file_url")
+    .in("card_id", cardIds);
+
+  if (cardsError) {
+    console.error("[printful] Error fetching cards for print_file_url", cardsError);
+    throw cardsError;
+  }
+
+  const cardRows = (cardsData ?? []) as CardRow[];
+
+  // Build a map card_id -> print_file_url
+  const cardFileMap = new Map<string, string | null>();
+  for (const row of cardRows) {
+    cardFileMap.set(row.card_id, row.print_file_url ?? null);
+  }
+
+  // 3) Build Printful items, one per card, using inside2 so it prints on inner right
   const items = jobs.map((job) => {
-    const fileUrl = job.cards?.[0]?.print_file_url ?? null;
+    const fileUrl = cardFileMap.get(job.card_id) ?? null;
 
     if (!fileUrl) {
       console.warn(
@@ -116,7 +137,7 @@ export async function createPrintfulOrderForCards(
     throw new Error("No valid items with file urls to send to Printful");
   }
 
-  // Look up shipping info from orders table
+  // 4) Look up shipping info from orders table
   const { data: orderRow, error: orderError } = await supabaseAdmin
     .from("orders")
     .select(
@@ -153,7 +174,7 @@ export async function createPrintfulOrderForCards(
     validItems.length,
   );
 
-  // Create Printful order without custom external_id to avoid External ID errors
+  // 5) Create Printful order (no custom external_id to avoid errors)
   const response = await fetch("https://api.printful.com/orders", {
     method: "POST",
     headers: {
@@ -185,7 +206,7 @@ export async function createPrintfulOrderForCards(
   const printfulOrderId = json?.result?.id;
   const status = json?.result?.status ?? "draft";
 
-  // Update all related card_print_jobs with this Printful order id and status
+  // 6) Update all related card_print_jobs with this Printful order id and status
   const { error: updateError } = await supabaseAdmin
     .from("card_print_jobs")
     .update({
