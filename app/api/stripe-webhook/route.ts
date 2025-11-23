@@ -25,7 +25,7 @@ const supabaseAdmin: any =
       })
     : null;
 
-// we are now 4x6 only in this webhook
+// 4x6 only for now
 type CardSize = "4x6";
 
 async function generateGiftlinkInsidePng(
@@ -394,7 +394,7 @@ async function handleCardPackOrder(
       cardsForThisLine,
     );
 
-    // BUG FIX: generate cardsForThisLine cards, not just qty
+    // Generate one card per physical card in the pack
     for (let i = 0; i < cardsForThisLine; i++) {
       const cardId = `card_${randomUUID()
         .replace(/-/g, "")
@@ -627,47 +627,6 @@ export async function POST(req: NextRequest) {
       );
 
       await handleCardPackOrder(session, stripe);
-    } else if (event.type === "payment_intent.succeeded") {
-      const pi = event.data.object as Stripe.PaymentIntent;
-      console.log(
-        "[stripewebhook] payment_intent.succeeded",
-        pi.id,
-        "status",
-        pi.status,
-      );
-
-      if (stripe) {
-        try {
-          const list = await stripe.checkout.sessions.list({
-            payment_intent: pi.id,
-            limit: 1,
-          });
-
-          const session = list.data[0];
-          if (!session) {
-            console.warn(
-              "[stripewebhook] No Checkout Session found for payment_intent",
-              pi.id,
-            );
-          } else {
-            console.log(
-              "[stripewebhook] Found Checkout Session from payment_intent",
-              session.id,
-              "metadata.type",
-              session.metadata?.type,
-            );
-            await handleCardPackOrder(
-              session as Stripe.Checkout.Session,
-              stripe,
-            );
-          }
-        } catch (listErr) {
-          console.error(
-            "[stripewebhook] Error listing Checkout Sessions for payment_intent",
-            listErr,
-          );
-        }
-      }
     } else {
       console.log(
         "[stripewebhook] Received unsupported event type",
