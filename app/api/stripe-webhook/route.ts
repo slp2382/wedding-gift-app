@@ -12,7 +12,7 @@ const supabaseUrl =
   process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Stripe client (let SDK choose apiVersion)
+// Stripe client, let SDK use its default apiVersion
 const stripe = new Stripe(stripeSecretKey);
 
 // Supabase admin client
@@ -23,9 +23,7 @@ const supabaseAdmin: SupabaseClient | null =
       })
     : null;
 
-// ------------------------------
-// PNG generator for inside right panel (QR only)
-// ------------------------------
+// PNG generator for inside right panel, QR only
 async function generateGiftlinkInsidePng(cardId: string) {
   const { createCanvas, loadImage } = await import("canvas");
   const QRCode = (await import("qrcode")).default;
@@ -114,9 +112,7 @@ export async function POST(req: NextRequest) {
     const type = metadata.type;
 
     try {
-      //
-      // 1) SHOP CARD PACK ORDERS
-      //
+      // shop card pack orders
       if (type === "card_pack_order") {
         console.log(
           "Handling card_pack_order for session",
@@ -153,7 +149,7 @@ export async function POST(req: NextRequest) {
         let addressCountry: string | null =
           customerDetails?.address?.country ?? null;
 
-        // Prefer shipping details from PaymentIntent if available
+        // get shipping from payment intent if present
         const paymentIntentId =
           typeof session.payment_intent === "string"
             ? session.payment_intent
@@ -215,7 +211,7 @@ export async function POST(req: NextRequest) {
               ]
             : null;
 
-        // Create or reuse order row
+        // create or reuse order row
         let orderId: string | null = null;
 
         const { data: insertedOrder, error: orderInsertError } =
@@ -282,7 +278,7 @@ export async function POST(req: NextRequest) {
           return new NextResponse("Order id missing", { status: 500 });
         }
 
-        // Generate or reuse card id for this physical card
+        // card id for physical card
         const cardId =
           metadata.cardId ??
           metadata.card_id ??
@@ -290,7 +286,7 @@ export async function POST(req: NextRequest) {
 
         console.log("Using card id for shop order", cardId);
 
-        // Insert store card row
+        // create card row
         const { error: cardInsertError } = await supabaseAdmin
           .from("cards")
           .insert({
@@ -318,7 +314,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Sanity check bucket
+        // sanity check bucket
         console.log(
           "Testing list on storage bucket 'printfiles' under prefix 'cards'",
         );
@@ -332,7 +328,7 @@ export async function POST(req: NextRequest) {
           listCount: listData?.length ?? 0,
         });
 
-        // Generate and upload PNG
+        // generate and upload PNG
         try {
           const pngBytes = await generateGiftlinkInsidePng(cardId);
           const pngPath = `cards/${cardId}.png`;
@@ -361,14 +357,13 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          // Get public URL
+          // public URL for cards table
           const { data: publicUrlData } =
             supabaseAdmin.storage
               .from("printfiles")
               .getPublicUrl(pngPath);
           const publicUrl = publicUrlData?.publicUrl ?? null;
 
-          // Update cards row with print info
           const { error: cardUpdateError } = await supabaseAdmin
             .from("cards")
             .update({
@@ -384,7 +379,7 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          // Insert card_print_jobs row
+          // card_print_jobs row
           const { data: jobRow, error: jobError } = await supabaseAdmin
             .from("card_print_jobs")
             .insert({
@@ -419,15 +414,12 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        //
-        // 2) GIFT LOADS (existing virtual card flow)
-        //
+        // gift load flow
       } else {
         const cardId = metadata.cardId ?? metadata.card_id;
         const giverName = metadata.giverName ?? metadata.giver_name ?? "";
         const note = metadata.note ?? "";
 
-        // Metadata values from /api/load-gift
         const giftAmountRaw =
           metadata.giftAmountRaw ??
           metadata.giftAmount ??
@@ -446,7 +438,6 @@ export async function POST(req: NextRequest) {
 
         let giftAmount: number | null = null;
 
-        // Prefer explicit gift amount from metadata
         if (giftAmountRaw != null) {
           const parsed = Number(giftAmountRaw);
           if (!Number.isNaN(parsed) && parsed > 0) {
@@ -454,7 +445,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Else compute gift = total - fee
         if (
           giftAmount == null &&
           totalChargeRaw != null &&
@@ -472,7 +462,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Else fall back to Stripe amount_total (cents to dollars)
         if (giftAmount == null && session.amount_total != null) {
           giftAmount = session.amount_total / 100;
         }
