@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createPrintfulOrderForCards } from "@/lib/printful";
 
 // Stripe env
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY!;
@@ -12,7 +13,7 @@ const supabaseUrl =
   process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Stripe client, let SDK use its default apiVersion
+// Stripe client (use default apiVersion)
 const stripe = new Stripe(stripeSecretKey);
 
 // Supabase admin client
@@ -23,12 +24,14 @@ const supabaseAdmin: SupabaseClient | null =
       })
     : null;
 
-// PNG generator for inside right panel, QR only
+// ------------------------------
+// PNG generator: white background plus QR near bottom center
+// ------------------------------
 async function generateGiftlinkInsidePng(cardId: string) {
   const { createCanvas, loadImage } = await import("canvas");
   const QRCode = (await import("qrcode")).default;
 
-  // 4.15 x 6.15 inches at 300 DPI
+  // 4.15" x 6.15" at 300 DPI
   const WIDTH = 1245;
   const HEIGHT = 1845;
 
@@ -39,14 +42,15 @@ async function generateGiftlinkInsidePng(cardId: string) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  // Build card URL
+  // Card URL for QR
   const cardUrl = `https://www.giftlink.cards/card/${cardId}`;
 
-  // QR code buffer
+  // QR as PNG buffer
   const qrBuffer = await QRCode.toBuffer(cardUrl, {
     width: 300,
     margin: 0,
   });
+
   const qrImage = await loadImage(qrBuffer);
 
   // Position QR near bottom center
@@ -112,12 +116,9 @@ export async function POST(req: NextRequest) {
     const type = metadata.type;
 
     try {
-      // shop card pack orders
+      // 1) SHOP CARD PACK ORDERS
       if (type === "card_pack_order") {
-        console.log(
-          "Handling card_pack_order for session",
-          session.id,
-        );
+        console.log("Handling card_pack_order for session", session.id);
 
         const customerDetails = session.customer_details as
           | {
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest) {
         let addressCountry: string | null =
           customerDetails?.address?.country ?? null;
 
-        // get shipping from payment intent if present
+        // Prefer shipping details from PaymentIntent if available
         const paymentIntentId =
           typeof session.payment_intent === "string"
             ? session.payment_intent
@@ -211,7 +212,7 @@ export async function POST(req: NextRequest) {
               ]
             : null;
 
-        // create or reuse order row
+        // Create or reuse order row
         let orderId: string | null = null;
 
         const { data: insertedOrder, error: orderInsertError } =
@@ -278,7 +279,7 @@ export async function POST(req: NextRequest) {
           return new NextResponse("Order id missing", { status: 500 });
         }
 
-        // card id for physical card
+        // Card id for physical card
         const cardId =
           metadata.cardId ??
           metadata.card_id ??
@@ -286,7 +287,7 @@ export async function POST(req: NextRequest) {
 
         console.log("Using card id for shop order", cardId);
 
-        // create card row
+        // Create card row
         const { error: cardInsertError } = await supabaseAdmin
           .from("cards")
           .insert({
@@ -314,7 +315,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // sanity check bucket
+        // Sanity check bucket
         console.log(
           "Testing list on storage bucket 'printfiles' under prefix 'cards'",
         );
@@ -328,15 +329,12 @@ export async function POST(req: NextRequest) {
           listCount: listData?.length ?? 0,
         });
 
-        // generate and upload PNG
+        // Generate and upload PNG, then create card_print_job and call Printful
         try {
           const pngBytes = await generateGiftlinkInsidePng(cardId);
           const pngPath = `cards/${cardId}.png`;
 
-          console.log(
-            "Uploading print PNG to Supabase at",
-            pngPath,
-          );
+          console.log("Uploading print PNG to Supabase at", pngPath);
 
           const { error: uploadError } = await supabaseAdmin.storage
             .from("printfiles")
@@ -357,11 +355,10 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          // public URL for cards table
-          const { data: publicUrlData } =
-            supabaseAdmin.storage
-              .from("printfiles")
-              .getPublicUrl(pngPath);
+          // Public URL for cards table
+          const { data: publicUrlData } = supabaseAdmin.storage
+            .from("printfiles")
+            .getPublicUrl(pngPath);
           const publicUrl = publicUrlData?.publicUrl ?? null;
 
           const { error: cardUpdateError } = await supabaseAdmin
@@ -379,7 +376,7 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          // card_print_jobs row
+          // Insert card_print_jobs row
           const { data: jobRow, error: jobError } = await supabaseAdmin
             .from("card_print_jobs")
             .insert({
@@ -390,6 +387,7 @@ export async function POST(req: NextRequest) {
               error_message: uploadError
                 ? uploadError.message
                 : null,
+              fulfillment_status: "pending",
             })
             .select("id")
             .single();
@@ -406,15 +404,47 @@ export async function POST(req: NextRequest) {
               "for card",
               cardId,
             );
+
+            // Call Printful automatically if upload worked
+            if (!uploadError) {
+              try {
+                const printfulResult =
+                  await createPrintfulOrderForCards({
+                    orderId,
+                    cards: [
+                      {
+                        cardId,
+                        storagePath: pngPath,
+                      },
+                    ],
+                  });
+                console.log(
+                  "Created Printful order from webhook",
+                  printfulResult.printfulOrderId,
+                  printfulResult.status,
+                );
+              } catch (err) {
+                console.error(
+                  "Failed to create Printful order from webhook",
+                  err,
+                );
+                await supabaseAdmin
+                  .from("card_print_jobs")
+                  .update({
+                    status: "error",
+                    error_message: String(
+                      err instanceof Error ? err.message : err,
+                    ),
+                  })
+                  .eq("id", jobRow.id);
+              }
+            }
           }
         } catch (err) {
-          console.error(
-            "Error generating or uploading print PNG",
-            err,
-          );
+          console.error("Error generating or uploading print PNG", err);
         }
 
-        // gift load flow
+        // 2) GIFT LOADS (existing virtual card flow)
       } else {
         const cardId = metadata.cardId ?? metadata.card_id;
         const giverName = metadata.giverName ?? metadata.giver_name ?? "";
