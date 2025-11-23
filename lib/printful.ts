@@ -98,7 +98,7 @@ export async function createPrintfulOrderForCards(
       files: fileUrl
         ? [
             {
-              // Correct placement: inside right panel
+              // Place on inside right panel
               // Allowed values: front, inside1, inside2, back, mockup
               type: "inside2",
               url: fileUrl,
@@ -154,9 +154,13 @@ export async function createPrintfulOrderForCards(
     );
   }
 
+  // Sanitize order id for Printful external_id
+  const sanitizedOrderId = orderId.replace(/[^A-Za-z0-9]/g, "");
+  const externalId = `giftlink_${sanitizedOrderId}`;
+
   console.log(
     "[printful] Creating Printful order with external_id",
-    `giftlink_${orderId}`,
+    externalId,
     "items:",
     validItems.length,
   );
@@ -169,7 +173,7 @@ export async function createPrintfulOrderForCards(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      external_id: `giftlink_${orderId}`,
+      external_id: externalId,
       recipient,
       items: validItems,
       confirm: false, // still send as draft
