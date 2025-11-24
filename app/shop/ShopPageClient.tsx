@@ -6,6 +6,13 @@ import { CARD_TEMPLATES, CardTemplate } from "@/lib/cardTemplates";
 import { useCart } from "../providers/CartProvider";
 
 export default function ShopPageClient() {
+  // Debug: log templates to browser console
+  console.log(
+    "[ShopPage] templates",
+    CARD_TEMPLATES.length,
+    CARD_TEMPLATES.map((t) => t.id),
+  );
+
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8">
       <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
@@ -19,6 +26,12 @@ export default function ShopPageClient() {
             printed inside.
           </p>
         </div>
+
+        {/* Debug info: how many templates and which ids are loaded */}
+        <p className="mb-2 text-xs text-zinc-500">
+          Debug templates: {CARD_TEMPLATES.length} (
+          {CARD_TEMPLATES.map((t) => t.id).join(", ")})
+        </p>
 
         {/* Product grid: one tile per card template */}
         <div className="grid gap-8 md:grid-cols-2">
