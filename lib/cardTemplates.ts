@@ -7,7 +7,7 @@ export type CardTemplate = {
   name: string;
   size: CardSize;
   sku: string;
-  // legacy single price, we will mostly use stripePrices now
+  // legacy single price
   stripePriceId: string;
   printfulSyncVariantId: number;
   images: string[];
@@ -20,9 +20,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     name: "Classic GiftLink card four by six",
     size: "4x6",
     sku: "CARD1_4X6",
-    // map to the one card price for now
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
-    // 4x6 Printful sync variant (unchanged)
     printfulSyncVariantId: 5064628437,
     images: [
       "/Card1Images/Card1Mockup1.png",
@@ -30,9 +28,28 @@ export const CARD_TEMPLATES: CardTemplate[] = [
       "/Card1Images/Card1Mockup3.png",
     ],
     stripePrices: {
-      1: "price_1SWJUg0GCf06HHw3tC7uJML1", // 4x6 qty one 5.99
-      3: "price_1SWJWS0GCf06HHw3pmJKo2jj", // 4x6 qty three 16.47
-      5: "price_1SWJX50GCf06HHw3L2rhHwsD", // 4x6 qty five 24.95
+      1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+      3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+      5: "price_1SWJX50GCf06HHw3L2rhHwsD",
+    },
+  },
+
+  {
+    id: "fizzy_bubbly_4x6",
+    name: "Fizzy Bubbly four by six",
+    size: "4x6",
+    sku: "FIZZYBUBBLY_4X6",
+    stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    printfulSyncVariantId: 5071152160,
+    images: [
+      "/FizzyBubblyImages/FizzyMockup1.png",
+      "/FizzyBubblyImages/FizzyMockup2.png",
+      "/FizzyBubblyImages/FizzyMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+      3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+      5: "price_1SWJX50GCf06HHw3L2rhHwsD",
     },
   },
 ];
