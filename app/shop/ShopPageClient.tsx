@@ -39,7 +39,7 @@ export default function ShopPageClient() {
           </h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Pick a card style below, choose your quantity, and add it to your
-            cart. All cards are four by six greeting cards with a smart QR code
+            cart. All cards are four by six inches with a smart QR code
             printed inside.
           </p>
         </div>
@@ -100,6 +100,7 @@ function ProductCard({ template }: { template: CardTemplate }) {
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState<1 | 3 | 5>(1);
+  const [justAdded, setJustAdded] = useState(false);
 
   const mainImage = template.images[activeImageIndex] ?? template.images[0];
 
@@ -125,6 +126,11 @@ function ProductCard({ template }: { template: CardTemplate }) {
 
   const handleAddToCart = () => {
     addItem(template.id, quantity);
+    setJustAdded(true);
+
+    window.setTimeout(() => {
+      setJustAdded(false);
+    }, 1500);
   };
 
   if (!template) {
@@ -179,8 +185,8 @@ function ProductCard({ template }: { template: CardTemplate }) {
           </h3>
           <p className="text-xs text-zinc-600 dark:text-zinc-400">
             Four by six greeting card with a printed QR code inside. Guests
-            load a cash gift online and the couple scans the same code to claim
-            it.
+            load a cash gift by scanning the QR code and the recipient scans
+            the same QR code to claim it.
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-500">
             Size: {template.size.toUpperCase()}
@@ -206,13 +212,28 @@ function ProductCard({ template }: { template: CardTemplate }) {
 
           {/* Price and add to cart */}
           <div className="mt-1 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              className="w-full rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900 sm:w-auto"
-            >
-              Add to cart
-            </button>
+            {/* Button and feedback */}
+            <div className="flex flex-col gap-1 sm:order last sm:items-end">
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className={`w-full rounded-full px-4 py-2.5 text-sm font-semibold sm:w-auto ${
+                  justAdded
+                    ? "bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-900"
+                    : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                }`}
+              >
+                {justAdded ? "Added to cart" : "Add to cart"}
+              </button>
+              {justAdded && (
+                <span
+                  className="text-xs text-emerald-600 dark:text-emerald-400"
+                  aria-live="polite"
+                >
+                  This card was added to your cart.
+                </span>
+              )}
+            </div>
 
             <div className="text-right">
               <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
@@ -226,7 +247,7 @@ function ProductCard({ template }: { template: CardTemplate }) {
                   style: "currency",
                   currency: "USD",
                 })}{" "}
-                per card · plus S&H
+                per card · plus S and H
               </div>
             </div>
           </div>
