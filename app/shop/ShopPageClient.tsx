@@ -12,14 +12,17 @@ export default function ShopPageClient() {
   const [occasionFilter, setOccasionFilter] = useState<OccasionFilter>("all");
 
   const searchParams = useSearchParams();
-  const status = searchParams.get("status");
   const { clearCart } = useCart();
 
+  // Clear the cart once when we land on /shop?status=success
   useEffect(() => {
+    const status = searchParams.get("status");
     if (status === "success") {
       clearCart();
     }
-  }, [status, clearCart]);
+    // We intentionally only run this on first mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const occasions = useMemo(
     () => Array.from(new Set(CARD_TEMPLATES.map((t) => t.occasion))),
