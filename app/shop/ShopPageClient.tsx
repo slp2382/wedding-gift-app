@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { CARD_TEMPLATES, CardTemplate } from "@/lib/cardTemplates";
 import { useCart } from "../providers/CartProvider";
 
@@ -9,6 +10,16 @@ type OccasionFilter = "all" | "wedding" | "birthday";
 
 export default function ShopPageClient() {
   const [occasionFilter, setOccasionFilter] = useState<OccasionFilter>("all");
+
+  const searchParams = useSearchParams();
+  const status = searchParams.get("status");
+  const { clearCart } = useCart();
+
+  useEffect(() => {
+    if (status === "success") {
+      clearCart();
+    }
+  }, [status, clearCart]);
 
   const occasions = useMemo(
     () => Array.from(new Set(CARD_TEMPLATES.map((t) => t.occasion))),
