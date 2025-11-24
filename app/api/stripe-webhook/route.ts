@@ -24,9 +24,7 @@ const supabaseAdmin: SupabaseClient | null =
       })
     : null;
 
-// ------------------------------
 // PNG generator: white background plus QR near bottom center
-// ------------------------------
 async function generateGiftlinkInsidePng(cardId: string) {
   const { createCanvas } = await import("canvas");
   const QRCode = (await import("qrcode")).default;
@@ -116,7 +114,7 @@ export async function POST(req: NextRequest) {
     const type = metadata.type;
 
     try {
-      // 1) SHOP CARD PACK ORDERS
+      // SHOP CARD PACK ORDERS
       if (type === "card_pack_order") {
         console.log("Handling card_pack_order for session", session.id);
 
@@ -212,6 +210,69 @@ export async function POST(req: NextRequest) {
               ]
             : null;
 
+        // Parse items metadata from checkout to know which templates and quantities were ordered
+        type MetadataItem = {
+          templateId?: string;
+          size?: string;
+          quantity?: number;
+        };
+
+        let metadataItems: MetadataItem[] = [];
+        if (metadata.items) {
+          try {
+            const parsed = JSON.parse(metadata.items) as MetadataItem[];
+            if (Array.isArray(parsed)) {
+              metadataItems = parsed;
+            }
+          } catch (err) {
+            console.error("Failed to parse metadata.items JSON", err);
+          }
+        }
+
+        console.log("Parsed metadataItems from checkout:", metadataItems);
+
+        // Compute total number of physical cards from metadata or fallback to packQuantity
+        const rawPackQuantity =
+          metadata.packQuantity ??
+          metadata.pack_quantity ??
+          metadata.quantity ??
+          null;
+
+        let packQuantity = 1;
+        if (rawPackQuantity != null) {
+          const parsed = Number(rawPackQuantity);
+          if (!Number.isNaN(parsed) && parsed > 0) {
+            packQuantity = parsed;
+          }
+        }
+
+        console.log(
+          "Card pack order quantity (number of cards to create):",
+          packQuantity,
+        );
+
+        // Flatten template assignments per card based on metadataItems
+        const templateAssignments: (string | null)[] = [];
+        for (const item of metadataItems) {
+          const qty = Number(item.quantity ?? 0);
+          const tid = item.templateId ?? null;
+          if (!Number.isNaN(qty) && qty > 0) {
+            for (let i = 0; i < qty; i++) {
+              templateAssignments.push(tid);
+            }
+          }
+        }
+
+        // If for some reason templateAssignments is shorter than packQuantity, pad with null
+        while (templateAssignments.length < packQuantity) {
+          templateAssignments.push(null);
+        }
+
+        console.log(
+          "Template assignments for cards:",
+          templateAssignments,
+        );
+
         // Create or reuse order row
         let orderId: string | null = null;
 
@@ -279,26 +340,6 @@ export async function POST(req: NextRequest) {
           return new NextResponse("Order id missing", { status: 500 });
         }
 
-        // Determine pack quantity from metadata
-        const rawPackQuantity =
-          metadata.packQuantity ??
-          metadata.pack_quantity ??
-          metadata.quantity ??
-          null;
-
-        let packQuantity = 1;
-        if (rawPackQuantity != null) {
-          const parsed = Number(rawPackQuantity);
-          if (!Number.isNaN(parsed) && parsed > 0) {
-            packQuantity = parsed;
-          }
-        }
-
-        console.log(
-          "Card pack order quantity (number of cards to create):",
-          packQuantity,
-        );
-
         // Sanity check bucket
         console.log(
           "Testing list on storage bucket 'printfiles' under prefix 'cards'",
@@ -313,8 +354,12 @@ export async function POST(req: NextRequest) {
           listCount: listData?.length ?? 0,
         });
 
-        // Build up cards for Printful
-        const cardsForPrintful: { cardId: string; storagePath: string }[] = [];
+        // Build up cards for Printful, now including templateId
+        const cardsForPrintful: {
+          cardId: string;
+          storagePath: string;
+          templateId: string | null;
+        }[] = [];
 
         // Create one card per pack unit
         for (let i = 0; i < packQuantity; i++) {
@@ -325,7 +370,14 @@ export async function POST(req: NextRequest) {
               : undefined) ??
             `card_${Math.random().toString(36).slice(2, 10)}`;
 
-          console.log("Using card id for shop order", cardId);
+          const templateIdForThisCard = templateAssignments[i] ?? null;
+
+          console.log(
+            "Using card id for shop order",
+            cardId,
+            "with templateId",
+            templateIdForThisCard,
+          );
 
           // Create card row
           const { error: cardInsertError } = await supabaseAdmin
@@ -407,7 +459,7 @@ export async function POST(req: NextRequest) {
               .insert({
                 card_id: cardId,
                 order_id: orderId,
-                pdf_path: pngPath, // storing PNG path in this column
+                pdf_path: pngPath,
                 status: uploadError ? "error" : "generated",
                 error_message: uploadError
                   ? uploadError.message
@@ -425,6 +477,7 @@ export async function POST(req: NextRequest) {
               cardsForPrintful.push({
                 cardId,
                 storagePath: pngPath,
+                templateId: templateIdForThisCard,
               });
             }
           } catch (err) {
@@ -453,7 +506,6 @@ export async function POST(req: NextRequest) {
               "Failed to create Printful order from webhook",
               err,
             );
-            // Optional: you could also mark all related card_print_jobs as error here
           }
         } else {
           console.error(
@@ -461,7 +513,7 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // 2) GIFT LOADS (existing virtual card flow)
+        // GIFT LOADS (existing virtual card flow)
       } else {
         const cardId = metadata.cardId ?? metadata.card_id;
         const giverName = metadata.giverName ?? metadata.giver_name ?? "";
