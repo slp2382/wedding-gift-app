@@ -1,6 +1,7 @@
 // lib/printful.ts
 
 import { createClient } from "@supabase/supabase-js";
+import { CARD_TEMPLATES } from "./cardTemplates";
 
 const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
 
@@ -31,6 +32,8 @@ const supabaseAdmin =
 type CardForPrintful = {
   cardId: string;
   storagePath: string | null;
+  // optional template id so we can pick the correct sync_variant_id
+  templateId?: string | null;
 };
 
 type CreatePrintfulOrderForCardsArgs = {
@@ -95,7 +98,10 @@ export async function createPrintfulOrderForCards(
     .in("card_id", cardIds);
 
   if (cardsError) {
-    console.error("[printful] Error fetching cards for print_file_url", cardsError);
+    console.error(
+      "[printful] Error fetching cards for print_file_url",
+      cardsError,
+    );
     throw cardsError;
   }
 
@@ -105,6 +111,14 @@ export async function createPrintfulOrderForCards(
   const cardFileMap = new Map<string, string | null>();
   for (const row of cardRows) {
     cardFileMap.set(row.card_id, row.print_file_url ?? null);
+  }
+
+  // Map card id -> template id from the args
+  const templateIdMap = new Map<string, string | null>();
+  for (const c of cards) {
+    if (c.templateId) {
+      templateIdMap.set(c.cardId, c.templateId);
+    }
   }
 
   // 3) Build Printful items, one per card, using inside2 so it prints on inner right
@@ -120,8 +134,29 @@ export async function createPrintfulOrderForCards(
       );
     }
 
+    // Choose sync_variant_id based on template id when available
+    const templateIdForCard = templateIdMap.get(job.card_id) ?? null;
+    let syncVariantId: number;
+
+    if (templateIdForCard) {
+      const template = CARD_TEMPLATES.find(
+        (t) => t.id === templateIdForCard,
+      );
+      if (template) {
+        syncVariantId = template.printfulSyncVariantId;
+      } else {
+        console.warn(
+          "[printful] No card template found for templateId, falling back to default variant",
+          templateIdForCard,
+        );
+        syncVariantId = Number(PRINTFUL_SYNC_VARIANT_ID_4X6);
+      }
+    } else {
+      syncVariantId = Number(PRINTFUL_SYNC_VARIANT_ID_4X6);
+    }
+
     return {
-      sync_variant_id: Number(PRINTFUL_SYNC_VARIANT_ID_4X6),
+      sync_variant_id: syncVariantId,
       quantity: 1,
       files: fileUrl
         ? [
