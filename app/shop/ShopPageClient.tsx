@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CARD_TEMPLATES, CardTemplate } from "@/lib/cardTemplates";
 import { useCart } from "../providers/CartProvider";
@@ -12,7 +13,7 @@ export default function ShopPageClient() {
   const [occasionFilter, setOccasionFilter] = useState<OccasionFilter>("all");
 
   const searchParams = useSearchParams();
-  const { clearCart } = useCart();
+  const { clearCart, items } = useCart();
 
   // Clear the cart once when we land on /shop?status=success
   useEffect(() => {
@@ -23,6 +24,17 @@ export default function ShopPageClient() {
     // We intentionally only run this on first mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Cart summary for the bottom bar
+  const cartItemCount = useMemo(
+    () =>
+      Array.isArray(items)
+        ? items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+        : 0,
+    [items],
+  );
+
+  const hasCartItems = cartItemCount > 0;
 
   const occasions = useMemo(
     () => Array.from(new Set(CARD_TEMPLATES.map((t) => t.occasion))),
@@ -45,67 +57,94 @@ export default function ShopPageClient() {
   );
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-8">
-      <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
-        <div className="mb-6 space-y-2">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            Choose your GiftLink card design
-          </h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Pick a card style below, choose your quantity, and add it to your
-            cart. All cards are four by six inches with a smart QR code
-            printed inside.
-          </p>
-        </div>
+    <>
+      <main className="mx-auto flex max-w-5xl flex-col gap-8 pb-24">
+        {/* extra bottom padding so content is not hidden behind the sticky bar */}
+        <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
+          <div className="mb-6 space-y-2">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              Choose your GiftLink card design
+            </h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Pick a card style below, choose your quantity, and add it to your
+              cart. All cards are four by six inches with a smart QR code
+              printed inside.
+            </p>
+          </div>
 
-        {/* Occasion filter */}
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-            Occasion
-          </span>
+          {/* Occasion filter */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              Occasion
+            </span>
 
-          <button
-            type="button"
-            onClick={() => setOccasionFilter("all")}
-            className={`rounded-full border px-3 py-1 text-xs ${
-              occasionFilter === "all"
-                ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                : "border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
-            }`}
-          >
-            All
-          </button>
-
-          {occasions.map((occ) => (
             <button
-              key={occ}
               type="button"
-              onClick={() => setOccasionFilter(occ as OccasionFilter)}
-              className={`rounded-full border px-3 py-1 text-xs capitalize ${
-                occasionFilter === occ
+              onClick={() => setOccasionFilter("all")}
+              className={`rounded-full border px-3 py-1 text-xs ${
+                occasionFilter === "all"
                   ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
                   : "border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
               }`}
             >
-              {occ}
+              All
             </button>
-          ))}
-        </div>
 
-        {/* Debug info */}
-        <p className="mb-2 text-xs text-zinc-500">
-          Debug templates: {CARD_TEMPLATES.length} (
-          {CARD_TEMPLATES.map((t) => t.id).join(", ")})
-        </p>
+            {occasions.map((occ) => (
+              <button
+                key={occ}
+                type="button"
+                onClick={() => setOccasionFilter(occ as OccasionFilter)}
+                className={`rounded-full border px-3 py-1 text-xs capitalize ${
+                  occasionFilter === occ
+                    ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                    : "border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
+                }`}
+              >
+                {occ}
+              </button>
+            ))}
+          </div>
 
-        {/* Product grid */}
-        <div className="grid gap-8 md:grid-cols-2">
-          {visibleTemplates.map((template) => (
-            <ProductCard key={template.id} template={template} />
-          ))}
+          {/* Debug info */}
+          <p className="mb-2 text-xs text-zinc-500">
+            Debug templates: {CARD_TEMPLATES.length} (
+            {CARD_TEMPLATES.map((t) => t.id).join(", ")})
+          </p>
+
+          {/* Product grid */}
+          <div className="grid gap-8 md:grid-cols-2">
+            {visibleTemplates.map((template) => (
+              <ProductCard key={template.id} template={template} />
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {/* Sticky proceed to cart bar */}
+      {hasCartItems && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 p-4">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                {cartItemCount} card{cartItemCount === 1 ? "" : "s"} in your
+                cart
+              </span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                Review your selection before checkout
+              </span>
+            </div>
+
+            <Link
+              href="/cart"
+              className="rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-zinc-100"
+            >
+              Proceed to cart
+            </Link>
+          </div>
         </div>
-      </section>
-    </main>
+      )}
+    </>
   );
 }
 
