@@ -5,8 +5,25 @@ import Image from "next/image";
 import { CARD_TEMPLATES, CardTemplate } from "@/lib/cardTemplates";
 import { useCart } from "../providers/CartProvider";
 
+type OccasionFilter = "all" | "wedding" | "birthday";
+
 export default function ShopPageClient() {
-  // Debug: log templates to browser console
+  const [occasionFilter, setOccasionFilter] = useState<OccasionFilter>("all");
+
+  const occasions = useMemo(
+    () => Array.from(new Set(CARD_TEMPLATES.map((t) => t.occasion))),
+    [],
+  );
+
+  const visibleTemplates = useMemo(
+    () =>
+      CARD_TEMPLATES.filter((template) => {
+        if (occasionFilter === "all") return true;
+        return template.occasion === occasionFilter;
+      }),
+    [occasionFilter],
+  );
+
   console.log(
     "[ShopPage] templates",
     CARD_TEMPLATES.length,
@@ -27,15 +44,49 @@ export default function ShopPageClient() {
           </p>
         </div>
 
-        {/* Debug info: how many templates and which ids are loaded */}
+        {/* Occasion filter */}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            Occasion
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setOccasionFilter("all")}
+            className={`rounded-full border px-3 py-1 text-xs ${
+              occasionFilter === "all"
+                ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                : "border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
+            }`}
+          >
+            All
+          </button>
+
+          {occasions.map((occ) => (
+            <button
+              key={occ}
+              type="button"
+              onClick={() => setOccasionFilter(occ as OccasionFilter)}
+              className={`rounded-full border px-3 py-1 text-xs capitalize ${
+                occasionFilter === occ
+                  ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                  : "border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
+              }`}
+            >
+              {occ}
+            </button>
+          ))}
+        </div>
+
+        {/* Debug info */}
         <p className="mb-2 text-xs text-zinc-500">
           Debug templates: {CARD_TEMPLATES.length} (
           {CARD_TEMPLATES.map((t) => t.id).join(", ")})
         </p>
 
-        {/* Product grid: one tile per card template */}
+        {/* Product grid */}
         <div className="grid gap-8 md:grid-cols-2">
-          {CARD_TEMPLATES.map((template) => (
+          {visibleTemplates.map((template) => (
             <ProductCard key={template.id} template={template} />
           ))}
         </div>
@@ -153,7 +204,7 @@ function ProductCard({ template }: { template: CardTemplate }) {
             </select>
           </div>
 
-          {/* Price + add to cart */}
+          {/* Price and add to cart */}
           <div className="mt-1 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
