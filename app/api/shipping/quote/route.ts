@@ -47,22 +47,41 @@ export async function POST(req: NextRequest) {
   }
 
   // Map cart to Printful variant ids and aggregate quantities
-  const variantQuantity = new Map<number, number>();
+const variantQuantity = new Map<number, number>();
 
-  for (const item of items) {
-    const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
-    if (!template || !("printfulSyncVariantId" in template)) {
-      console.error(
-        "[shipping/quote] Missing Printful variant for template",
-        item.templateId,
-      );
-      continue;
-    }
-
-    const variantId = (template as any).printfulSyncVariantId as number;
-    const prev = variantQuantity.get(variantId) ?? 0;
-    variantQuantity.set(variantId, prev + item.quantity);
+for (const item of items) {
+  const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
+  if (!template) {
+    console.error("[shipping/quote] Unknown template", item.templateId);
+    continue;
   }
+
+  const shippingVariant =
+    (template as any).printfulShippingVariantId ??
+    (template as any).printfulCatalogVariantId;
+
+  if (!shippingVariant) {
+    console.error(
+      "[shipping/quote] Missing Printful shipping variant for template",
+      item.templateId,
+    );
+    continue;
+  }
+
+  const variantId = Number(shippingVariant);
+  if (!Number.isFinite(variantId)) {
+    console.error(
+      "[shipping/quote] Invalid Printful shipping variant id for template",
+      item.templateId,
+      shippingVariant,
+    );
+    continue;
+  }
+
+  const prev = variantQuantity.get(variantId) ?? 0;
+  variantQuantity.set(variantId, prev + Number(item.quantity ?? 0));
+}
+
 
   if (!variantQuantity.size) {
     return NextResponse.json(

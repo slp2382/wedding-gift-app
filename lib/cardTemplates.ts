@@ -13,6 +13,7 @@ export type CardTemplate = {
   // legacy single price
   stripePriceId: string;
   printfulSyncVariantId: number;
+  printfulShippingVariantId?: number;
   images: string[];
   stripePrices: { 1: string; 3: string; 5: string };
 };
@@ -26,6 +27,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     occasion: "wedding",
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     printfulSyncVariantId: 5064628437,
+    printfulShippingVariantId: 14457,
     images: [
       "/Card1Images/Card1Mockup1.png",
       "/Card1Images/Card1Mockup2.png",
@@ -46,6 +48,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     occasion: "wedding",
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     printfulSyncVariantId: 5071152160,
+    printfulShippingVariantId: 14457,
     images: [
       "/FizzyBubblyImages/FizzyMockup1.png",
       "/FizzyBubblyImages/FizzyMockup2.png",
@@ -68,6 +71,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     // You can update this to the real birthday sync variant id
     printfulSyncVariantId: 5072394027,
+    printfulShippingVariantId: 14457,
     images: [
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup1.png",
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup2.png",

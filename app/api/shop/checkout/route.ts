@@ -173,36 +173,51 @@ export async function POST(req: NextRequest) {
     }
 
     // Compute Printful shipping again on the server to avoid trusting the client
-    // Map cart items to Printful variant ids and aggregate quantities
+    // Map cart items to Printful catalog variant ids and aggregate quantities
     const variantQuantity = new Map<number, number>();
 
     for (const item of cartItems) {
       const template = CARD_TEMPLATES.find(
         (t) => t.id === item.templateId,
       );
-      if (!template || !(template as any).printfulSyncVariantId) {
+
+      if (!template) {
         console.error(
-          "[shop/checkout] Missing Printful variant for template",
+          "[shop/checkout] Unknown template when mapping shipping",
           item.templateId,
         );
         continue;
       }
-      const variantId = Number((template as any).printfulSyncVariantId);
+
+      const shippingVariant =
+        (template as any).printfulShippingVariantId ??
+        (template as any).printfulCatalogVariantId;
+
+      if (!shippingVariant) {
+        console.error(
+          "[shop/checkout] Missing Printful shipping variant for template",
+          item.templateId,
+        );
+        continue;
+      }
+
+      const variantId = Number(shippingVariant);
       if (!Number.isFinite(variantId)) {
         console.error(
-          "[shop/checkout] Invalid Printful variant id for template",
+          "[shop/checkout] Invalid Printful shipping variant id for template",
           item.templateId,
-          (template as any).printfulSyncVariantId,
+          shippingVariant,
         );
         continue;
       }
+
       const prev = variantQuantity.get(variantId) ?? 0;
       variantQuantity.set(variantId, prev + Number(item.quantity ?? 0));
     }
 
     if (!variantQuantity.size) {
       console.error(
-        "[shop/checkout] Could not map any items to Printful variants",
+        "[shop/checkout] Could not map any items to Printful variants for shipping",
       );
       return NextResponse.json(
         { error: "Could not calculate shipping for this cart" },
@@ -302,7 +317,7 @@ export async function POST(req: NextRequest) {
       metadata: {
         type: "card_pack_order",
         items: JSON.stringify(metadataItems),
-        packQuantity: String(totalCards), // this is what the webhook reads today
+        packQuantity: String(totalCards),
         // Additional shipping metadata for webhook and admin use
         shipping_printful_method_id: best.id,
         shipping_printful_method_name: best.name,
