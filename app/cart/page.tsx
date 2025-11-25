@@ -289,7 +289,7 @@ export default function CartPage() {
               </div>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Shipping is calculated based on your address plus a small handling fee.
+                  Shipping is calculated based on your address.
                 </p>
                 <button
                   type="button"
@@ -300,17 +300,16 @@ export default function CartPage() {
                   {quoting ? "Calculating" : "Update shipping"}
                 </button>
               </div>
-              {shippingQuote && (
-                <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                  Method {shippingQuote.methodName}  
-                  Printful rate{" "}
-                  {(shippingQuote.printfulRateCents / 100).toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                  })}{" "}
-                  plus fifty cents handling.
-                </p>
-              )}
+{shippingQuote && (
+  <p className="text-xs text-zinc-600 dark:text-zinc-400">
+    Method {shippingQuote.methodName} · Estimated shipping and handling{" "}
+    {(shippingQuote.totalShippingCents / 100).toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+    })}
+  </p>
+)}
+
             </section>
 
             <section className="mt-4 rounded-2xl border bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
