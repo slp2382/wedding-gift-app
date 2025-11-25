@@ -1,0 +1,14 @@
+{
+  "recipient": {
+    "name": "Scott Porter",
+    "address1": "26 Four Corners Rd",
+    "city": "Holmes",
+    "state_code": "NY",
+    "country_code": "US",
+    "zip": "12531"
+  },
+  "items": [
+    { "variant_id": 14457, "quantity": 20 }
+  ],
+  "currency": "USD"
+}
