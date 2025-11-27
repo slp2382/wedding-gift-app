@@ -42,7 +42,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 
   {
     id: "love_birds_4x6",
-    name: "Love Birds four by six",
+    name: "Love Birds",
     size: "4x6",
     sku: "LOVE_BIRDS_4X6",
     occasion: "wedding",
@@ -81,6 +81,27 @@ export const CARD_TEMPLATES: CardTemplate[] = [
       5: "price_1SWJX50GCf06HHw3L2rhHwsD",
     },
   },
+
+  {
+  id: "confetti_birthday_4x6",
+  name: "Confetti Birthday",
+  size: "4x6",
+  sku: "CONFETTI_BIRTHDAY_4X6",
+  occasion: "birthday",
+  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+  printfulSyncVariantId: 5078093148,
+  printfulShippingVariantId: 14457,
+  images: [
+    "/ConfettiBirthdayImages/ConfettiBirthdayMockup1.png",
+    "/ConfettiBirthdayImages/ConfettiBirthdayMockup2.png",
+    "/ConfettiBirthdayImages/ConfettiBirthdayMockup3.png",
+  ],
+  stripePrices: {
+    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+    5: "price_1SWJX50GCf06HHw3L2rhHwsD",
+  },
+},
 
   {
     id: "another_trip_around_the_sun_4x6",
