@@ -41,6 +41,27 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   },
 
   {
+    id: "love_birds_4x6",
+    name: "Love Birds four by six",
+    size: "4x6",
+    sku: "LOVE_BIRDS_4X6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    printfulSyncVariantId: 5078065456,
+    printfulShippingVariantId: 14457,
+    images: [
+      "/LoveBirdsImages/LoveBirdsMockup1.png",
+      "/LoveBirdsImages/LoveBirdsMockup2.png",
+      "/LoveBirdsImages/LoveBirdsMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+      3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+      5: "price_1SWJX50GCf06HHw3L2rhHwsD",
+    },
+  },
+
+  {
     id: "fizzy_bubbly_4x6",
     name: "Fizzy Bubbly",
     size: "4x6",
@@ -61,7 +82,6 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },
 
-  // New birthday card template
   {
     id: "another_trip_around_the_sun_4x6",
     name: "Another Trip Around The Sun",
@@ -69,7 +89,6 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     sku: "ANOTHER_TRIP_AROUND_SUN_4X6",
     occasion: "birthday",
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
-    // You can update this to the real birthday sync variant id
     printfulSyncVariantId: 5072394027,
     printfulShippingVariantId: 14457,
     images: [
