@@ -1,6 +1,7 @@
 // app/api/request-payout/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "../../../lib/supabaseServer";
+import { sendPayoutRequestAlert } from "../../../lib/smsNotifications";
 
 export const runtime = "nodejs";
 
@@ -127,6 +128,25 @@ export async function POST(req: NextRequest) {
         updateCardError,
       );
       // not fatal for the flow
+    }
+
+    // 4) Send SMS alert for Venmo payout requests
+    if (payoutMethod === "venmo") {
+      try {
+        await sendPayoutRequestAlert({
+          cardId: card.card_id,
+          payoutMethod,
+          contactName,
+          contactEmail,
+          payoutAmountCents: amountCents,
+        });
+      } catch (alertError) {
+        console.error(
+          "request-payout: failed to send payout SMS alert",
+          alertError,
+        );
+        // do not fail the request if SMS fails
+      }
     }
 
     return NextResponse.json({
