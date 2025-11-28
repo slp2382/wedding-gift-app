@@ -87,6 +87,28 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   },
 
 {
+  id: "wedding_poem_4x6",
+  name: "Wedding Poem",
+  size: "4x6",
+  sku: "WEDDING_POEM_4X6",
+  occasion: "wedding",
+  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+  printfulSyncVariantId: 5079297309,
+  printfulShippingVariantId: 14457,
+  images: [
+    "/WeddingPoemImages/WeddingPoemMockup1.png",
+    "/WeddingPoemImages/WeddingPoemMockup2.png",
+    "/WeddingPoemImages/WeddingPoemMockup3.png"
+  ],
+  stripePrices: {
+    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+    5: "price_1SWJX50GCf06HHw3L2rhHwsD"
+  },
+},
+
+
+{
   id: "watercolor_wedding_4x6",
   name: "Watercolor Wedding",
   size: "4x6",
