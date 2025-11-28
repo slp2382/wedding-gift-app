@@ -19,7 +19,32 @@ export type CardTemplate = {
 };
 
 export const CARD_TEMPLATES: CardTemplate[] = [
-  {
+  
+{
+  id: "love_and_happiness_4x6",
+  name: "Love and Happiness",
+  size: "4x6",
+  sku: "LOVE_AND_HAPPINESS_4X6",
+  occasion: "wedding",
+  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1", // legacy single price
+  printfulSyncVariantId: 5079220284,
+  printfulShippingVariantId: 14457,
+  images: [
+    "/LoveandHappinessImages/LoveandHappinessMockup1.png",
+    "/LoveandHappinessImages/LoveandHappinessMockup2.png",
+    "/LoveandHappinessImages/LoveandHappinessMockup3.png"
+  ],
+  stripePrices: {
+    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+    5: "price_1SWJX50GCf06HHw3L2rhHwsD"
+  },
+},
+
+
+
+
+{
     id: "card1_4x6",
     name: "To Have and To Hold",
     size: "4x6",
