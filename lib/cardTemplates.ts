@@ -42,8 +42,6 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 },
 
 
-
-
 {
     id: "card1_4x6",
     name: "To Have and To Hold",
@@ -85,6 +83,28 @@ export const CARD_TEMPLATES: CardTemplate[] = [
       5: "price_1SWJX50GCf06HHw3L2rhHwsD",
     },
   },
+
+{
+  id: "floral_wedding_4x6",
+  name: "Floral Wedding",
+  size: "4x6",
+  sku: "FLORAL_WEDDING_4X6",
+  occasion: "wedding",
+  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+  printfulSyncVariantId: 5079482998,
+  printfulShippingVariantId: 14457,
+  images: [
+    "/FloralWeddingImages/FloralWeddingMockup1.png",
+    "/FloralWeddingImages/FloralWeddingMockup2.png",
+    "/FloralWeddingImages/FloralWeddingMockup3.png",
+  ],
+  stripePrices: {
+    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+    5: "price_1SWJX50GCf06HHw3L2rhHwsD",
+  },
+},
+
 
 {
   id: "wedding_poem_4x6",
