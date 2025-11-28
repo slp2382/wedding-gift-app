@@ -149,6 +149,27 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   },
 },
 
+{
+  id: "black_gold_birthday_4x6",
+  name: "Black and Gold Birthday",
+  size: "4x6",
+  sku: "6929E156244D7",
+  occasion: "birthday",
+  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+  printfulSyncVariantId: 5079273568,
+  printfulShippingVariantId: 14457,
+  images: [
+    "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup1.png",
+    "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup2.png",
+    "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup3.png" // optional if you only have 2
+  ],
+  stripePrices: {
+    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+    5: "price_1SWJX50GCf06HHw3L2rhHwsD"
+  },
+},
+
 
   {
     id: "another_trip_around_the_sun_4x6",
