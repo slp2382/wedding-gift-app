@@ -86,6 +86,28 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },
 
+{
+  id: "watercolor_wedding_4x6",
+  name: "Watercolor Wedding",
+  size: "4x6",
+  sku: "WATERCOLOR_WEDDING_4X6",
+  occasion: "wedding",
+  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+  printfulSyncVariantId: 5079282339,
+  printfulShippingVariantId: 14457,
+  images: [
+    "/WatercolorWeddingImages/WatercolorWeddingMockup1.png",
+    "/WatercolorWeddingImages/WatercolorWeddingMockup2.png",
+    "/WatercolorWeddingImages/WatercolorWeddingMockup3.png",
+  ],
+  stripePrices: {
+    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+    5: "price_1SWJX50GCf06HHw3L2rhHwsD",
+  },
+},
+
+
   {
     id: "fizzy_bubbly_4x6",
     name: "Fizzy Bubbly",
