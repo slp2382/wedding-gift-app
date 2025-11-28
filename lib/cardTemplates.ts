@@ -129,6 +129,26 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   },
 },
 
+{
+  id: "mil_spec_wedding_4x6",
+  name: "Mil Spec Wedding",
+  size: "4x6",
+  sku: "MIL_SPEC_WEDDING_4X6", // or "6929EE0B87683" if you prefer matching Printful
+  occasion: "wedding",
+  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+  printfulSyncVariantId: 5079316169,
+  printfulShippingVariantId: 14457,
+  images: [
+    "/MilSpecWeddingImages/MilSpecWeddingMockup1.png",
+    "/MilSpecWeddingImages/MilSpecWeddingMockup2.png",
+    "/MilSpecWeddingImages/MilSpecWeddingMockup3.png",
+  ],
+  stripePrices: {
+    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+    5: "price_1SWJX50GCf06HHw3L2rhHwsD",
+  },
+},
 
   {
     id: "fizzy_bubbly_4x6",
