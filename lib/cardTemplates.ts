@@ -130,6 +130,27 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 },
 
 {
+  id: "colorful_wedding_4x6",
+  name: "Colorful Wedding",
+  size: "4x6",
+  sku: "COLORFUL_WEDDING_4X6",
+  occasion: "wedding",
+  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+  printfulSyncVariantId: 5079444047,
+  printfulShippingVariantId: 14457,
+  images: [
+    "/ColorfulWeddingImages/ColorfulWeddingMockup1.png",
+    "/ColorfulWeddingImages/ColorfulWeddingMockup2.png",
+    "/ColorfulWeddingImages/ColorfulWeddingMockup3.png"
+  ],
+  stripePrices: {
+    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+    5: "price_1SWJX50GCf06HHw3L2rhHwsD"
+  },
+},
+
+{
   id: "mil_spec_wedding_4x6",
   name: "Mil Spec Wedding",
   size: "4x6",
