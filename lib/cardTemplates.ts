@@ -128,6 +128,28 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   },
 },
 
+{
+  id: "pink_birthday_4x6",
+  name: "Pink Birthday!",
+  size: "4x6",
+  sku: "PINK_BIRTHDAY_4X6",
+  occasion: "birthday",
+  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
+  printfulSyncVariantId: 5079262069,
+  printfulShippingVariantId: 14457,
+  images: [
+    "/PinkBirthdayImages/PinkBirthdayMockup1.png",
+    "/PinkBirthdayImages/PinkBirthdayMockup2.png",
+    "/PinkBirthdayImages/PinkBirthdayMockup3.png"
+  ],
+  stripePrices: {
+    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
+    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
+    5: "price_1SWJX50GCf06HHw3L2rhHwsD"
+  },
+},
+
+
   {
     id: "another_trip_around_the_sun_4x6",
     name: "Another Trip Around The Sun",
