@@ -5,11 +5,6 @@ export const runtime = "edge";
 const COOKIE_NAME = "gl_admin_session";
 const TTL_SECONDS = 60 * 60 * 12;
 
-function padBase64(base64: string) {
-  const padLen = (4 - (base64.length % 4)) % 4;
-  return base64 + "=".repeat(padLen);
-}
-
 function bytesToBase64Url(bytes: Uint8Array) {
   let s = "";
   for (const b of bytes) s += String.fromCharCode(b);
@@ -52,7 +47,7 @@ export async function POST(req: NextRequest) {
     const url = new URL("/admin/login", req.url);
     url.searchParams.set("error", "1");
     if (isSafeNext(nextRaw)) url.searchParams.set("next", nextRaw);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(url, { status: 303 });
   }
 
   const now = Math.floor(Date.now() / 1000);
@@ -62,7 +57,7 @@ export async function POST(req: NextRequest) {
   const token = `${payloadB64}.${bytesToBase64Url(sig)}`;
 
   const dest = isSafeNext(nextRaw) ? nextRaw : "/admin";
-  const res = NextResponse.redirect(new URL(dest, req.url));
+  const res = NextResponse.redirect(new URL(dest, req.url), { status: 303 });
 
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
