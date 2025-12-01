@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { createPrintfulOrderForCards } from "@/lib/printful";
+import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 
 function getSupabaseAdmin(): SupabaseClient | null {
   const supabaseUrl =
@@ -104,6 +105,52 @@ function escapeHtml(s: string) {
     .replace(/'/g, "&#039;");
 }
 
+type MetadataCartItem = { templateId?: string; size?: string; quantity?: number };
+
+function summarizeCartItems(metadataItemsRaw: string | undefined) {
+  if (!metadataItemsRaw) return [];
+
+  try {
+    const parsed = JSON.parse(metadataItemsRaw) as MetadataCartItem[];
+    if (!Array.isArray(parsed)) return [];
+
+    const counts = new Map<
+      string,
+      { templateId: string | null; size: string | null; qty: number }
+    >();
+
+    for (const item of parsed) {
+      const qty = Number(item.quantity ?? 0);
+      if (!Number.isFinite(qty) || qty <= 0) continue;
+
+      const templateId =
+        typeof item.templateId === "string" ? item.templateId : null;
+      const size = typeof item.size === "string" ? item.size : null;
+
+      const key = `${templateId ?? "unknown"}|${size ?? "unknown"}`;
+      const cur = counts.get(key);
+      if (cur) cur.qty += qty;
+      else counts.set(key, { templateId, size, qty });
+    }
+
+    const lines: string[] = [];
+    for (const entry of counts.values()) {
+      const tpl = entry.templateId
+        ? CARD_TEMPLATES.find((t) => t.id === entry.templateId)
+        : null;
+
+      const name = tpl?.name ?? (entry.templateId ?? "GiftLink card");
+      const sizeLabel = entry.size ?? tpl?.size ?? "";
+      const sizePart = sizeLabel ? ` (${sizeLabel})` : "";
+      lines.push(`${name}${sizePart} Qty ${entry.qty}`);
+    }
+
+    return lines;
+  } catch {
+    return [];
+  }
+}
+
 async function sendOrderConfirmationEmail(args: {
   to: string;
   orderId: string;
@@ -113,7 +160,7 @@ async function sendOrderConfirmationEmail(args: {
   shippingAddress?: ShipAddr | null;
   amountTotalMinor: number;
   currency: string;
-  lineItems: MailLineItem[];
+  itemLines: string[];
 }) {
   const host = process.env.ZOHO_SMTP_HOST ?? "";
   const portRaw = process.env.ZOHO_SMTP_PORT ?? "";
@@ -135,7 +182,7 @@ async function sendOrderConfirmationEmail(args: {
   try {
     const mod: any = await import("nodemailer");
     nodemailerAny = mod?.default ?? mod;
-  } catch (err) {
+  } catch {
     throw new Error("nodemailer is not installed, run npm i nodemailer");
   }
 
@@ -154,29 +201,26 @@ async function sendOrderConfirmationEmail(args: {
   });
 
   const customerName = (args.customerName ?? "").trim();
-const shippingName = (args.shippingName ?? "").trim();
+  const shippingName = (args.shippingName ?? "").trim();
 
-let greetingName = shippingName || customerName || "there";
+  let greetingName = shippingName || customerName || "there";
 
-// If both exist and differ, prefer the shipping name
-if (
-  shippingName &&
-  customerName &&
-  shippingName.toLowerCase() !== customerName.toLowerCase()
-) {
-  greetingName = shippingName;
-}
+  if (
+    shippingName &&
+    customerName &&
+    shippingName.toLowerCase() !== customerName.toLowerCase()
+  ) {
+    greetingName = shippingName;
+  }
 
   const total = formatMoney(args.amountTotalMinor, args.currency);
 
   const addressLines = formatAddressLines(args.shippingAddress);
+
   const itemsHtml =
-    args.lineItems.length > 0
-      ? `<ul>${args.lineItems
-          .map(
-            (x) =>
-              `<li>${escapeHtml(x.description)} (Qty ${x.quantity})</li>`,
-          )
+    args.itemLines.length > 0
+      ? `<ul>${args.itemLines
+          .map((x) => `<li>${escapeHtml(x)}</li>`)
           .join("")}</ul>`
       : `<p>GiftLink cards</p>`;
 
@@ -190,7 +234,7 @@ if (
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.5;">
       <h2>Thanks, ${escapeHtml(greetingName)}!</h2>
-      <p>We have received your GiftLink order.</p>
+      <p>We have received your GiftLink order and are currently fullfilling it. Tracking information will be sent when available.</p>
 
       <p><strong>Order ID:</strong> ${escapeHtml(args.orderId)}</p>
       <p><strong>Total:</strong> ${escapeHtml(total)}</p>
@@ -202,7 +246,7 @@ if (
       ${shipHtml}
 
       <p style="margin-top: 24px;">
-        If you have any questions, reply to this email.
+        If you have any questions, please contact us at Admin@GiftLink.cards.
       </p>
       <p style="color: #666; font-size: 12px;">
         GiftLink, giftlink.cards
@@ -223,7 +267,10 @@ if (
   console.log("[orderEmail] Sent order confirmation to", args.to);
 }
 
-async function recordEmailSuccess(supabaseAdmin: SupabaseClient, orderId: string) {
+async function recordEmailSuccess(
+  supabaseAdmin: SupabaseClient,
+  orderId: string,
+) {
   try {
     const { error } = await supabaseAdmin
       .from("orders")
@@ -293,7 +340,16 @@ async function maybeSendAndRecordOrderEmail(args: {
   }
 
   try {
-    const lineItems = await getCheckoutLineItems(stripe, session.id);
+    const metadataItemsRaw =
+      (session.metadata?.items as string | undefined) ?? undefined;
+
+    let itemLines = summarizeCartItems(metadataItemsRaw);
+
+    if (itemLines.length === 0) {
+      const lineItems = await getCheckoutLineItems(stripe, session.id);
+      itemLines = lineItems.map((x) => `${x.description} Qty ${x.quantity}`);
+    }
+
     await withTimeout(
       sendOrderConfirmationEmail({
         to: args.customerEmail,
@@ -304,7 +360,7 @@ async function maybeSendAndRecordOrderEmail(args: {
         shippingAddress: args.shippingAddress,
         amountTotalMinor: session.amount_total ?? 0,
         currency: session.currency ?? "usd",
-        lineItems,
+        itemLines,
       }),
       6500,
     );
@@ -417,7 +473,9 @@ export async function POST(req: NextRequest) {
 
         if (paymentIntentId) {
           try {
-            const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+            const paymentIntent = await stripe.paymentIntents.retrieve(
+              paymentIntentId,
+            );
             const piShipping = paymentIntent.shipping as
               | { name?: string | null; address?: ShipAddr | null }
               | null
@@ -441,7 +499,10 @@ export async function POST(req: NextRequest) {
             : null;
 
         const rawPackQuantity =
-          metadata.packQuantity ?? metadata.pack_quantity ?? metadata.quantity ?? null;
+          metadata.packQuantity ??
+          metadata.pack_quantity ??
+          metadata.quantity ??
+          null;
 
         let packQuantity = 1;
         if (rawPackQuantity != null) {
@@ -490,7 +551,9 @@ export async function POST(req: NextRequest) {
                 "Could not fetch existing order after unique violation",
                 existingOrderError,
               );
-              return new NextResponse("Supabase order lookup error", { status: 500 });
+              return new NextResponse("Supabase order lookup error", {
+                status: 500,
+              });
             }
 
             orderId = existingOrder.id;
@@ -528,7 +591,11 @@ export async function POST(req: NextRequest) {
 
         const templateAssignments: (string | null)[] = [];
         try {
-          type MetadataItem = { templateId?: string; size?: string; quantity?: number };
+          type MetadataItem = {
+            templateId?: string;
+            size?: string;
+            quantity?: number;
+          };
           const metadataItemsRaw = metadata.items ?? "";
           if (metadataItemsRaw) {
             const parsed = JSON.parse(metadataItemsRaw) as MetadataItem[];
@@ -546,7 +613,8 @@ export async function POST(req: NextRequest) {
           console.error("Failed to parse metadata.items JSON", err);
         }
 
-        while (templateAssignments.length < packQuantity) templateAssignments.push(null);
+        while (templateAssignments.length < packQuantity)
+          templateAssignments.push(null);
 
         const cardsForPrintful: {
           cardId: string;
@@ -556,21 +624,28 @@ export async function POST(req: NextRequest) {
 
         for (let i = 0; i < packQuantity; i++) {
           const cardId =
-            (packQuantity === 1 ? metadata.cardId ?? metadata.card_id : undefined) ??
+            (packQuantity === 1
+              ? metadata.cardId ?? metadata.card_id
+              : undefined) ??
             `card_${Math.random().toString(36).slice(2, 10)}`;
 
           const templateIdForThisCard = templateAssignments[i] ?? null;
 
-          const { error: cardInsertError } = await supabaseAdmin.from("cards").insert({
-            card_id: cardId,
-            giver_name: "Store card",
-            amount: 0,
-            note: null,
-            claimed: false,
-          });
+          const { error: cardInsertError } = await supabaseAdmin
+            .from("cards")
+            .insert({
+              card_id: cardId,
+              giver_name: "Store card",
+              amount: 0,
+              note: null,
+              claimed: false,
+            });
 
           if (cardInsertError && cardInsertError.code !== "23505") {
-            console.error("Error inserting card for shop order", cardInsertError);
+            console.error(
+              "Error inserting card for shop order",
+              cardInsertError,
+            );
             continue;
           }
 
@@ -657,11 +732,17 @@ export async function POST(req: NextRequest) {
         const note = metadata.note ?? "";
 
         const giftAmountRaw =
-          metadata.giftAmountRaw ?? metadata.giftAmount ?? metadata.gift_amount ?? null;
+          metadata.giftAmountRaw ??
+          metadata.giftAmount ??
+          metadata.gift_amount ??
+          null;
         const feeAmountRaw =
           metadata.feeAmountRaw ?? metadata.feeAmount ?? metadata.fee_amount ?? null;
         const totalChargeRaw =
-          metadata.totalChargeRaw ?? metadata.totalCharge ?? metadata.total_charge ?? null;
+          metadata.totalChargeRaw ??
+          metadata.totalCharge ??
+          metadata.total_charge ??
+          null;
 
         let giftAmount: number | null = null;
 
