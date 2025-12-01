@@ -3,8 +3,6 @@ import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { createPrintfulOrderForCards } from "@/lib/printful";
 
-const TTL_SECONDS = 60 * 60 * 12;
-
 function getSupabaseAdmin(): SupabaseClient | null {
   const supabaseUrl =
     process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -97,6 +95,15 @@ function formatAddressLines(addr: ShipAddr | null | undefined): string[] {
   return lines;
 }
 
+function escapeHtml(s: string) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 async function sendOrderConfirmationEmail(args: {
   to: string;
   orderId: string;
@@ -116,32 +123,34 @@ async function sendOrderConfirmationEmail(args: {
   const replyTo = process.env.MAIL_REPLY_TO ?? "";
 
   if (!host || !portRaw || !user || !pass || !from) {
-    console.warn("[orderEmail] SMTP env not configured, skipping email");
-    return;
+    throw new Error("SMTP env not configured for Zoho");
   }
 
   const port = Number(portRaw);
-  const secure = port === 465;
-
-  let nodemailer: any;
-  try {
-    nodemailer = await import("nodemailer");
-  } catch (err) {
-    console.error(
-      "[orderEmail] nodemailer is not installed. Run: npm i nodemailer",
-      err,
-    );
-    return;
+  if (!Number.isFinite(port) || port <= 0) {
+    throw new Error("Invalid ZOHO_SMTP_PORT");
   }
 
-  const transporter = nodemailer.createTransport({
+  let nodemailerAny: any;
+  try {
+    const mod: any = await import("nodemailer");
+    nodemailerAny = mod?.default ?? mod;
+  } catch (err) {
+    throw new Error("nodemailer is not installed, run npm i nodemailer");
+  }
+
+  if (!nodemailerAny?.createTransport) {
+    throw new Error("nodemailer import failed, createTransport missing");
+  }
+
+  const transporter = nodemailerAny.createTransport({
     host,
     port,
-    secure,
+    secure: port === 465,
     auth: { user, pass },
-    connectionTimeout: 4000,
-    greetingTimeout: 4000,
-    socketTimeout: 6000,
+    connectionTimeout: 6000,
+    greetingTimeout: 6000,
+    socketTimeout: 10000,
   });
 
   const greetingName = args.customerName || args.shippingName || "there";
@@ -201,13 +210,98 @@ async function sendOrderConfirmationEmail(args: {
   console.log("[orderEmail] Sent order confirmation to", args.to);
 }
 
-function escapeHtml(s: string) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+async function recordEmailSuccess(supabaseAdmin: SupabaseClient, orderId: string) {
+  try {
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        confirmation_email_sent_at: new Date().toISOString(),
+        confirmation_email_error: null,
+      })
+      .eq("id", orderId);
+
+    if (error) console.error("[orderEmail] Failed to record success", error);
+  } catch (err) {
+    console.error("[orderEmail] Failed to record success", err);
+  }
+}
+
+async function recordEmailFailure(
+  supabaseAdmin: SupabaseClient,
+  orderId: string,
+  message: string,
+) {
+  try {
+    const trimmed = message.slice(0, 500);
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        confirmation_email_sent_at: null,
+        confirmation_email_error: trimmed,
+      })
+      .eq("id", orderId);
+
+    if (error) console.error("[orderEmail] Failed to record failure", error);
+  } catch (err) {
+    console.error("[orderEmail] Failed to record failure", err);
+  }
+}
+
+async function maybeSendAndRecordOrderEmail(args: {
+  supabaseAdmin: SupabaseClient;
+  stripe: Stripe;
+  session: Stripe.Checkout.Session;
+  orderId: string;
+  customerEmail: string;
+  customerName: string | null;
+  shippingName: string | null;
+  shippingAddress: ShipAddr | null;
+}) {
+  const { supabaseAdmin, stripe, session, orderId } = args;
+
+  try {
+    const { data: row, error: readErr } = await supabaseAdmin
+      .from("orders")
+      .select("confirmation_email_sent_at")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (readErr) {
+      console.error("[orderEmail] Could not read confirmation status", readErr);
+    }
+
+    const alreadySent = Boolean((row as any)?.confirmation_email_sent_at);
+    if (alreadySent) {
+      console.log("[orderEmail] Already recorded as sent, skipping", { orderId });
+      return;
+    }
+  } catch (err) {
+    console.error("[orderEmail] Error checking send status, continuing", err);
+  }
+
+  try {
+    const lineItems = await getCheckoutLineItems(stripe, session.id);
+    await withTimeout(
+      sendOrderConfirmationEmail({
+        to: args.customerEmail,
+        orderId,
+        sessionId: session.id,
+        customerName: args.customerName,
+        shippingName: args.shippingName,
+        shippingAddress: args.shippingAddress,
+        amountTotalMinor: session.amount_total ?? 0,
+        currency: session.currency ?? "usd",
+        lineItems,
+      }),
+      6500,
+    );
+
+    await recordEmailSuccess(supabaseAdmin, orderId);
+  } catch (err: any) {
+    const msg = typeof err?.message === "string" ? err.message : String(err);
+    console.error("[orderEmail] Send attempt failed", msg);
+    await recordEmailFailure(supabaseAdmin, orderId, msg);
+  }
 }
 
 // PNG generator: white background plus QR near bottom center
@@ -215,7 +309,7 @@ async function generateGiftlinkInsidePng(cardId: string) {
   const { createCanvas } = await import("canvas");
   const QRCode = (await import("qrcode")).default;
 
-  // 4.15" x 6.15" at 300 DPI
+  // 4.15 inch by 6.15 inch at 300 DPI
   const WIDTH = 1245;
   const HEIGHT = 1845;
 
@@ -272,7 +366,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, stripeWebhookSecret);
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      stripeWebhookSecret,
+    );
   } catch (err) {
     console.error("Stripe webhook signature verification failed", err);
     return new NextResponse("Webhook Error", { status: 400 });
@@ -311,12 +409,16 @@ export async function POST(req: NextRequest) {
               | { name?: string | null; address?: ShipAddr | null }
               | null
               | undefined;
+
             if (piShipping) {
               shippingName = piShipping.name ?? shippingName;
               shippingAddress = (piShipping.address ?? shippingAddress) || null;
             }
           } catch (err) {
-            console.error("Could not retrieve payment intent for shipping details", err);
+            console.error(
+              "Could not retrieve payment intent for shipping details",
+              err,
+            );
           }
         }
 
@@ -335,7 +437,6 @@ export async function POST(req: NextRequest) {
         }
 
         let orderId: string | null = null;
-        let isNewOrder = false;
 
         const { data: insertedOrder, error: orderInsertError } = await supabaseAdmin
           .from("orders")
@@ -360,7 +461,10 @@ export async function POST(req: NextRequest) {
 
         if (orderInsertError) {
           if (orderInsertError.code === "23505") {
-            console.log("Order already exists for session, reusing existing order row", session.id);
+            console.log(
+              "Order already exists for session, reusing existing order row",
+              session.id,
+            );
 
             const { data: existingOrder, error: existingOrderError } = await supabaseAdmin
               .from("orders")
@@ -369,7 +473,10 @@ export async function POST(req: NextRequest) {
               .maybeSingle();
 
             if (existingOrderError || !existingOrder) {
-              console.error("Could not fetch existing order after unique violation", existingOrderError);
+              console.error(
+                "Could not fetch existing order after unique violation",
+                existingOrderError,
+              );
               return new NextResponse("Supabase order lookup error", { status: 500 });
             }
 
@@ -380,34 +487,30 @@ export async function POST(req: NextRequest) {
           }
         } else if (insertedOrder) {
           orderId = insertedOrder.id;
-          isNewOrder = true;
         }
 
         if (!orderId) {
-          console.error("No orderId resolved after insert or lookup for session", session.id);
+          console.error(
+            "No orderId resolved after insert or lookup for session",
+            session.id,
+          );
           return new NextResponse("Order id missing", { status: 500 });
         }
 
-        if (isNewOrder && customerDetails?.email) {
-          const lineItems = await getCheckoutLineItems(stripe, session.id);
-          try {
-            await withTimeout(
-              sendOrderConfirmationEmail({
-                to: customerDetails.email,
-                orderId,
-                sessionId: session.id,
-                customerName: customerDetails?.name ?? null,
-                shippingName,
-                shippingAddress,
-                amountTotalMinor: session.amount_total ?? 0,
-                currency: session.currency ?? "usd",
-                lineItems,
-              }),
-              6500,
-            );
-          } catch (err) {
-            console.error("[orderEmail] Send attempt failed", err);
-          }
+        const customerEmail = customerDetails?.email ?? null;
+        if (customerEmail) {
+          await maybeSendAndRecordOrderEmail({
+            supabaseAdmin,
+            stripe,
+            session,
+            orderId,
+            customerEmail,
+            customerName: customerDetails?.name ?? null,
+            shippingName,
+            shippingAddress,
+          });
+        } else {
+          console.log("[orderEmail] No customer email, skipping", { orderId });
         }
 
         const templateAssignments: (string | null)[] = [];
@@ -483,14 +586,16 @@ export async function POST(req: NextRequest) {
               })
               .eq("card_id", cardId);
 
-            const { error: jobError } = await supabaseAdmin.from("card_print_jobs").insert({
-              card_id: cardId,
-              order_id: orderId,
-              pdf_path: pngPath,
-              status: uploadError ? "error" : "generated",
-              error_message: uploadError ? uploadError.message : null,
-              fulfillment_status: "pending",
-            });
+            const { error: jobError } = await supabaseAdmin
+              .from("card_print_jobs")
+              .insert({
+                card_id: cardId,
+                order_id: orderId,
+                pdf_path: pngPath,
+                status: uploadError ? "error" : "generated",
+                error_message: uploadError ? uploadError.message : null,
+                fulfillment_status: "pending",
+              });
 
             if (jobError) {
               console.error("Error inserting card_print_job row", jobError);
@@ -505,7 +610,11 @@ export async function POST(req: NextRequest) {
               });
             }
           } catch (err) {
-            console.error("Error generating or uploading print PNG for card", cardId, err);
+            console.error(
+              "Error generating or uploading print PNG for card",
+              cardId,
+              err,
+            );
           }
         }
 
@@ -525,7 +634,9 @@ export async function POST(req: NextRequest) {
             console.error("Failed to create Printful order from webhook", err);
           }
         } else {
-          console.error("No cards were successfully uploaded to storage; skipping Printful order creation");
+          console.error(
+            "No cards were successfully uploaded to storage; skipping Printful order creation",
+          );
         }
       } else {
         const cardId = metadata.cardId ?? metadata.card_id;
@@ -549,7 +660,11 @@ export async function POST(req: NextRequest) {
         if (giftAmount == null && totalChargeRaw != null && feeAmountRaw != null) {
           const totalParsed = Number(totalChargeRaw);
           const feeParsed = Number(feeAmountRaw);
-          if (!Number.isNaN(totalParsed) && !Number.isNaN(feeParsed) && totalParsed > feeParsed) {
+          if (
+            !Number.isNaN(totalParsed) &&
+            !Number.isNaN(feeParsed) &&
+            totalParsed > feeParsed
+          ) {
             giftAmount = totalParsed - feeParsed;
           }
         }
