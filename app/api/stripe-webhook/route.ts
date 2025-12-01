@@ -153,7 +153,20 @@ async function sendOrderConfirmationEmail(args: {
     socketTimeout: 10000,
   });
 
-  const greetingName = args.customerName || args.shippingName || "there";
+  const customerName = (args.customerName ?? "").trim();
+const shippingName = (args.shippingName ?? "").trim();
+
+let greetingName = shippingName || customerName || "there";
+
+// If both exist and differ, prefer the shipping name
+if (
+  shippingName &&
+  customerName &&
+  shippingName.toLowerCase() !== customerName.toLowerCase()
+) {
+  greetingName = shippingName;
+}
+
   const total = formatMoney(args.amountTotalMinor, args.currency);
 
   const addressLines = formatAddressLines(args.shippingAddress);
