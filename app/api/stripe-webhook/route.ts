@@ -391,37 +391,32 @@ async function generateGiftlinkInsidePng(cardId: string) {
 
   const cardUrl = `https://www.giftlink.cards/card/${cardId}`;
 
-  const qrBuffer = await QRCode.toBuffer(cardUrl, {
-    width: 300,
-    margin: 0,
-  });
-
+  const qrBuffer = await QRCode.toBuffer(cardUrl, { width: 300, margin: 0 });
   const qrImage = await loadImage(qrBuffer);
 
-  const QR_SIZE = 300;
-  const bottomMargin = 200;
+  const logoPath = path.join(process.cwd(), "public", "giftlink_logo.png");
+  const logoBytes = await readFile(logoPath);
+  const logoImg = await loadImage(logoBytes);
+
   const centerX = WIDTH / 2;
-  const qrY = HEIGHT - bottomMargin - QR_SIZE;
 
-  ctx.drawImage(qrImage, centerX - QR_SIZE / 2, qrY, QR_SIZE, QR_SIZE);
+  const QR_SIZE = 300;
+  const GAP = 70;
 
-  try {
-    const logoPath = path.join(process.cwd(), "public", "giftlink_logo.png");
-    const logoBytes = await readFile(logoPath);
-    const logoImg = await loadImage(logoBytes);
+  const LOGO_WIDTH = 760;
+  const logoAspect = (logoImg as any).height / (logoImg as any).width;
+  const logoHeight = Math.round(LOGO_WIDTH * logoAspect);
 
-    const LOGO_WIDTH = 760;
-    const logoAspect = (logoImg as any).height / (logoImg as any).width;
-    const logoHeight = Math.round(LOGO_WIDTH * logoAspect);
+  const bottomMargin = 200;
 
-    const gap = 70;
-    const logoX = Math.round(centerX - LOGO_WIDTH / 2);
-    const logoY = Math.round(qrY - gap - logoHeight);
+  const logoX = Math.round(centerX - LOGO_WIDTH / 2);
+  const logoY = Math.round(HEIGHT - bottomMargin - logoHeight);
 
-    ctx.drawImage(logoImg, logoX, logoY, LOGO_WIDTH, logoHeight);
-  } catch (err) {
-    console.error("[print] Logo overlay failed, continuing with QR only", err);
-  }
+  const qrX = Math.round(centerX - QR_SIZE / 2);
+  const qrY = Math.round(logoY - GAP - QR_SIZE);
+
+  ctx.drawImage(qrImage, qrX, qrY, QR_SIZE, QR_SIZE);
+  ctx.drawImage(logoImg, logoX, logoY, LOGO_WIDTH, logoHeight);
 
   return canvas.toBuffer("image/png");
 }
