@@ -375,10 +375,11 @@ async function maybeSendAndRecordOrderEmail(args: {
 
 // PNG generator: white background plus QR near bottom center
 async function generateGiftlinkInsidePng(cardId: string) {
-  const { createCanvas } = await import("canvas");
+  const { createCanvas, loadImage } = await import("canvas");
   const QRCode = (await import("qrcode")).default;
+  const { readFile } = await import("node:fs/promises");
+  const path = await import("node:path");
 
-  // 4.15 inch by 6.15 inch at 300 DPI
   const WIDTH = 1245;
   const HEIGHT = 1845;
 
@@ -395,17 +396,36 @@ async function generateGiftlinkInsidePng(cardId: string) {
     margin: 0,
   });
 
-  const qrImage = await (await import("canvas")).loadImage(qrBuffer);
+  const qrImage = await loadImage(qrBuffer);
 
   const QR_SIZE = 300;
   const bottomMargin = 200;
   const centerX = WIDTH / 2;
-  const startY = HEIGHT - bottomMargin - QR_SIZE;
+  const qrY = HEIGHT - bottomMargin - QR_SIZE;
 
-  ctx.drawImage(qrImage, centerX - QR_SIZE / 2, startY, QR_SIZE, QR_SIZE);
+  ctx.drawImage(qrImage, centerX - QR_SIZE / 2, qrY, QR_SIZE, QR_SIZE);
+
+  try {
+    const logoPath = path.join(process.cwd(), "public", "giftlink_logo.png");
+    const logoBytes = await readFile(logoPath);
+    const logoImg = await loadImage(logoBytes);
+
+    const LOGO_WIDTH = 760;
+    const logoAspect = (logoImg as any).height / (logoImg as any).width;
+    const logoHeight = Math.round(LOGO_WIDTH * logoAspect);
+
+    const gap = 70;
+    const logoX = Math.round(centerX - LOGO_WIDTH / 2);
+    const logoY = Math.round(qrY - gap - logoHeight);
+
+    ctx.drawImage(logoImg, logoX, logoY, LOGO_WIDTH, logoHeight);
+  } catch (err) {
+    console.error("[print] Logo overlay failed, continuing with QR only", err);
+  }
 
   return canvas.toBuffer("image/png");
 }
+
 
 export async function POST(req: NextRequest) {
   const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="900" viewBox="0 0 2400 900">
+  <defs>
+    <style>
+      .brand { fill: #000; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+    </style>
+  </defs>
+
+  <!-- Wordmark -->
+  <text class="brand" x="1200" y="460" text-anchor="middle" font-size="360" font-weight="900" letter-spacing="-6">giftlink</text>
+
+  <!-- Tagline -->
+  <text class="brand" x="1200" y="680" text-anchor="middle" font-size="120" font-weight="500" letter-spacing="2">Scan to Gift or Receive</text>
+</svg>
