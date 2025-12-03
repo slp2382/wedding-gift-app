@@ -423,7 +423,7 @@ async function generateGiftlinkInsidePng(cardId: string) {
 
   const yBottom = centerLineY - bottomMargin;
 
-  const qrX = sideMargin;
+  const qrX = sideMargin + 80;
   const qrY = Math.round(yBottom - QR_SIZE);
 
   ctx.drawImage(qrImage, qrX, qrY, QR_SIZE, QR_SIZE);
