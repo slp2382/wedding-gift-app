@@ -394,29 +394,45 @@ async function generateGiftlinkInsidePng(cardId: string) {
   const qrBuffer = await QRCode.toBuffer(cardUrl, { width: 300, margin: 0 });
   const qrImage = await loadImage(qrBuffer);
 
-  const logoPath = path.join(process.cwd(), "public", "giftlink_logo.png");
-  const logoBytes = await readFile(logoPath);
-  const logoImg = await loadImage(logoBytes);
-
-  const centerX = WIDTH / 2;
-
-  const QR_SIZE = 300;
-  const GAP = 70;
-
-  const LOGO_WIDTH = 760;
-  const logoAspect = (logoImg as any).height / (logoImg as any).width;
-  const logoHeight = Math.round(LOGO_WIDTH * logoAspect);
+  const centerLineY = HEIGHT;
 
   const bottomMargin = 200;
+  const sideMargin = 140;
+  const gap = 70;
 
-  const logoX = Math.round(centerX - LOGO_WIDTH / 2);
-  const logoY = Math.round(HEIGHT - bottomMargin - logoHeight);
+  const QR_SIZE = 300;
 
-  const qrX = Math.round(centerX - QR_SIZE / 2);
-  const qrY = Math.round(logoY - GAP - QR_SIZE);
+  let logoImg: any = null;
+  let logoWidth = 0;
+  let logoHeight = 0;
+
+  try {
+    const logoPath = path.join(process.cwd(), "public", "giftlink_logo.png");
+    const logoBytes = await readFile(logoPath);
+    logoImg = await loadImage(logoBytes);
+
+    const aspect = logoImg.height / logoImg.width;
+
+    const maxLogoWidth = WIDTH - sideMargin * 2 - QR_SIZE - gap;
+    const desiredLogoWidth = 620;
+    logoWidth = Math.max(300, Math.min(desiredLogoWidth, maxLogoWidth));
+    logoHeight = Math.round(logoWidth * aspect);
+  } catch (err) {
+    console.error("[print] Logo load failed, continuing with QR only", err);
+  }
+
+  const yBottom = centerLineY - bottomMargin;
+
+  const qrX = sideMargin;
+  const qrY = Math.round(yBottom - QR_SIZE);
 
   ctx.drawImage(qrImage, qrX, qrY, QR_SIZE, QR_SIZE);
-  ctx.drawImage(logoImg, logoX, logoY, LOGO_WIDTH, logoHeight);
+
+  if (logoImg) {
+    const logoX = Math.round(WIDTH - sideMargin - logoWidth);
+    const logoY = Math.round(yBottom - logoHeight);
+    ctx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
+  }
 
   return canvas.toBuffer("image/png");
 }
