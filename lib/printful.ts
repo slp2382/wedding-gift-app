@@ -121,7 +121,7 @@ export async function createPrintfulOrderForCards(
     }
   }
 
-  // 3) Build Printful items, one per card, using inside2 so it prints on inner right
+  // 3) Build Printful items, one per card, using inside1 so it prints on inner left
   const items = jobs.map((job) => {
     const fileUrl = cardFileMap.get(job.card_id) ?? null;
 
@@ -161,7 +161,7 @@ export async function createPrintfulOrderForCards(
       files: fileUrl
         ? [
             {
-              type: "inside2", // inner right panel
+              type: "inside1", // inner left panel
               url: fileUrl,
             },
           ]
