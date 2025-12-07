@@ -9,16 +9,21 @@ export default function HomePage() {
       <div className="mx-auto max-w-5xl px-4 py-8">
         {/* Top nav / wordmark */}
         <header className="mb-10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {/* favicon logo */}
-            <div className="flex h-9 w-12 items-center justify-center overflow-hidden rounded-2xl border border-sky-900 bg-sky-950 shadow-md shadow-sky-500/20 dark:border-sky-700 dark:bg-sky-950 dark:shadow-sky-700/40">
-	<Image
-	  src="/giftlink_logo.svg"
-	  alt="GiftLink logo"
-	  width={36}
-	  height={36}
- 	 className="h-full w-full object-contain"
-	/>
+<div className="flex items-center gap-3">
+  <Image
+    src="/giftlink_logo.svg"
+    alt="GiftLink"
+    width={140}
+    height={28}
+    className="h-7 w-auto"
+    priority
+  />
+  <p className="text-xs text-sky-800/80 dark:text-sky-200/80">
+    QR powered wedding gifts
+  </p>
+</div>
+
+
 
             </div>
             <div className="leading-tight">
@@ -56,7 +61,7 @@ export default function HomePage() {
               <p className="max-w-xl text-sm text-slate-900/80 dark:text-slate-100/80">
                 GiftLink turns a simple card into a QR powered gift. Guests scan
                 a card, load a monetary gift through Stripe, and the couple
-                scans the same card to claim their funds later. No ATMS, no Banks, no
+                scans the same card to claim their funds later. No ATMS, no bank runs, no
                 loose cash.
               </p>
 
