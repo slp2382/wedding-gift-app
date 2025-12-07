@@ -7,31 +7,21 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
       <div className="mx-auto max-w-5xl px-4 py-8">
-        {/* Top nav / wordmark */}
+        {/* Top nav */}
         <header className="mb-10 flex items-center justify-between">
-<div className="flex items-center gap-3">
-  <Image
-    src="/giftlink_logo.svg"
-    alt="GiftLink"
-    width={140}
-    height={28}
-    className="h-7 w-auto"
-    priority
-  />
-  <p className="text-xs text-sky-800/80 dark:text-sky-200/80">
-    QR powered wedding gifts
-  </p>
-</div>
-
-
-
-            </div>
-            <div className="leading-tight">
-              <p className="text-lg font-semibold tracking-tight">GiftLink</p>
-              <p className="text-xs text-sky-800/80 dark:text-sky-200/80">
-                QR powered wedding gifts
-              </p>
-            </div>
+          {/* Wordmark + tagline */}
+          <div className="flex items-center gap-3">
+            <Image
+              src="/giftlink_logo.svg"
+              alt="GiftLink"
+              width={140}
+              height={28}
+              className="h-7 w-auto"
+              priority
+            />
+            <p className="text-xs text-sky-800/80 dark:text-sky-200/80">
+              QR powered wedding gifts
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -51,6 +41,7 @@ export default function HomePage() {
               <p className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/80 px-3 py-1 text-xs font-medium text-sky-700 shadow-sm backdrop-blur dark:border-sky-500/50 dark:bg-sky-950/60 dark:text-sky-200">
                 New · Cashless wedding gifts
               </p>
+
               <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
                 Physical wedding cards with{" "}
                 <span className="bg-gradient-to-r from-sky-700 via-sky-500 to-sky-300 bg-clip-text text-transparent">
@@ -58,10 +49,11 @@ export default function HomePage() {
                 </span>
                 .
               </h1>
+
               <p className="max-w-xl text-sm text-slate-900/80 dark:text-slate-100/80">
                 GiftLink turns a simple card into a QR powered gift. Guests scan
                 a card, load a monetary gift through Stripe, and the couple
-                scans the same card to claim their funds later. No ATMS, no bank runs, no
+                scans the same card to claim their funds later. No envelopes, no
                 loose cash.
               </p>
 
@@ -72,6 +64,7 @@ export default function HomePage() {
                 >
                   How GiftLink works
                 </a>
+
                 <Link
                   href="/shop"
                   className="inline-flex items-center justify-center rounded-full border border-sky-200/80 bg-sky-50/80 px-4 py-2.5 text-sm font-medium text-slate-950 shadow-sm hover:bg-sky-100 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/40 dark:border-sky-700 dark:bg-sky-950/70 dark:text-slate-50 dark:hover:bg-sky-950"
@@ -86,13 +79,14 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Hero image: real GiftLink card */}
+            {/* Hero image */}
             <div className="relative">
               <div className="pointer-events-none absolute -inset-6 rounded-3xl bg-gradient-to-br from-sky-500/10 via-sky-400/10 to-sky-300/10 blur-2xl dark:from-sky-500/15 dark:via-sky-400/15 dark:to-sky-300/15" />
               <div className="relative rounded-3xl border border-sky-200/80 bg-slate-50/95 p-5 shadow-xl shadow-sky-100/70 backdrop-blur-sm dark:border-sky-700/70 dark:bg-slate-950/90 dark:shadow-none">
                 <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                   A real GiftLink card
                 </p>
+
                 <div className="overflow-hidden rounded-2xl border border-sky-100 bg-slate-50 dark:border-sky-800 dark:bg-slate-950">
                   <Image
                     src="/Example_Card.png"
@@ -100,8 +94,10 @@ export default function HomePage() {
                     width={768}
                     height={768}
                     className="h-full w-full object-cover"
+                    priority
                   />
                 </div>
+
                 <p className="mt-2 text-[11px] text-slate-900/80 dark:text-slate-100/80">
                   Each card has its own unique QR code that guests can scan to
                   send a gift, and the couple can later scan to claim it.
@@ -138,6 +134,7 @@ export default function HomePage() {
                   personalize.
                 </p>
               </div>
+
               <div className="rounded-2xl border border-sky-100/80 bg-slate-50/90 p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
                 <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/80 dark:text-sky-300/80">
                   2 · Link
@@ -150,6 +147,7 @@ export default function HomePage() {
                   and amount, and complete payment securely through Stripe.
                 </p>
               </div>
+
               <div className="rounded-2xl border border-sky-100/80 bg-slate-50/90 p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
                 <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/80 dark:text-sky-300/80">
                   3 · Give
@@ -165,7 +163,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* CTAs for cards & locations */}
+          {/* CTA */}
           <section className="space-y-4 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-6 shadow-lg shadow-sky-100/70 dark:border-sky-800 dark:bg-slate-950/85 dark:shadow-none">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div className="space-y-1">
@@ -221,10 +219,9 @@ export default function HomePage() {
                   Is GiftLink safe to use
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Payments are processed by Stripe, a leading payments provider.
-                  Card details never pass through or live on GiftLink servers.
-                  We only store the info needed to link each card to its gift
-                  and payout.
+                  Payments are processed by Stripe. Card details never pass
+                  through or live on GiftLink servers. We only store the info
+                  needed to link each card to its gift and payout.
                 </p>
               </div>
 
@@ -234,9 +231,7 @@ export default function HomePage() {
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
                   Guests pay for the physical card and a small service fee when
-                  they send a gift. Couples keep the full gift amount. Any
-                  payment processor fees are built into the guest side of the
-                  flow.
+                  they send a gift. Couples keep the full gift amount.
                 </p>
               </div>
 
@@ -245,11 +240,9 @@ export default function HomePage() {
                   What if someone loses the card
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  The QR code on the physical card is the key to the gift.
-                  Anyone with the code could submit a payout request, so we
+                  The QR code on the physical card is the key to the gift. We
                   recommend couples keep cards in a safe place once they are
-                  opened. If a card is lost before a payout, contact us and we
-                  will review the situation.
+                  opened. If a card is lost before a payout, contact us.
                 </p>
               </div>
 
@@ -258,10 +251,8 @@ export default function HomePage() {
                   How long can gifts remain unclaimed
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Couples do not have to claim gifts on the spot. Funds stay
-                  linked to the card until a payout request is submitted and
-                  processed. Over time we may introduce reminders or claim
-                  timelines, and any updates will be reflected in our terms.
+                  Funds stay linked to the card until a payout request is
+                  submitted and processed.
                 </p>
               </div>
 
@@ -271,8 +262,8 @@ export default function HomePage() {
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
                   No app is required. Couples scan the QR code printed inside
-                  the card, confirm a few details, and submit a payout request
-                  through a mobile friendly page.
+                  the card and submit a payout request through a mobile friendly
+                  page.
                 </p>
               </div>
 
@@ -281,10 +272,9 @@ export default function HomePage() {
                   Which payout methods are supported
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Today GiftLink focuses on simple cash style payouts and we are
-                  expanding options over time. Our goal is to give couples
-                  familiar, easy ways to move their gift money into the place
-                  they already use.
+                  GiftLink is expanding payout options over time. Our goal is to
+                  give couples familiar ways to move gift money where they want
+                  it.
                 </p>
               </div>
             </div>
