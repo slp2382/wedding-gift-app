@@ -51,9 +51,10 @@ export default function HomePage() {
                 .
               </h1>
               <p className="max-w-xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                GiftLink turns a simple card into a QR powered gift. Guests scan a
-                card, load a monetary gift through Stripe, and the couple scans the
-                same card to claim their funds later. No envelopes, no loose cash.
+                GiftLink turns a simple card into a QR powered gift. Guests scan
+                a card, load a monetary gift through Stripe, and the couple
+                scans the same card to claim their funds later. No envelopes, no
+                loose cash.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -94,8 +95,8 @@ export default function HomePage() {
                   />
                 </div>
                 <p className="mt-2 text-[11px] text-slate-900/80 dark:text-slate-100/80">
-                  Each card has its own unique QR code that guests can scan to send
-                  a gift, and the couple can later scan to claim it.
+                  Each card has its own unique QR code that guests can scan to
+                  send a gift, and the couple can later scan to claim it.
                 </p>
               </div>
             </div>
@@ -111,8 +112,8 @@ export default function HomePage() {
                 Three simple steps — one QR code
               </h2>
               <p className="mx-auto max-w-2xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                Every GiftLink card carries a single QR code. Givers use it to load
-                cash gifts, and recipients use the same code to claim them
+                Every GiftLink card carries a single QR code. Givers use it to
+                load cash gifts, and recipients use the same code to claim them
                 instantly.
               </p>
             </div>
@@ -137,8 +138,8 @@ export default function HomePage() {
                   Scan the QR to load your gift
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Givers scan the card&apos;s QR code, enter their name, note, and
-                  amount, and complete payment securely through Stripe.
+                  Givers scan the card&apos;s QR code, enter their name, note,
+                  and amount, and complete payment securely through Stripe.
                 </p>
               </div>
               <div className="rounded-2xl border border-sky-100/80 bg-slate-50/90 p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
@@ -167,8 +168,8 @@ export default function HomePage() {
                   Ready to put GiftLink in the real world?
                 </h2>
                 <p className="text-sm text-slate-900/80 dark:text-slate-100/80">
-                  We are rolling out physical GiftLink cards with select shops. You
-                  can order cards directly online today.
+                  We are rolling out physical GiftLink cards with select shops.
+                  You can order cards directly online today.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -184,6 +185,99 @@ export default function HomePage() {
                 >
                   Find retail locations
                 </Link>
+              </div>
+            </div>
+          </section>
+
+          {/* FAQ */}
+          <section
+            id="faq"
+            className="space-y-6 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-6 shadow-sm dark:border-sky-800 dark:bg-slate-950/85"
+          >
+            <div className="space-y-2 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
+                Frequently asked questions
+              </p>
+              <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
+                Answers for couples and guests
+              </h2>
+              <p className="mx-auto max-w-2xl text-sm text-slate-900/80 dark:text-slate-100/80">
+                GiftLink is a new way to give and receive event gifts. Here are
+                clear answers to the most common questions we hear.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  Is GiftLink safe to use
+                </h3>
+                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
+                  Payments are processed by Stripe, a leading payments provider.
+                  Card details never pass through or live on GiftLink servers.
+                  We only store the info needed to link each card to its gift
+                  and payout.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  What fees apply and who pays them
+                </h3>
+                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
+                  Guests pay for the physical card and a small service fee when
+                  they send a gift. Couples keep the full gift amount. Any
+                  payment processor fees are built into the guest side of the
+                  flow.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  What if someone loses the card
+                </h3>
+                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
+                  The QR code on the physical card is the key to the gift.
+                  Anyone with the code could submit a payout request, so we
+                  recommend couples keep cards in a safe place once they are
+                  opened. If a card is lost before a payout, contact us and we
+                  will review the situation.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  How long can gifts remain unclaimed
+                </h3>
+                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
+                  Couples do not have to claim gifts on the spot. Funds stay
+                  linked to the card until a payout request is submitted and
+                  processed. Over time we may introduce reminders or claim
+                  timelines, and any updates will be reflected in our terms.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  Do couples need an app or account
+                </h3>
+                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
+                  No app is required. Couples scan the QR code printed inside
+                  the card, confirm a few details, and submit a payout request
+                  through a mobile friendly page.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  Which payout methods are supported
+                </h3>
+                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
+                  Today GiftLink focuses on simple cash style payouts and we are
+                  expanding options over time. Our goal is to give couples
+                  familiar, easy ways to move their gift money into the place
+                  they already use.
+                </p>
               </div>
             </div>
           </section>
