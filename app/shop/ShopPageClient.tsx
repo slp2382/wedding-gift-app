@@ -50,12 +50,6 @@ export default function ShopPageClient() {
     [occasionFilter],
   );
 
-  console.log(
-    "[ShopPage] templates",
-    CARD_TEMPLATES.length,
-    CARD_TEMPLATES.map((t) => t.id),
-  );
-
   return (
     <>
       <main className="mx-auto flex max-w-5xl flex-col gap-8 pb-24">
@@ -105,12 +99,6 @@ export default function ShopPageClient() {
               </button>
             ))}
           </div>
-
-          {/* Debug info */}
-          <p className="mb-2 text-xs text-zinc-500">
-            Debug templates: {CARD_TEMPLATES.length} (
-            {CARD_TEMPLATES.map((t) => t.id).join(", ")})
-          </p>
 
           {/* Product grid */}
           <div className="grid gap-8 md:grid-cols-2">
@@ -237,9 +225,9 @@ function ProductCard({ template }: { template: CardTemplate }) {
             {template.name}
           </h3>
           <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            Four by six greeting card with a printed QR code inside. Guests
-            load a cash gift by scanning the QR code and the recipient scans
-            the same QR code to claim it.
+            Four by six greeting card with a printed QR code inside. Guests load
+            a cash gift by scanning the QR code and the recipient scans the same
+            QR code to claim it.
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-500">
             Size: {template.size.toUpperCase()}
@@ -280,9 +268,7 @@ function ProductCard({ template }: { template: CardTemplate }) {
               </button>
               <span
                 className={`text-xs text-emerald-600 dark:text-emerald-400 transition-all duration-300 ease-out ${
-                  justAdded
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 -translate-y-1"
+                  justAdded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
                 }`}
                 aria-live="polite"
               >
