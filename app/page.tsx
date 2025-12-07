@@ -16,7 +16,7 @@ export default function HomePage() {
     alt="GiftLink"
     width={240}
     height={60}
-    className="h-10 w-auto sm:h-12"
+    className="h-12 w-auto sm:h-14"
     priority
   />
 </div>
