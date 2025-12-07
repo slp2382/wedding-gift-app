@@ -10,19 +10,17 @@ export default function HomePage() {
         {/* Top nav */}
         <header className="mb-10 flex items-center justify-between">
           {/* Wordmark + tagline */}
-          <div className="flex items-center gap-3">
-            <Image
-              src="/giftlink_logo.svg"
-              alt="GiftLink"
-              width={140}
-              height={28}
-              className="h-7 w-auto"
-              priority
-            />
-            <p className="text-xs text-sky-800/80 dark:text-sky-200/80">
-              QR powered wedding gifts
-            </p>
-          </div>
+<div className="flex items-center">
+  <Image
+    src="/giftlink_logo.svg"
+    alt="GiftLink"
+    width={240}
+    height={60}
+    className="h-10 w-auto sm:h-12"
+    priority
+  />
+</div>
+
 
           <div className="flex items-center gap-3">
             <Link
