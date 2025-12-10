@@ -5,10 +5,9 @@ import { CARD_TEMPLATES } from "./cardTemplates";
 
 const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
 
-// New: explicit 4x6 env, falling back to the old generic one for compatibility
+// New explicit 4x6 env, falling back to the old generic one for compatibility
 const PRINTFUL_SYNC_VARIANT_ID_4X6 =
-  process.env.PRINTFUL_SYNC_VARIANT_ID_4X6 ??
-  process.env.PRINTFUL_SYNC_VARIANT_ID;
+  process.env.PRINTFUL_SYNC_VARIANT_ID_4X6 ?? process.env.PRINTFUL_SYNC_VARIANT_ID;
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -54,6 +53,12 @@ type CardRow = {
   print_file_url: string | null;
 };
 
+type PrintfulFile = {
+  type: string;
+  url?: string;
+  id?: number;
+};
+
 export async function createPrintfulOrderForCards(
   args: CreatePrintfulOrderForCardsArgs,
 ): Promise<{ printfulOrderId: number; status: string }> {
@@ -75,6 +80,13 @@ export async function createPrintfulOrderForCards(
 
   const cardIds = cards.map((c) => c.cardId);
 
+  const cardsMissingTemplateId = cards.filter((c) => !c.templateId).map((c) => c.cardId);
+  if (cardsMissingTemplateId.length > 0) {
+    throw new Error(
+      `Missing templateId for card(s): ${cardsMissingTemplateId.join(", ")}. Cannot select cover art for Printful.`,
+    );
+  }
+
   // 1) Fetch card_print_jobs for these cards
   const { data: jobsData, error: jobsError } = await supabaseAdmin
     .from("card_print_jobs")
@@ -82,10 +94,7 @@ export async function createPrintfulOrderForCards(
     .in("card_id", cardIds);
 
   if (jobsError) {
-    console.error(
-      "[printful] Error fetching card_print_jobs for cards",
-      jobsError,
-    );
+    console.error("[printful] Error fetching card_print_jobs for cards", jobsError);
     throw jobsError;
   }
 
@@ -98,10 +107,7 @@ export async function createPrintfulOrderForCards(
     .in("card_id", cardIds);
 
   if (cardsError) {
-    console.error(
-      "[printful] Error fetching cards for print_file_url",
-      cardsError,
-    );
+    console.error("[printful] Error fetching cards for print_file_url", cardsError);
     throw cardsError;
   }
 
@@ -116,65 +122,56 @@ export async function createPrintfulOrderForCards(
   // Map card id -> template id from the args
   const templateIdMap = new Map<string, string | null>();
   for (const c of cards) {
-    if (c.templateId) {
-      templateIdMap.set(c.cardId, c.templateId);
-    }
+    templateIdMap.set(c.cardId, c.templateId ?? null);
   }
 
-  // 3) Build Printful items, one per card, using inside1 so it prints on inner left
+  // 3) Build Printful items, one per card, sending both front and inside files
   const items = jobs.map((job) => {
     const fileUrl = cardFileMap.get(job.card_id) ?? null;
 
     if (!fileUrl) {
-      console.warn(
-        "[printful] Missing print_file_url for card",
-        job.card_id,
-        "job",
-        job.id,
+      throw new Error(
+        `Missing print_file_url for card ${job.card_id} (job ${job.id}). Cannot create Printful order.`,
       );
     }
 
-    // Choose sync_variant_id based on template id when available
     const templateIdForCard = templateIdMap.get(job.card_id) ?? null;
-    let syncVariantId: number;
-
-    if (templateIdForCard) {
-      const template = CARD_TEMPLATES.find(
-        (t) => t.id === templateIdForCard,
+    if (!templateIdForCard) {
+      throw new Error(
+        `Missing templateId for card ${job.card_id}. Cannot select Printful variant and cover art.`,
       );
-      if (template) {
-        syncVariantId = template.printfulSyncVariantId;
-      } else {
-        console.warn(
-          "[printful] No card template found for templateId, falling back to default variant",
-          templateIdForCard,
-        );
-        syncVariantId = Number(PRINTFUL_SYNC_VARIANT_ID_4X6);
-      }
-    } else {
-      syncVariantId = Number(PRINTFUL_SYNC_VARIANT_ID_4X6);
     }
+
+    const template = CARD_TEMPLATES.find((t) => t.id === templateIdForCard) ?? null;
+    if (!template) {
+      throw new Error(
+        `No card template found for templateId ${templateIdForCard} (card ${job.card_id}).`,
+      );
+    }
+
+    const syncVariantId = template.printfulSyncVariantId ?? Number(PRINTFUL_SYNC_VARIANT_ID_4X6);
+    const coverFileId = template.printfulCoverFileId ?? null;
+
+    if (!coverFileId) {
+      throw new Error(
+        `Template ${templateIdForCard} is missing printfulCoverFileId. Refusing to create order that could ship with blank covers.`,
+      );
+    }
+
+    const files: PrintfulFile[] = [
+      { type: "front", id: coverFileId },
+      { type: "inside1", url: fileUrl }, // inner left panel
+    ];
 
     return {
       sync_variant_id: syncVariantId,
       quantity: 1,
-      files: fileUrl
-        ? [
-            {
-              type: "inside1", // inner left panel
-              url: fileUrl,
-            },
-          ]
-        : [],
+      files,
     };
   });
 
-  const validItems = items.filter(
-    (it) => Array.isArray(it.files) && it.files.length > 0,
-  );
-
-  if (validItems.length === 0) {
-    throw new Error("No valid items with file urls to send to Printful");
+  if (!items || items.length === 0) {
+    throw new Error("No items to send to Printful");
   }
 
   // 4) Look up shipping info from orders table
@@ -204,15 +201,10 @@ export async function createPrintfulOrderForCards(
     : null;
 
   if (!recipient) {
-    throw new Error(
-      "Missing shipping data on order; cannot create Printful order",
-    );
+    throw new Error("Missing shipping data on order; cannot create Printful order");
   }
 
-  console.info(
-    "[printful] Creating Printful order with items:",
-    validItems.length,
-  );
+  console.info("[printful] Creating Printful order with items:", items.length);
 
   // 5) Create Printful order (no custom external_id to avoid errors)
   const response = await fetch("https://api.printful.com/orders", {
@@ -223,7 +215,7 @@ export async function createPrintfulOrderForCards(
     },
     body: JSON.stringify({
       recipient,
-      items: validItems,
+      items,
       confirm: false, // send as draft
     }),
   });
@@ -236,9 +228,7 @@ export async function createPrintfulOrderForCards(
       response.statusText,
       errorText,
     );
-    throw new Error(
-      `Printful API error ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Printful API error ${response.status} ${response.statusText}`);
   }
 
   const json = await response.json();
