@@ -14,6 +14,7 @@ export type CardTemplate = {
   stripePriceId: string;
   printfulSyncVariantId: number;
   printfulShippingVariantId?: number;
+  printfulCoverFileId: number;
   images: string[];
   stripePrices: { 1: string; 3: string; 5: string };
 };
@@ -29,6 +30,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1", // legacy single price
   printfulSyncVariantId: 5079220284,
   printfulShippingVariantId: 14457,
+  printfulCoverFileId: 909170418,
   images: [
     "/LoveandHappinessImages/LoveandHappinessMockup1.png",
     "/LoveandHappinessImages/LoveandHappinessMockup2.png",
@@ -51,6 +53,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     printfulSyncVariantId: 5064628437,
     printfulShippingVariantId: 14457,
+    printfulCoverFileId: 909170418, // missing cover file id
     images: [
       "/Card1Images/Card1Mockup1.png",
       "/Card1Images/Card1Mockup2.png",
@@ -72,6 +75,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     printfulSyncVariantId: 5078065456,
     printfulShippingVariantId: 14457,
+    printfulCoverFileId: 908804108,
     images: [
       "/LoveBirdsImages/LoveBirdsMockup1.png",
       "/LoveBirdsImages/LoveBirdsMockup2.png",
@@ -93,6 +97,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079482998,
   printfulShippingVariantId: 14457,
+printfulCoverFileId: 909328917,
   images: [
     "/FloralWeddingImages/FloralWeddingMockup1.png",
     "/FloralWeddingImages/FloralWeddingMockup2.png",
@@ -115,6 +120,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079297309,
   printfulShippingVariantId: 14457,
+printfulCoverFileId: 909170418, // missing cover file id
   images: [
     "/WeddingPoemImages/WeddingPoemMockup1.png",
     "/WeddingPoemImages/WeddingPoemMockup2.png",
@@ -137,6 +143,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079282339,
   printfulShippingVariantId: 14457,
+printfulCoverFileId: 909260957,
   images: [
     "/WatercolorWeddingImages/WatercolorWeddingMockup1.png",
     "/WatercolorWeddingImages/WatercolorWeddingMockup2.png",
@@ -158,6 +165,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079444047,
   printfulShippingVariantId: 14457,
+printfulCoverFileId: 909319453,
   images: [
     "/ColorfulWeddingImages/ColorfulWeddingMockup1.png",
     "/ColorfulWeddingImages/ColorfulWeddingMockup2.png",
@@ -170,26 +178,6 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   },
 },
 
-{
-  id: "mil_spec_wedding_4x6",
-  name: "Mil Spec Wedding",
-  size: "4x6",
-  sku: "MIL_SPEC_WEDDING_4X6", // or "6929EE0B87683" if you prefer matching Printful
-  occasion: "wedding",
-  stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
-  printfulSyncVariantId: 5079316169,
-  printfulShippingVariantId: 14457,
-  images: [
-    "/MilSpecWeddingImages/MilSpecWeddingMockup1.png",
-    "/MilSpecWeddingImages/MilSpecWeddingMockup2.png",
-    "/MilSpecWeddingImages/MilSpecWeddingMockup3.png",
-  ],
-  stripePrices: {
-    1: "price_1SWJUg0GCf06HHw3tC7uJML1",
-    3: "price_1SWJWS0GCf06HHw3pmJKo2jj",
-    5: "price_1SWJX50GCf06HHw3L2rhHwsD",
-  },
-},
 
   {
     id: "fizzy_bubbly_4x6",
@@ -200,6 +188,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     printfulSyncVariantId: 5071152160,
     printfulShippingVariantId: 14457,
+printfulCoverFileId: 906317612,
     images: [
       "/FizzyBubblyImages/FizzyMockup1.png",
       "/FizzyBubblyImages/FizzyMockup2.png",
@@ -221,6 +210,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5078093148,
   printfulShippingVariantId: 14457,
+printfulCoverFileId: 908816971,
   images: [
     "/ConfettiBirthdayImages/ConfettiBirthdayMockup1.png",
     "/ConfettiBirthdayImages/ConfettiBirthdayMockup2.png",
@@ -242,6 +232,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079262069,
   printfulShippingVariantId: 14457,
+printfulCoverFileId: 909249044, // need to fix file in printful
   images: [
     "/PinkBirthdayImages/PinkBirthdayMockup1.png",
     "/PinkBirthdayImages/PinkBirthdayMockup2.png",
@@ -263,6 +254,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079273568,
   printfulShippingVariantId: 14457,
+printfulCoverFileId: 909254587, // need to fix file in printful
   images: [
     "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup1.png",
     "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup2.png",
@@ -285,6 +277,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     printfulSyncVariantId: 5072394027,
     printfulShippingVariantId: 14457,
+printfulCoverFileId: 909254587, // need to add file in printful
     images: [
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup1.png",
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup2.png",
