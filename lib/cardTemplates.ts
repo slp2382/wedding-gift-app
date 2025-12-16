@@ -143,7 +143,7 @@ printfulCoverFileId: 909170418, // missing cover file id
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079282339,
   printfulShippingVariantId: 14457,
-printfulCoverFileId: 909260957,
+printfulCoverFileId: 918047142,
   images: [
     "/WatercolorWeddingImages/WatercolorWeddingMockup1.png",
     "/WatercolorWeddingImages/WatercolorWeddingMockup2.png",

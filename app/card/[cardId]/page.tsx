@@ -229,7 +229,7 @@ export default function CardPage() {
       }
 
       setPayoutSuccess(
-        "Thanks! We’ve received your Venmo details. We’ll review and send your gift to that handle soon.",
+        "Thanks! We’ve received your Venmo details. Please allow up to 3 hours for the payout to be processed. We’ll send your gift to that handle as soon as it is approved.",
       );
       setShowClaimForm(false);
     } catch (err) {
