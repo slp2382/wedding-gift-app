@@ -53,7 +53,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     printfulSyncVariantId: 5064628437,
     printfulShippingVariantId: 14457,
-    printfulCoverFileId: 909170418, // missing cover file id
+    printfulCoverFileId: 918073326,
     images: [
       "/Card1Images/Card1Mockup1.png",
       "/Card1Images/Card1Mockup2.png",
@@ -97,7 +97,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079482998,
   printfulShippingVariantId: 14457,
-printfulCoverFileId: 909328917,
+  printfulCoverFileId: 909328917,
   images: [
     "/FloralWeddingImages/FloralWeddingMockup1.png",
     "/FloralWeddingImages/FloralWeddingMockup2.png",
@@ -120,7 +120,7 @@ printfulCoverFileId: 909328917,
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079297309,
   printfulShippingVariantId: 14457,
-printfulCoverFileId: 909170418, // missing cover file id
+  printfulCoverFileId: 918080160,
   images: [
     "/WeddingPoemImages/WeddingPoemMockup1.png",
     "/WeddingPoemImages/WeddingPoemMockup2.png",
@@ -143,7 +143,7 @@ printfulCoverFileId: 909170418, // missing cover file id
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079282339,
   printfulShippingVariantId: 14457,
-printfulCoverFileId: 918047142,
+  printfulCoverFileId: 918047142,
   images: [
     "/WatercolorWeddingImages/WatercolorWeddingMockup1.png",
     "/WatercolorWeddingImages/WatercolorWeddingMockup2.png",
@@ -165,7 +165,7 @@ printfulCoverFileId: 918047142,
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079444047,
   printfulShippingVariantId: 14457,
-printfulCoverFileId: 909319453,
+  printfulCoverFileId: 909319453,
   images: [
     "/ColorfulWeddingImages/ColorfulWeddingMockup1.png",
     "/ColorfulWeddingImages/ColorfulWeddingMockup2.png",
@@ -188,7 +188,7 @@ printfulCoverFileId: 909319453,
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     printfulSyncVariantId: 5071152160,
     printfulShippingVariantId: 14457,
-printfulCoverFileId: 906317612,
+    printfulCoverFileId: 906317612,
     images: [
       "/FizzyBubblyImages/FizzyMockup1.png",
       "/FizzyBubblyImages/FizzyMockup2.png",
@@ -210,7 +210,7 @@ printfulCoverFileId: 906317612,
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5078093148,
   printfulShippingVariantId: 14457,
-printfulCoverFileId: 908816971,
+  printfulCoverFileId: 908816971,
   images: [
     "/ConfettiBirthdayImages/ConfettiBirthdayMockup1.png",
     "/ConfettiBirthdayImages/ConfettiBirthdayMockup2.png",
@@ -232,7 +232,7 @@ printfulCoverFileId: 908816971,
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079262069,
   printfulShippingVariantId: 14457,
-printfulCoverFileId: 909249044, // need to fix file in printful
+  printfulCoverFileId: 918071119,
   images: [
     "/PinkBirthdayImages/PinkBirthdayMockup1.png",
     "/PinkBirthdayImages/PinkBirthdayMockup2.png",
@@ -254,7 +254,7 @@ printfulCoverFileId: 909249044, // need to fix file in printful
   stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
   printfulSyncVariantId: 5079273568,
   printfulShippingVariantId: 14457,
-printfulCoverFileId: 909254587, // need to fix file in printful
+  printfulCoverFileId: 918069908,
   images: [
     "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup1.png",
     "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup2.png",
@@ -277,7 +277,7 @@ printfulCoverFileId: 909254587, // need to fix file in printful
     stripePriceId: "price_1SWJUg0GCf06HHw3tC7uJML1",
     printfulSyncVariantId: 5072394027,
     printfulShippingVariantId: 14457,
-printfulCoverFileId: 909254587, // need to add file in printful
+    printfulCoverFileId: 918082054,
     images: [
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup1.png",
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup2.png",
