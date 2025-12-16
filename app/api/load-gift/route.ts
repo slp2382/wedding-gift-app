@@ -9,7 +9,7 @@ export const POST = async (request: NextRequest) => {
     console.error("Stripe secret key is missing on the server");
     return NextResponse.json(
       { error: "Stripe secret key not configured on server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -27,27 +27,30 @@ export const POST = async (request: NextRequest) => {
     if (!cardId || amount == null) {
       return NextResponse.json(
         { error: "Missing card id or amount" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const amountNumber = Number(amount);
-    if (!amountNumber || amountNumber <= 0) {
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
       return NextResponse.json(
         { error: "Amount must be greater than zero" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Calculate doubled fee: 2 × (2.9% + $0.30) = 5.8% + $0.60
-    const fee = amountNumber * 0.058 + 0.60;
-    const totalCharge = amountNumber + fee;
+    // Service fee: 3.5 percent plus $0.35
+    const amountCents = Math.round(amountNumber * 100);
+    const feeCents = Math.round(amountCents * 0.035) + 35;
+    const totalCents = amountCents + feeCents;
+
+    const giftAmountDollars = (amountCents / 100).toFixed(2);
+    const feeAmountDollars = (feeCents / 100).toFixed(2);
+    const totalChargeDollars = (totalCents / 100).toFixed(2);
 
     // Prefer the actual host the user visited, fall back to VERCEL_URL
     const host =
-      request.headers.get("host") ||
-      process.env.VERCEL_URL ||
-      "localhost:3000";
+      request.headers.get("host") || process.env.VERCEL_URL || "localhost:3000";
     const protocol = host.startsWith("localhost") ? "http" : "https";
     const baseUrl = `${protocol}://${host}`;
 
@@ -62,7 +65,7 @@ export const POST = async (request: NextRequest) => {
               name: "Wedding Gift",
               description: `Gift loaded to card ${cardId}`,
             },
-            unit_amount: Math.round(amountNumber * 100),
+            unit_amount: amountCents,
           },
           quantity: 1,
         },
@@ -72,7 +75,7 @@ export const POST = async (request: NextRequest) => {
             product_data: {
               name: "Processing & Service Fee",
             },
-            unit_amount: Math.round(fee * 100),
+            unit_amount: feeCents,
           },
           quantity: 1,
         },
@@ -83,9 +86,18 @@ export const POST = async (request: NextRequest) => {
         cardId,
         giverName: giverName || "",
         note: note || "",
-        giftAmount: amountNumber.toFixed(2),
-        feeAmount: fee.toFixed(2),
-        totalCharge: totalCharge.toFixed(2),
+
+        // Keep the fields your webhook already reads
+        giftAmountRaw: giftAmountDollars,
+        feeAmountRaw: feeAmountDollars,
+        totalChargeRaw: totalChargeDollars,
+
+        // Extra, more reliable fields (optional)
+        giftAmountCents: String(amountCents),
+        feeAmountCents: String(feeCents),
+        totalChargeCents: String(totalCents),
+        serviceFeeRateBps: "350",
+        serviceFeeFixedCents: "30",
       },
     });
 
@@ -94,7 +106,7 @@ export const POST = async (request: NextRequest) => {
     console.error("Error creating checkout session", error);
     return NextResponse.json(
       { error: "Internal server error creating checkout session" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 };
