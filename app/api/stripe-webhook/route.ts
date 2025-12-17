@@ -107,50 +107,79 @@ function escapeHtml(s: string) {
     .replace(/'/g, "&#039;");
 }
 
-type MetadataCartItem = { templateId?: string; size?: string; quantity?: number };
+type MetadataCartItem = {
+  templateId?: string;
+  size?: string;
+  quantity?: number;
+};
 
-function summarizeCartItems(metadataItemsRaw: string | undefined) {
-  if (!metadataItemsRaw) return [];
-
+function readCartItemsFromMetadata(
+  metadata: Record<string, string | undefined>,
+): MetadataCartItem[] {
   try {
-    const parsed = JSON.parse(metadataItemsRaw) as MetadataCartItem[];
-    if (!Array.isArray(parsed)) return [];
+    const chunkCountRaw =
+      metadata.itemsChunkCount ??
+      metadata.items_chunk_count ??
+      metadata.items_chunkcount ??
+      "0";
 
-    const counts = new Map<
-      string,
-      { templateId: string | null; size: string | null; qty: number }
-    >();
-
-    for (const item of parsed) {
-      const qty = Number(item.quantity ?? 0);
-      if (!Number.isFinite(qty) || qty <= 0) continue;
-
-      const templateId =
-        typeof item.templateId === "string" ? item.templateId : null;
-      const size = typeof item.size === "string" ? item.size : null;
-
-      const key = `${templateId ?? "unknown"}|${size ?? "unknown"}`;
-      const cur = counts.get(key);
-      if (cur) cur.qty += qty;
-      else counts.set(key, { templateId, size, qty });
+    const chunkCount = Number(chunkCountRaw);
+    if (Number.isFinite(chunkCount) && chunkCount > 0) {
+      const out: MetadataCartItem[] = [];
+      for (let i = 0; i < chunkCount; i++) {
+        const raw = metadata[`items_${i}`];
+        if (!raw) continue;
+        const parsed = JSON.parse(raw) as MetadataCartItem[];
+        if (Array.isArray(parsed)) out.push(...parsed);
+      }
+      return out;
     }
 
-    const lines: string[] = [];
-    for (const entry of counts.values()) {
-      const tpl = entry.templateId
-        ? CARD_TEMPLATES.find((t) => t.id === entry.templateId)
-        : null;
-
-      const name = tpl?.name ?? (entry.templateId ?? "GiftLink card");
-      const sizeLabel = entry.size ?? tpl?.size ?? "";
-      const sizePart = sizeLabel ? ` (${sizeLabel})` : "";
-      lines.push(`${name}${sizePart} Qty ${entry.qty}`);
-    }
-
-    return lines;
+    const raw = metadata.items ?? "";
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as MetadataCartItem[];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
+}
+
+function summarizeCartItems(metadata: Record<string, string | undefined>) {
+  const parsed = readCartItemsFromMetadata(metadata);
+  if (!Array.isArray(parsed) || parsed.length === 0) return [];
+
+  const counts = new Map<
+    string,
+    { templateId: string | null; size: string | null; qty: number }
+  >();
+
+  for (const item of parsed) {
+    const qty = Number(item.quantity ?? 0);
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+
+    const templateId =
+      typeof item.templateId === "string" ? item.templateId : null;
+    const size = typeof item.size === "string" ? item.size : null;
+
+    const key = `${templateId ?? "unknown"}|${size ?? "unknown"}`;
+    const cur = counts.get(key);
+    if (cur) cur.qty += qty;
+    else counts.set(key, { templateId, size, qty });
+  }
+
+  const lines: string[] = [];
+  for (const entry of counts.values()) {
+    const tpl = entry.templateId
+      ? CARD_TEMPLATES.find((t) => t.id === entry.templateId)
+      : null;
+
+    const name = tpl?.name ?? (entry.templateId ?? "GiftLink card");
+    const sizeLabel = entry.size ?? tpl?.size ?? "";
+    const sizePart = sizeLabel ? ` (${sizeLabel})` : "";
+    lines.push(`${name}${sizePart} Qty ${entry.qty}`);
+  }
+
+  return lines;
 }
 
 async function sendOrderConfirmationEmail(args: {
@@ -342,10 +371,8 @@ async function maybeSendAndRecordOrderEmail(args: {
   }
 
   try {
-    const metadataItemsRaw =
-      (session.metadata?.items as string | undefined) ?? undefined;
-
-    let itemLines = summarizeCartItems(metadataItemsRaw);
+    const meta = (session.metadata ?? {}) as Record<string, string | undefined>;
+    let itemLines = summarizeCartItems(meta);
 
     if (itemLines.length === 0) {
       const lineItems = await getCheckoutLineItems(stripe, session.id);
@@ -438,7 +465,6 @@ async function generateGiftlinkInsidePng(cardId: string) {
 
   return canvas.toBuffer("image/png");
 }
-
 
 export async function POST(req: NextRequest) {
   const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
@@ -624,26 +650,18 @@ export async function POST(req: NextRequest) {
 
         const templateAssignments: (string | null)[] = [];
         try {
-          type MetadataItem = {
-            templateId?: string;
-            size?: string;
-            quantity?: number;
-          };
-          const metadataItemsRaw = metadata.items ?? "";
-          if (metadataItemsRaw) {
-            const parsed = JSON.parse(metadataItemsRaw) as MetadataItem[];
-            if (Array.isArray(parsed)) {
-              for (const item of parsed) {
-                const qty = Number(item.quantity ?? 0);
-                const tid = item.templateId ?? null;
-                if (!Number.isNaN(qty) && qty > 0) {
-                  for (let i = 0; i < qty; i++) templateAssignments.push(tid);
-                }
+          const parsedItems = readCartItemsFromMetadata(metadata);
+          if (Array.isArray(parsedItems)) {
+            for (const item of parsedItems) {
+              const qty = Number(item.quantity ?? 0);
+              const tid = item.templateId ?? null;
+              if (!Number.isNaN(qty) && qty > 0) {
+                for (let i = 0; i < qty; i++) templateAssignments.push(tid);
               }
             }
           }
         } catch (err) {
-          console.error("Failed to parse metadata.items JSON", err);
+          console.error("Failed to parse metadata items JSON", err);
         }
 
         while (templateAssignments.length < packQuantity)
@@ -770,7 +788,10 @@ export async function POST(req: NextRequest) {
           metadata.gift_amount ??
           null;
         const feeAmountRaw =
-          metadata.feeAmountRaw ?? metadata.feeAmount ?? metadata.fee_amount ?? null;
+          metadata.feeAmountRaw ??
+          metadata.feeAmount ??
+          metadata.fee_amount ??
+          null;
         const totalChargeRaw =
           metadata.totalChargeRaw ??
           metadata.totalCharge ??

@@ -9,6 +9,9 @@ const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
 
+// Stripe metadata value limit is tight, so we keep a little headroom
+const METADATA_VALUE_SAFE_LIMIT = 450;
+
 type CartItemPayload = {
   templateId: string;
   quantity: number;
@@ -22,6 +25,54 @@ type RecipientPayload = {
   countryCode: string;
   zip: string;
 };
+
+function buildItemsMetadata(
+  metadataItems: Array<{ templateId: string; size: string; quantity: number }>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+
+  const full = JSON.stringify(metadataItems);
+  if (full.length <= METADATA_VALUE_SAFE_LIMIT) {
+    out.items = full;
+    return out;
+  }
+
+  const chunks: Array<
+    Array<{ templateId: string; size: string; quantity: number }>
+  > = [];
+
+  let current: Array<{ templateId: string; size: string; quantity: number }> =
+    [];
+
+  for (const item of metadataItems) {
+    const candidate = [...current, item];
+    const candidateStr = JSON.stringify(candidate);
+
+    if (candidateStr.length <= METADATA_VALUE_SAFE_LIMIT) {
+      current = candidate;
+      continue;
+    }
+
+    if (current.length === 0) {
+      // Single item is too large, still store it alone
+      chunks.push([item]);
+      current = [];
+      continue;
+    }
+
+    chunks.push(current);
+    current = [item];
+  }
+
+  if (current.length) chunks.push(current);
+
+  out.itemsChunkCount = String(chunks.length);
+  chunks.forEach((chunk, idx) => {
+    out[`items_${idx}`] = JSON.stringify(chunk);
+  });
+
+  return out;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,10 +104,7 @@ export async function POST(req: NextRequest) {
 
     if (!body || !Array.isArray(body.items) || body.items.length === 0) {
       console.error("[shop/checkout] Missing or empty items in request body");
-      return NextResponse.json(
-        { error: "Your cart is empty" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Your cart is empty" }, { status: 400 });
     }
 
     if (!body.recipient) {
@@ -79,9 +127,7 @@ export async function POST(req: NextRequest) {
     }> = [];
 
     for (const item of cartItems) {
-      const template = CARD_TEMPLATES.find(
-        (t) => t.id === item.templateId,
-      );
+      const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
 
       if (!template) {
         console.error(
@@ -96,10 +142,7 @@ export async function POST(req: NextRequest) {
 
       const rawQuantity = Number(item.quantity);
       if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) {
-        console.error(
-          "[shop/checkout] Invalid quantity in cart",
-          item.quantity,
-        );
+        console.error("[shop/checkout] Invalid quantity in cart", item.quantity);
         return NextResponse.json(
           { error: "Invalid quantity in cart" },
           { status: 400 },
@@ -127,17 +170,10 @@ export async function POST(req: NextRequest) {
 
       for (const packSize of packSizes) {
         const priceId = stripePrices[packSize];
-        if (!priceId) {
-          // If a pack size is not configured for this template, skip it
-          continue;
-        }
+        if (!priceId) continue;
 
         while (remaining >= packSize) {
-          // Each pack has its own Stripe line item
-          lineItems.push({
-            price: priceId,
-            quantity: 1,
-          });
+          lineItems.push({ price: priceId, quantity: 1 });
 
           metadataItems.push({
             templateId: (template as any).id ?? "",
@@ -150,7 +186,6 @@ export async function POST(req: NextRequest) {
       }
 
       if (remaining > 0) {
-        // This should not happen if 1, 3, and 5 packs are configured
         console.error(
           "[shop/checkout] Could not decompose quantity into supported packs",
           rawQuantity,
@@ -173,14 +208,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Compute Printful shipping again on the server to avoid trusting the client
-    // Map cart items to Printful catalog variant ids and aggregate quantities
     const variantQuantity = new Map<number, number>();
 
     for (const item of cartItems) {
-      const template = CARD_TEMPLATES.find(
-        (t) => t.id === item.templateId,
-      );
-
+      const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
       if (!template) {
         console.error(
           "[shop/checkout] Unknown template when mapping shipping",
@@ -285,14 +316,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // For now, select the first method (typically STANDARD / Flat Rate)
     const best = shippingJson.result[0];
     const printfulRate = parseFloat(best.rate);
     if (!Number.isFinite(printfulRate)) {
-      console.error(
-        "[shop/checkout] Invalid Printful rate value",
-        best.rate,
-      );
+      console.error("[shop/checkout] Invalid Printful rate value", best.rate);
       return NextResponse.json(
         { error: "Invalid shipping rate received" },
         { status: 500 },
@@ -303,11 +330,9 @@ export async function POST(req: NextRequest) {
     const handlingCents = 50;
     const totalShippingCents = printfulRateCents + handlingCents;
 
-    // Total number of physical cards in this order
-    const totalCards = metadataItems.reduce(
-      (sum, item) => sum + item.quantity,
-      0,
-    );
+    const totalCards = metadataItems.reduce((sum, item) => sum + item.quantity, 0);
+
+    const itemsMetadata = buildItemsMetadata(metadataItems);
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -316,8 +341,10 @@ export async function POST(req: NextRequest) {
       cancel_url: `${origin}/shop?status=cancelled`,
       metadata: {
         type: "card_pack_order",
-        items: JSON.stringify(metadataItems),
         packQuantity: String(totalCards),
+
+        ...itemsMetadata,
+
         // Additional shipping metadata for webhook and admin use
         shipping_printful_method_id: best.id,
         shipping_printful_method_name: best.name,
