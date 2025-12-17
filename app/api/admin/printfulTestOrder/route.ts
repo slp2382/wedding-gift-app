@@ -24,7 +24,6 @@ type Body = {
   templateId?: string;
   quantity?: number;
 
-  // optional shipping override
   shippingName?: string;
   shippingLine1?: string;
   shippingLine2?: string;
@@ -108,6 +107,11 @@ function asPositiveInt(n: unknown, fallback: number) {
   return rounded > 0 ? rounded : fallback;
 }
 
+function makeAdminTestSessionId() {
+  const rand = Math.random().toString(36).slice(2, 10);
+  return `admin_test_${Date.now()}_${rand}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => null)) as Body | null;
@@ -163,12 +167,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1) Create a lightweight orders row so lib/printful can read recipient fields
+    const adminSessionId = makeAdminTestSessionId();
+
+    // Create an orders row so lib/printful can read shipping fields by orderId
     const { data: insertedOrder, error: orderInsertError } = await supabaseAdmin
       .from("orders")
       .insert({
-        stripe_session_id: null,
+        stripe_session_id: adminSessionId,
         email: null,
+
         shipping_name: shippingName,
         shipping_address_line1: shippingLine1,
         shipping_address_line2: shippingLine2 || null,
@@ -176,21 +183,30 @@ export async function POST(req: NextRequest) {
         shipping_state: shippingState,
         shipping_postal_code: shippingPostalCode,
         shipping_country: shippingCountry,
+
         items: [{ product: `admin_test:${templateId}`, quantity }],
         amount_total: 0,
-        status: "admin_test",
+
+        // Use an existing status value your table already accepts
+        status: "paid",
       })
       .select("id")
       .single();
 
     if (orderInsertError || !insertedOrder?.id) {
       console.error("[admin print] Error inserting order", orderInsertError);
-      return NextResponse.json({ error: "Failed to create test order row" }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: "Failed to create test order row",
+          details: orderInsertError?.message ?? "Unknown insert error",
+          code: (orderInsertError as any)?.code ?? null,
+        },
+        { status: 500 },
+      );
     }
 
     const orderId = insertedOrder.id as string;
 
-    // 2) Create cards, generate inside PNGs, upload, create print jobs
     const cardsForPrintful: {
       cardId: string;
       storagePath: string;
@@ -269,12 +285,15 @@ export async function POST(req: NextRequest) {
 
     if (cardsForPrintful.length === 0) {
       return NextResponse.json(
-        { error: "No cards were generated successfully for this test order", orderId, createdCardIds },
+        {
+          error: "No cards were generated successfully for this test order",
+          orderId,
+          createdCardIds,
+        },
         { status: 500 },
       );
     }
 
-    // 3) Place the Printful draft order using your existing lib/printful code path
     const printfulResult = await createPrintfulOrderForCards({
       orderId,
       cards: cardsForPrintful,
@@ -283,6 +302,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       orderId,
+      adminSessionId,
       templateId,
       quantity,
       createdCardIds,
