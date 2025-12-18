@@ -42,7 +42,7 @@ type FetchState =
   | { state: "loaded"; data: AdminOrderRow[] }
   | { state: "error"; message: string };
 
-const FULFILLMENT_FILTERS = [
+const FILTER_TABS = [
   { key: "all", label: "All" },
   { key: "pending", label: "Pending" },
   { key: "processing", label: "Processing" },
@@ -51,7 +51,7 @@ const FULFILLMENT_FILTERS = [
   { key: "error", label: "Error" },
 ] as const;
 
-type FilterKey = (typeof FULFILLMENT_FILTERS)[number]["key"];
+type FilterKey = (typeof FILTER_TABS)[number]["key"];
 
 type SortKey =
   | "createdAt"
@@ -101,6 +101,8 @@ export default function AdminOrdersPage() {
 
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const [fulfillmentFilter, setFulfillmentFilter] = useState<string>("all");
 
   async function loadOrders() {
     try {
@@ -163,10 +165,10 @@ export default function AdminOrdersPage() {
 
   const visibleOrders = useMemo(() => {
     if (fetchState.state !== "loaded") return [];
-
     const base = fetchState.data;
 
-    const filtered =
+    // tabs filter
+    const tabFiltered =
       filter === "all"
         ? base
         : filter === "error"
@@ -180,7 +182,19 @@ export default function AdminOrdersPage() {
             ? base.filter((row) => isDeliveredRow(row))
             : base.filter((row) => String(row.fulfillmentStatus) === filter);
 
-    const sorted = [...filtered].sort((a, b) => {
+    // fulfillment dropdown filter (this is what you asked for)
+    const fulfillmentFiltered =
+      fulfillmentFilter === "all"
+        ? tabFiltered
+        : fulfillmentFilter === "delivered"
+          ? tabFiltered.filter((row) => isDeliveredRow(row))
+          : tabFiltered.filter(
+              (row) =>
+                String(row.fulfillmentStatus ?? "").toLowerCase() ===
+                String(fulfillmentFilter).toLowerCase(),
+            );
+
+    const sorted = [...fulfillmentFiltered].sort((a, b) => {
       let av: any = null;
       let bv: any = null;
 
@@ -214,7 +228,7 @@ export default function AdminOrdersPage() {
     });
 
     return sorted;
-  }, [fetchState, filter, sortKey, sortDir]);
+  }, [fetchState, filter, fulfillmentFilter, sortKey, sortDir]);
 
   function SortHeader(props: { label: string; k: SortKey }) {
     const active = sortKey === props.k;
@@ -258,21 +272,42 @@ export default function AdminOrdersPage() {
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2 text-sm">
-              {FULFILLMENT_FILTERS.map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setFilter(f.key)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    filter === f.key
-                      ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900"
-                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                  }`}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap gap-2 text-sm">
+                {FILTER_TABS.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setFilter(f.key)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      filter === f.key
+                        ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900"
+                        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Fulfillment dropdown filter (NOT actions) */}
+              <div className="ml-2 flex items-center gap-2">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Fulfillment
+                </span>
+                <select
+                  value={fulfillmentFilter}
+                  onChange={(e) => setFulfillmentFilter(e.target.value)}
+                  className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 >
-                  {f.label}
-                </button>
-              ))}
+                  <option value="all">All</option>
+                  <option value="pending">pending</option>
+                  <option value="processing">processing</option>
+                  <option value="shipped">shipped</option>
+                  <option value="delivered">delivered</option>
+                  <option value="error">error</option>
+                </select>
+              </div>
             </div>
 
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -347,16 +382,15 @@ export default function AdminOrdersPage() {
                       : row.fulfillmentStatus;
 
                     const fulfillmentBadge =
-                      displayFulfillment === "delivered"
+                      displayFulfillment === "delivered" ||
+                      displayFulfillment === "shipped"
                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-100"
-                        : displayFulfillment === "shipped"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-100"
-                          : displayFulfillment === "processing"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100"
-                            : displayFulfillment === "error" ||
-                                row.jobStatus === "error"
-                              ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-100"
-                              : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-100";
+                        : displayFulfillment === "processing"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100"
+                          : displayFulfillment === "error" ||
+                              row.jobStatus === "error"
+                            ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-100"
+                            : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-100";
 
                     const isUpdating = updatingId === row.jobId;
 
@@ -477,33 +511,28 @@ export default function AdminOrdersPage() {
                         </td>
 
                         <td className="px-3 py-2">
-                          <div className="flex flex-col gap-2">
-                            <label
-                              className="sr-only"
-                              htmlFor={`fulfillment-${row.jobId}`}
-                            >
-                              Set fulfillment status
-                            </label>
-
-                            <select
-                              id={`fulfillment-${row.jobId}`}
-                              value={row.fulfillmentStatus}
-                              disabled={isUpdating}
-                              onChange={(e) =>
-                                updateFulfillment(row.jobId, e.target.value)
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              disabled={
+                                String(row.fulfillmentStatus).toLowerCase() ===
+                                  "shipped" ||
+                                String(row.fulfillmentStatus).toLowerCase() ===
+                                  "delivered" ||
+                                isUpdating
                               }
-                              className="w-[140px] rounded-lg border border-zinc-300 bg-white px-2 py-1 text-[10px] font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                              onClick={() => updateFulfillment(row.jobId, "shipped")}
+                              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              <option value="pending">pending</option>
-                              <option value="processing">processing</option>
-                              <option value="shipped">shipped</option>
-                              <option value="delivered">delivered</option>
-                              <option value="error">error</option>
-                            </select>
-
-                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                              {isUpdating ? "Updating…" : " "}
-                            </div>
+                              {isUpdating
+                                ? "Updating…"
+                                : String(row.fulfillmentStatus).toLowerCase() ===
+                                    "shipped" ||
+                                  String(row.fulfillmentStatus).toLowerCase() ===
+                                    "delivered"
+                                  ? "Shipped"
+                                  : "Mark shipped"}
+                            </button>
                           </div>
                         </td>
                       </tr>
