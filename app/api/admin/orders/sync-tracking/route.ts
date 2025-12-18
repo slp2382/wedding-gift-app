@@ -48,27 +48,41 @@ async function fetchShipmentsV2(printfulOrderId: string) {
     },
   });
 
+  // Returning null means "endpoint not usable, try fallback"
   if (!resp.ok) return null;
 
   const json = await resp.json().catch(() => null);
-  const shipments = json?.result ?? json?.shipments ?? null;
+
+  // Printful v2 returns shipments under `data`
+  const shipments = Array.isArray(json?.data)
+    ? json.data
+    : Array.isArray(json?.result)
+      ? json.result
+      : Array.isArray(json?.shipments)
+        ? json.shipments
+        : null;
+
   if (!Array.isArray(shipments)) return [];
 
   return shipments
     .map((s: any) => {
-      const shipmentId = s?.id ?? s?.shipment_id ?? s?.shipmentId;
+      const shipmentId = s?.id ?? s?.shipment_id ?? s?.shipmentId ?? null;
       if (!shipmentId) return null;
 
       return {
         shipmentId: String(shipmentId),
-        status: s?.status ? String(s.status) : null,
+        status: s?.shipment_status
+          ? String(s.shipment_status)
+          : s?.status
+            ? String(s.status)
+            : null,
         carrier: s?.carrier ? String(s.carrier) : null,
         service: s?.service ? String(s.service) : null,
         trackingNumber: s?.tracking_number ? String(s.tracking_number) : null,
         trackingUrl: s?.tracking_url ? String(s.tracking_url) : null,
         shippedAt: toIsoOrNull(s?.shipped_at),
         deliveredAt: toIsoOrNull(s?.delivered_at),
-        reshipment: Boolean(s?.reshipment ?? false),
+        reshipment: Boolean(s?.is_reshipment ?? s?.reshipment ?? false),
       } as ShipmentRow;
     })
     .filter(Boolean) as ShipmentRow[];
@@ -95,7 +109,7 @@ async function fetchShipmentsV1(printfulOrderId: string) {
 
   return shipments
     .map((s: any) => {
-      const shipmentId = s?.id ?? s?.shipment_id ?? s?.shipmentId;
+      const shipmentId = s?.id ?? s?.shipment_id ?? s?.shipmentId ?? null;
       if (!shipmentId) return null;
 
       return {
@@ -114,9 +128,15 @@ async function fetchShipmentsV1(printfulOrderId: string) {
 }
 
 async function fetchPrintfulShipments(printfulOrderId: string) {
+  // Prefer v1 first since your app is currently using /orders/{id} elsewhere
+  const v1 = await fetchShipmentsV1(printfulOrderId);
+  if (v1.length > 0) return v1;
+
+  // Then try v2 as a fallback
   const v2 = await fetchShipmentsV2(printfulOrderId);
-  if (v2 !== null) return v2;
-  return await fetchShipmentsV1(printfulOrderId);
+  if (v2 !== null && v2.length > 0) return v2;
+
+  return [];
 }
 
 async function sendTrackingEmail(args: {
@@ -156,12 +176,11 @@ async function sendTrackingEmail(args: {
 
   const subject = "Your GiftLink order has shipped";
 
-  const trackingLine =
-    args.trackingUrl
-      ? `Tracking link: ${args.trackingUrl}`
-      : args.trackingNumber
-        ? `Tracking number: ${args.trackingNumber}`
-        : "Tracking: not provided yet";
+  const trackingLine = args.trackingUrl
+    ? `Tracking link: ${args.trackingUrl}`
+    : args.trackingNumber
+      ? `Tracking number: ${args.trackingNumber}`
+      : "Tracking: not provided yet";
 
   const text =
     `Good news, your GiftLink order is on the way.\n\n` +
@@ -193,15 +212,24 @@ async function sendTrackingEmail(args: {
 
 export async function POST(req: NextRequest) {
   if (!supabaseAdmin) {
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Supabase not configured" },
+      { status: 500 },
+    );
   }
 
   if (!printfulToken) {
-    return NextResponse.json({ error: "Printful not configured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Printful not configured" },
+      { status: 500 },
+    );
   }
 
   if (!adminToken) {
-    return NextResponse.json({ error: "ADMIN_SYNC_TOKEN not configured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "ADMIN_SYNC_TOKEN not configured" },
+      { status: 500 },
+    );
   }
 
   const providedToken = req.headers.get("xadmintoken") ?? "";
@@ -217,7 +245,8 @@ export async function POST(req: NextRequest) {
   }
 
   const orderId = (body?.orderId ?? body?.order_id ?? null) as string | null;
-  const printfulOrderIdInput = body?.printfulOrderId ?? body?.printful_order_id ?? null;
+  const printfulOrderIdInput =
+    body?.printfulOrderId ?? body?.printful_order_id ?? null;
 
   let printfulOrderIds: string[] = [];
 
@@ -231,7 +260,10 @@ export async function POST(req: NextRequest) {
       .not("printful_order_id", "is", null);
 
     if (error) {
-      return NextResponse.json({ error: "Failed to look up printful order id" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to look up printful order id" },
+        { status: 500 },
+      );
     }
 
     const ids = (jobs ?? [])
@@ -310,6 +342,7 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (upsertErr) {
+        console.error("[sync-tracking] Upsert failed", upsertErr);
         continue;
       }
 
@@ -332,7 +365,8 @@ export async function POST(req: NextRequest) {
             .eq("id", upserted?.id);
 
           totalEmailed += 1;
-        } catch {
+        } catch (err) {
+          console.error("[sync-tracking] Email send failed", err);
         }
       }
     }
