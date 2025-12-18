@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 const supabaseUrl = process.env.SUPABASE_URL ?? "";
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 const printfulToken = process.env.PRINTFUL_API_KEY ?? "";
+const printfulStoreId = process.env.PRINTFUL_STORE_ID ?? "";
 
 const supabaseAdmin =
   supabaseUrl && supabaseServiceRoleKey
@@ -29,9 +30,49 @@ type PrintfulShipment = {
 };
 
 function toIsoOrNull(v: any): string | null {
-  if (!v) return null;
-  const d = new Date(v);
-  return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  if (v === null || v === undefined) return null;
+
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return null;
+
+    if (/^\d+(\.\d+)?$/.test(s)) {
+      const n = Number(s);
+      if (!Number.isFinite(n)) return null;
+      return toIsoOrNull(n);
+    }
+
+    const d = new Date(s);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  }
+
+  if (typeof v === "number") {
+    if (!Number.isFinite(v)) return null;
+
+    const ms = v < 1_000_000_000_000 ? Math.round(v * 1000) : Math.round(v);
+    const d = new Date(ms);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  }
+
+  try {
+    const d = new Date(v);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildPrintfulHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${printfulToken}`,
+    "Content-Type": "application/json",
+  };
+
+  if (printfulStoreId) {
+    headers["X-PF-Store-Id"] = printfulStoreId;
+  }
+
+  return headers;
 }
 
 function normalizeEventType(v: any): string {
@@ -42,7 +83,10 @@ function normalizeStatus(v: any): string {
   return String(v ?? "").trim().toLowerCase();
 }
 
-function inferFulfillmentStatus(eventType: string, orderStatus: string): string | null {
+function inferFulfillmentStatus(
+  eventType: string,
+  orderStatus: string,
+): string | null {
   const e = normalizeStatus(eventType);
   const s = normalizeStatus(orderStatus);
 
@@ -58,27 +102,17 @@ function inferFulfillmentStatus(eventType: string, orderStatus: string): string 
 function extractShipmentFromWebhookPayload(body: any): PrintfulShipment | null {
   const data = body?.data ?? {};
   const shipment =
-    data?.shipment ??
-    data?.package ??
-    data?.shipment_data ??
-    data?.shipping ??
-    null;
+    data?.shipment ?? data?.package ?? data?.shipment_data ?? data?.shipping ?? null;
 
   if (!shipment) return null;
 
   const shipmentId =
-    shipment?.id ??
-    shipment?.shipment_id ??
-    shipment?.shipmentId ??
-    null;
+    shipment?.id ?? shipment?.shipment_id ?? shipment?.shipmentId ?? null;
 
   if (!shipmentId) return null;
 
   const trackingNumber =
-    shipment?.tracking_number ??
-    shipment?.trackingNumber ??
-    shipment?.tracking ??
-    null;
+    shipment?.tracking_number ?? shipment?.trackingNumber ?? shipment?.tracking ?? null;
 
   const trackingUrl =
     shipment?.tracking_url ??
@@ -99,21 +133,27 @@ function extractShipmentFromWebhookPayload(body: any): PrintfulShipment | null {
   };
 }
 
-async function fetchPrintfulOrderShipments(printfulOrderId: string | number): Promise<PrintfulShipment[]> {
+async function fetchPrintfulOrderShipments(
+  printfulOrderId: string | number,
+): Promise<PrintfulShipment[]> {
   if (!printfulToken) return [];
 
-  const url = `https://api.printful.com/orders/${printfulOrderId}`;
+  const url = `https://api.printful.com/orders/${encodeURIComponent(
+    String(printfulOrderId),
+  )}`;
+
   const resp = await fetch(url, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${printfulToken}`,
-      "Content-Type": "application/json",
-    },
+    headers: buildPrintfulHeaders(),
   });
 
   if (!resp.ok) {
     const txt = await resp.text().catch(() => "");
-    console.warn("[printful webhook] Failed to fetch Printful order for shipments", resp.status, txt);
+    console.warn(
+      "[printful webhook] Failed to fetch Printful order for shipments",
+      resp.status,
+      txt,
+    );
     return [];
   }
 
@@ -124,7 +164,7 @@ async function fetchPrintfulOrderShipments(printfulOrderId: string | number): Pr
 
   return shipments
     .map((s: any) => {
-      const shipmentId = s?.id ?? s?.shipment_id ?? s?.shipmentId;
+      const shipmentId = s?.id ?? s?.shipment_id ?? s?.shipmentId ?? null;
       if (!shipmentId) return null;
 
       return {
@@ -164,9 +204,8 @@ async function sendTrackingEmail(args: {
     throw new Error("Invalid ZOHO_SMTP_PORT");
   }
 
-  let nodemailerAny: any;
   const mod: any = await import("nodemailer");
-  nodemailerAny = mod?.default ?? mod;
+  const nodemailerAny = mod?.default ?? mod;
 
   const transporter = nodemailerAny.createTransport({
     host,
@@ -178,13 +217,12 @@ async function sendTrackingEmail(args: {
     socketTimeout: 10000,
   });
 
-  const subject = `Your GiftLink order has shipped`;
-  const trackingLine =
-    args.trackingUrl
-      ? `Tracking link: ${args.trackingUrl}`
-      : args.trackingNumber
-        ? `Tracking number: ${args.trackingNumber}`
-        : "Tracking: (not provided yet)";
+  const subject = "Your GiftLink order has shipped";
+  const trackingLine = args.trackingUrl
+    ? `Tracking link: ${args.trackingUrl}`
+    : args.trackingNumber
+      ? `Tracking number: ${args.trackingNumber}`
+      : "Tracking: (not provided yet)";
 
   const text =
     `Good news, your GiftLink order is on the way.\n\n` +
@@ -216,7 +254,9 @@ async function sendTrackingEmail(args: {
 
 export async function POST(req: NextRequest) {
   if (!supabaseAdmin) {
-    console.error("[printful webhook] Supabase server environment variables are not configured");
+    console.error(
+      "[printful webhook] Supabase server environment variables are not configured",
+    );
     return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
   }
 
@@ -232,7 +272,9 @@ export async function POST(req: NextRequest) {
   const data = body?.data ?? {};
   const order = data?.order ?? null;
 
-  const printfulOrderId = (order?.id ?? data?.order_id ?? data?.orderId) as number | string | undefined;
+  const printfulOrderId = (order?.id ??
+    data?.order_id ??
+    data?.orderId) as number | string | undefined;
   const orderStatus = (order?.status ?? data?.status) as string | undefined;
 
   if (!eventType) {
@@ -245,7 +287,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  console.log("[printful webhook] Received event", eventType, "for order", printfulOrderId, "status", orderStatus);
+  console.log(
+    "[printful webhook] Received event",
+    eventType,
+    "for order",
+    printfulOrderId,
+    "status",
+    orderStatus,
+  );
 
   const fulfillmentStatus = inferFulfillmentStatus(eventType, orderStatus ?? "");
 
@@ -269,13 +318,21 @@ export async function POST(req: NextRequest) {
   }
 
   if (!updatedJobs || updatedJobs.length === 0) {
-    console.warn("[printful webhook] No card_print_jobs row found for printful_order_id", printfulOrderId);
+    console.warn(
+      "[printful webhook] No card_print_jobs row found for printful_order_id",
+      printfulOrderId,
+    );
     return NextResponse.json({ received: true });
   }
 
-  const orderId = updatedJobs.map((j: any) => j.order_id).find((v: any) => Boolean(v)) as string | undefined;
+  const orderId = updatedJobs
+    .map((j: any) => j.order_id)
+    .find((v: any) => Boolean(v)) as string | undefined;
+
   if (!orderId) {
-    console.warn("[printful webhook] Found jobs but no order_id, cannot save shipment tracking");
+    console.warn(
+      "[printful webhook] Found jobs but no order_id, cannot save shipment tracking",
+    );
     return NextResponse.json({ received: true });
   }
 
@@ -299,7 +356,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (shipments.length === 0) {
-    console.log("[printful webhook] No shipments found yet for Printful order", printfulOrderId);
+    console.log(
+      "[printful webhook] No shipments found yet for Printful order",
+      printfulOrderId,
+    );
     return NextResponse.json({ received: true });
   }
 
@@ -342,7 +402,7 @@ export async function POST(req: NextRequest) {
     }
 
     const alreadyEmailed = Boolean(upserted?.tracking_email_sent_at);
-    const emailTo = orderRow?.email ?? null;
+    const emailTo = (orderRow?.email as string | undefined) ?? null;
 
     if (!alreadyEmailed && emailTo) {
       try {
@@ -358,7 +418,10 @@ export async function POST(req: NextRequest) {
           .update({ tracking_email_sent_at: new Date().toISOString() })
           .eq("id", upserted?.id);
 
-        console.log("[printful webhook] Tracking email sent for shipment", s.shipmentId);
+        console.log(
+          "[printful webhook] Tracking email sent for shipment",
+          s.shipmentId,
+        );
       } catch (err) {
         console.error("[printful webhook] Tracking email failed", err);
       }
