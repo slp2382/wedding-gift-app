@@ -1,5 +1,3 @@
-// app/admin/orders/page.tsx
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -23,8 +21,8 @@ type AdminOrderRow = {
   shippingCity: string | null;
   shippingState: string | null;
   shippingPostalCode: string | null;
-  email: string | null;
 
+  email: string | null;
   amountTotal: number | null;
   printFileUrl: string | null;
 
@@ -33,9 +31,9 @@ type AdminOrderRow = {
   shipmentStatus?: string | null;
   shippedAt?: string | null;
   deliveredAt?: string | null;
+  trackingEmailSentAt?: string | null;
   carrier?: string | null;
   service?: string | null;
-  trackingEmailSentAt?: string | null;
 };
 
 type FetchState =
@@ -59,66 +57,50 @@ type SortKey =
   | "createdAt"
   | "cardId"
   | "customer"
-  | "payment"
-  | "fulfillment"
-  | "printful"
-  | "orderTotal";
+  | "paymentStatus"
+  | "fulfillmentStatus"
+  | "printfulStatus"
+  | "printfulOrderId";
 
-type SortState = { key: SortKey; dir: "asc" | "desc" };
+type SortDir = "asc" | "desc";
 
-function normStatus(v: any): string {
-  return String(v ?? "").trim().toLowerCase();
+function cmp(a: any, b: any) {
+  if (a == null && b == null) return 0;
+  if (a == null) return -1;
+  if (b == null) return 1;
+
+  if (typeof a === "number" && typeof b === "number") return a - b;
+
+  const as = String(a).toLowerCase();
+  const bs = String(b).toLowerCase();
+  if (as < bs) return -1;
+  if (as > bs) return 1;
+  return 0;
 }
 
-function safeTime(v: string | null | undefined): number {
+function parseDateMs(v: string | null | undefined): number {
   if (!v) return 0;
-  const t = new Date(v).getTime();
+  const d = new Date(v);
+  const t = d.getTime();
   return Number.isFinite(t) ? t : 0;
 }
 
-function computeDisplayFulfillment(
-  row: AdminOrderRow,
-): "pending" | "processing" | "shipped" | "delivered" | "error" {
-  if (
-    row.fulfillmentStatus === "error" ||
-    row.jobStatus === "error" ||
-    Boolean(row.errorMessage)
-  ) {
-    return "error";
-  }
-
-  const shipmentStatus = normStatus(row.shipmentStatus);
-  const deliveredAt = safeTime(row.deliveredAt);
-  const shippedAt = safeTime(row.shippedAt);
-
-  if (shipmentStatus === "delivered" || deliveredAt > 0) return "delivered";
-  if (shipmentStatus === "shipped" || shipmentStatus === "in_transit" || shippedAt > 0) {
-    return "shipped";
-  }
-
-  if (row.fulfillmentStatus === "processing") return "processing";
-  if (row.fulfillmentStatus === "shipped") return "shipped";
-  if (row.fulfillmentStatus === "delivered") return "delivered";
-
-  return "pending";
-}
-
-function sortIndicator(sort: SortState, key: SortKey): string {
-  if (sort.key !== key) return "";
-  return sort.dir === "asc" ? " ▲" : " ▼";
-}
-
-function compareStrings(a: any, b: any): number {
-  const as = String(a ?? "");
-  const bs = String(b ?? "");
-  return as.localeCompare(bs, undefined, { sensitivity: "base" });
+function isDeliveredRow(row: AdminOrderRow): boolean {
+  const fs = String(row.fulfillmentStatus ?? "").toLowerCase();
+  const ss = String(row.shipmentStatus ?? "").toLowerCase();
+  if (fs === "delivered") return true;
+  if (ss.includes("deliver")) return true;
+  if (row.deliveredAt) return true;
+  return false;
 }
 
 export default function AdminOrdersPage() {
   const [fetchState, setFetchState] = useState<FetchState>({ state: "idle" });
   const [filter, setFilter] = useState<FilterKey>("pending");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [sort, setSort] = useState<SortState>({ key: "createdAt", dir: "desc" });
+
+  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   async function loadOrders() {
     try {
@@ -143,66 +125,6 @@ export default function AdminOrdersPage() {
     loadOrders();
   }, []);
 
-  function toggleSort(key: SortKey) {
-    setSort((prev) => {
-      if (prev.key !== key) return { key, dir: "asc" };
-      return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
-    });
-  }
-
-  const filteredOrders = useMemo(() => {
-    if (fetchState.state !== "loaded") return [];
-
-    const rows = fetchState.data.map((r) => ({
-      ...r,
-      __displayFulfillment: computeDisplayFulfillment(r),
-    })) as (AdminOrderRow & {
-      __displayFulfillment: ReturnType<typeof computeDisplayFulfillment>;
-    })[];
-
-    const filtered =
-      filter === "all"
-        ? rows
-        : filter === "error"
-          ? rows.filter((row) => row.__displayFulfillment === "error")
-          : rows.filter((row) => row.__displayFulfillment === filter);
-
-    const dir = sort.dir === "asc" ? 1 : -1;
-
-    const sorted = [...filtered].sort((a, b) => {
-      switch (sort.key) {
-        case "createdAt":
-          return (safeTime(a.createdAt) - safeTime(b.createdAt)) * dir;
-
-        case "cardId":
-          return compareStrings(a.cardId, b.cardId) * dir;
-
-        case "customer":
-          return (
-            compareStrings(a.shippingName ?? a.email, b.shippingName ?? b.email) *
-            dir
-          );
-
-        case "payment":
-          return compareStrings(a.paymentStatus, b.paymentStatus) * dir;
-
-        case "fulfillment":
-          return compareStrings(a.__displayFulfillment, b.__displayFulfillment) * dir;
-
-        case "printful":
-          return compareStrings(a.printfulStatus, b.printfulStatus) * dir;
-
-        case "orderTotal":
-          return ((a.amountTotal ?? 0) - (b.amountTotal ?? 0)) * dir;
-
-        default:
-          return 0;
-      }
-    });
-
-    return sorted.map(({ __displayFulfillment: _ignored, ...rest }) => rest);
-  }, [fetchState, filter, sort]);
-
   async function updateFulfillment(jobId: string, status: string) {
     try {
       setUpdatingId(jobId);
@@ -219,22 +141,111 @@ export default function AdminOrdersPage() {
     } catch (err) {
       console.error(err);
       alert(
-        err instanceof Error ? err.message : "Failed to update fulfillment status",
+        err instanceof Error
+          ? err.message
+          : "Failed to update fulfillment status",
       );
     } finally {
       setUpdatingId(null);
     }
   }
 
+  function toggleSort(nextKey: SortKey) {
+    setSortKey((prevKey) => {
+      if (prevKey !== nextKey) {
+        setSortDir("asc");
+        return nextKey;
+      }
+      setSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
+      return prevKey;
+    });
+  }
+
+  const visibleOrders = useMemo(() => {
+    if (fetchState.state !== "loaded") return [];
+
+    const base = fetchState.data;
+
+    const filtered =
+      filter === "all"
+        ? base
+        : filter === "error"
+          ? base.filter(
+              (row) =>
+                row.fulfillmentStatus === "error" ||
+                row.jobStatus === "error" ||
+                Boolean(row.errorMessage),
+            )
+          : filter === "delivered"
+            ? base.filter((row) => isDeliveredRow(row))
+            : base.filter((row) => String(row.fulfillmentStatus) === filter);
+
+    const sorted = [...filtered].sort((a, b) => {
+      let av: any = null;
+      let bv: any = null;
+
+      if (sortKey === "createdAt") {
+        av = parseDateMs(a.createdAt);
+        bv = parseDateMs(b.createdAt);
+      } else if (sortKey === "cardId") {
+        av = a.cardId ?? "";
+        bv = b.cardId ?? "";
+      } else if (sortKey === "customer") {
+        av = a.shippingName ?? a.email ?? "";
+        bv = b.shippingName ?? b.email ?? "";
+      } else if (sortKey === "paymentStatus") {
+        av = a.paymentStatus ?? "";
+        bv = b.paymentStatus ?? "";
+      } else if (sortKey === "fulfillmentStatus") {
+        const aDisplay = isDeliveredRow(a) ? "delivered" : a.fulfillmentStatus;
+        const bDisplay = isDeliveredRow(b) ? "delivered" : b.fulfillmentStatus;
+        av = aDisplay ?? "";
+        bv = bDisplay ?? "";
+      } else if (sortKey === "printfulStatus") {
+        av = a.printfulStatus ?? "";
+        bv = b.printfulStatus ?? "";
+      } else if (sortKey === "printfulOrderId") {
+        av = a.printfulOrderId ?? "";
+        bv = b.printfulOrderId ?? "";
+      }
+
+      const c = cmp(av, bv);
+      return sortDir === "asc" ? c : -c;
+    });
+
+    return sorted;
+  }, [fetchState, filter, sortKey, sortDir]);
+
+  function SortHeader(props: { label: string; k: SortKey }) {
+    const active = sortKey === props.k;
+    const arrow = active ? (sortDir === "asc" ? "▲" : "▼") : "↕";
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(props.k)}
+        className={`inline-flex items-center gap-1 ${
+          active
+            ? "text-zinc-800 dark:text-zinc-100"
+            : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        }`}
+      >
+        <span className="font-medium">{props.label}</span>
+        <span className="text-[10px]">{arrow}</span>
+      </button>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-8 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               GiftLink admin
             </p>
-            <h1 className="text-2xl font-semibold tracking-tight">Card pack orders</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Card pack orders
+            </h1>
           </div>
           <button
             type="button"
@@ -263,9 +274,11 @@ export default function AdminOrdersPage() {
                 </button>
               ))}
             </div>
+
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Showing {filteredOrders.length} of{" "}
-              {fetchState.state === "loaded" ? fetchState.data.length : 0} print jobs
+              Showing {visibleOrders.length} of{" "}
+              {fetchState.state === "loaded" ? fetchState.data.length : 0} print
+              jobs
             </p>
           </div>
 
@@ -281,87 +294,45 @@ export default function AdminOrdersPage() {
             </div>
           )}
 
-          {fetchState.state === "loaded" && filteredOrders.length === 0 && (
+          {fetchState.state === "loaded" && visibleOrders.length === 0 && (
             <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
               No orders found for this filter.
             </div>
           )}
 
-          {fetchState.state === "loaded" && filteredOrders.length > 0 && (
+          {fetchState.state === "loaded" && visibleOrders.length > 0 && (
             <div className="overflow-x-auto">
               <table className="min-w-full text-left text-xs">
                 <thead className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                   <tr>
                     <th className="px-3 py-2 font-medium">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("createdAt")}
-                        className="hover:underline"
-                      >
-                        Created{sortIndicator(sort, "createdAt")}
-                      </button>
+                      <SortHeader label="Created" k="createdAt" />
                     </th>
                     <th className="px-3 py-2 font-medium">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("cardId")}
-                        className="hover:underline"
-                      >
-                        Card{sortIndicator(sort, "cardId")}
-                      </button>
+                      <SortHeader label="Card" k="cardId" />
                     </th>
                     <th className="px-3 py-2 font-medium">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("customer")}
-                        className="hover:underline"
-                      >
-                        Customer{sortIndicator(sort, "customer")}
-                      </button>
+                      <SortHeader label="Customer" k="customer" />
                     </th>
                     <th className="px-3 py-2 font-medium">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("payment")}
-                        className="hover:underline"
-                      >
-                        Payment{sortIndicator(sort, "payment")}
-                      </button>
+                      <SortHeader label="Payment" k="paymentStatus" />
                     </th>
                     <th className="px-3 py-2 font-medium">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("fulfillment")}
-                        className="hover:underline"
-                      >
-                        Fulfillment{sortIndicator(sort, "fulfillment")}
-                      </button>
+                      <SortHeader label="Fulfillment" k="fulfillmentStatus" />
                     </th>
                     <th className="px-3 py-2 font-medium">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("printful")}
-                        className="hover:underline"
-                      >
-                        Printful{sortIndicator(sort, "printful")}
-                      </button>
+                      <SortHeader label="Printful" k="printfulStatus" />
                     </th>
                     <th className="px-3 py-2 font-medium">Links</th>
-                    <th className="px-3 py-2 font-medium">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("orderTotal")}
-                        className="hover:underline"
-                      >
-                        Actions{sortIndicator(sort, "orderTotal")}
-                      </button>
-                    </th>
+                    <th className="px-3 py-2 font-medium">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {filteredOrders.map((row) => {
-                    const created = row.createdAt ? new Date(row.createdAt) : null;
+                  {visibleOrders.map((row) => {
+                    const created = row.createdAt
+                      ? new Date(row.createdAt)
+                      : null;
 
                     const cityStateZip = [
                       row.shippingCity,
@@ -371,28 +342,26 @@ export default function AdminOrdersPage() {
                       .filter(Boolean)
                       .join(" ");
 
-                    const displayFulfillment = computeDisplayFulfillment(row);
+                    const displayFulfillment = isDeliveredRow(row)
+                      ? "delivered"
+                      : row.fulfillmentStatus;
 
                     const fulfillmentBadge =
-                      displayFulfillment === "delivered" ||
-                      displayFulfillment === "shipped"
+                      displayFulfillment === "delivered"
                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-100"
-                        : displayFulfillment === "processing"
-                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100"
-                          : displayFulfillment === "error"
-                            ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-100"
-                            : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-100";
+                        : displayFulfillment === "shipped"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-100"
+                          : displayFulfillment === "processing"
+                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100"
+                            : displayFulfillment === "error" ||
+                                row.jobStatus === "error"
+                              ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-100"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-100";
 
                     const isUpdating = updatingId === row.jobId;
 
                     const printfulOrdersDashboardUrl =
                       "https://www.printful.com/dashboard/default/orders";
-
-                    const carrierService = [row.carrier, row.service]
-                      .filter(Boolean)
-                      .join(" ");
-
-                    const deliveredAt = row.deliveredAt ? new Date(row.deliveredAt) : null;
 
                     return (
                       <tr key={row.jobId} className="align-top">
@@ -442,17 +411,14 @@ export default function AdminOrdersPage() {
                             {displayFulfillment}
                           </span>
 
-                          {displayFulfillment === "delivered" && deliveredAt && (
-                            <div className="mt-1 text-[10px] text-zinc-600 dark:text-zinc-300">
-                              Delivered {deliveredAt.toLocaleDateString()}
-                            </div>
-                          )}
-
-                          {carrierService && (
-                            <div className="mt-1 text-[10px] text-zinc-600 dark:text-zinc-300">
-                              {carrierService}
-                            </div>
-                          )}
+                          {displayFulfillment === "delivered" &&
+                            (row.deliveredAt || row.shipmentStatus) && (
+                              <div className="mt-1 text-[10px] text-zinc-600 dark:text-zinc-300">
+                                {row.deliveredAt
+                                  ? `Delivered ${new Date(row.deliveredAt).toLocaleDateString()}`
+                                  : row.shipmentStatus}
+                              </div>
+                            )}
 
                           {row.errorMessage && (
                             <div className="mt-1 max-w-[180px] text-[10px] text-red-700 dark:text-red-200">
@@ -485,9 +451,9 @@ export default function AdminOrdersPage() {
                               </a>
                             )}
 
-                            {(row.trackingUrl || row.trackingNumber) && (
+                            {row.trackingUrl && (
                               <a
-                                href={row.trackingUrl ?? undefined}
+                                href={row.trackingUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-indigo-600 hover:underline dark:text-indigo-400"
@@ -503,32 +469,41 @@ export default function AdminOrdersPage() {
                                 rel="noreferrer"
                                 className="text-indigo-600 hover:underline dark:text-indigo-400"
                               >
-                                Open Printful orders (search {row.printfulOrderId})
+                                Open Printful orders (search {row.printfulOrderId}
+                                )
                               </a>
                             )}
                           </div>
                         </td>
 
                         <td className="px-3 py-2">
-                          <div className="flex flex-col gap-1">
-                            <button
-                              type="button"
-                              disabled={
-                                displayFulfillment === "shipped" ||
-                                displayFulfillment === "delivered" ||
-                                isUpdating
-                              }
-                              onClick={() => updateFulfillment(row.jobId, "shipped")}
-                              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          <div className="flex flex-col gap-2">
+                            <label
+                              className="sr-only"
+                              htmlFor={`fulfillment-${row.jobId}`}
                             >
-                              {isUpdating
-                                ? "Updating…"
-                                : displayFulfillment === "delivered"
-                                  ? "Delivered"
-                                  : displayFulfillment === "shipped"
-                                    ? "Shipped"
-                                    : "Mark shipped"}
-                            </button>
+                              Set fulfillment status
+                            </label>
+
+                            <select
+                              id={`fulfillment-${row.jobId}`}
+                              value={row.fulfillmentStatus}
+                              disabled={isUpdating}
+                              onChange={(e) =>
+                                updateFulfillment(row.jobId, e.target.value)
+                              }
+                              className="w-[140px] rounded-lg border border-zinc-300 bg-white px-2 py-1 text-[10px] font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                            >
+                              <option value="pending">pending</option>
+                              <option value="processing">processing</option>
+                              <option value="shipped">shipped</option>
+                              <option value="delivered">delivered</option>
+                              <option value="error">error</option>
+                            </select>
+
+                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                              {isUpdating ? "Updating…" : " "}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -536,10 +511,6 @@ export default function AdminOrdersPage() {
                   })}
                 </tbody>
               </table>
-
-              <div className="mt-3 text-[10px] text-zinc-500 dark:text-zinc-400">
-                Sorting: click a column header to sort, click again to reverse direction.
-              </div>
             </div>
           )}
         </section>
