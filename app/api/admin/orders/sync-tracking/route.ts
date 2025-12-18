@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 const supabaseUrl = process.env.SUPABASE_URL ?? "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 const printfulToken = process.env.PRINTFUL_API_KEY ?? "";
+const printfulStoreId = process.env.PRINTFUL_STORE_ID ?? "";
 const adminToken = process.env.ADMIN_SYNC_TOKEN ?? "";
 
 const supabaseAdmin =
@@ -35,6 +36,19 @@ function toIsoOrNull(v: any): string | null {
   return Number.isFinite(d.getTime()) ? d.toISOString() : null;
 }
 
+function buildPrintfulHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${printfulToken}`,
+    "Content-Type": "application/json",
+  };
+
+  if (printfulStoreId) {
+    headers["X-PF-Store-Id"] = printfulStoreId;
+  }
+
+  return headers;
+}
+
 async function fetchShipmentsV2(printfulOrderId: string) {
   const url = `https://api.printful.com/v2/orders/${encodeURIComponent(
     printfulOrderId,
@@ -42,18 +56,21 @@ async function fetchShipmentsV2(printfulOrderId: string) {
 
   const resp = await fetch(url, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${printfulToken}`,
-      "Content-Type": "application/json",
-    },
+    headers: buildPrintfulHeaders(),
   });
 
-  // Returning null means "endpoint not usable, try fallback"
-  if (!resp.ok) return null;
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => "");
+    console.warn(
+      "[sync-tracking] Printful v2 shipments fetch failed",
+      resp.status,
+      txt,
+    );
+    return null;
+  }
 
   const json = await resp.json().catch(() => null);
 
-  // Printful v2 returns shipments under `data`
   const shipments = Array.isArray(json?.data)
     ? json.data
     : Array.isArray(json?.result)
@@ -95,15 +112,21 @@ async function fetchShipmentsV1(printfulOrderId: string) {
 
   const resp = await fetch(url, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${printfulToken}`,
-      "Content-Type": "application/json",
-    },
+    headers: buildPrintfulHeaders(),
   });
 
-  if (!resp.ok) return [];
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => "");
+    console.warn(
+      "[sync-tracking] Printful v1 order fetch failed",
+      resp.status,
+      txt,
+    );
+    return [];
+  }
 
   const json = await resp.json().catch(() => null);
+
   const shipments = json?.result?.shipments;
   if (!Array.isArray(shipments)) return [];
 
@@ -128,11 +151,9 @@ async function fetchShipmentsV1(printfulOrderId: string) {
 }
 
 async function fetchPrintfulShipments(printfulOrderId: string) {
-  // Prefer v1 first since your app is currently using /orders/{id} elsewhere
   const v1 = await fetchShipmentsV1(printfulOrderId);
   if (v1.length > 0) return v1;
 
-  // Then try v2 as a fallback
   const v2 = await fetchShipmentsV2(printfulOrderId);
   if (v2 !== null && v2.length > 0) return v2;
 
@@ -280,7 +301,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (printfulOrderIds.length === 0) {
-    return NextResponse.json({ error: "No Printful order id found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "No Printful order id found" },
+      { status: 404 },
+    );
   }
 
   let resolvedOrderId = orderId;
@@ -293,14 +317,20 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: "Failed to resolve order id" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to resolve order id" },
+        { status: 500 },
+      );
     }
 
     resolvedOrderId = (job?.order_id as string | undefined) ?? null;
   }
 
   if (!resolvedOrderId) {
-    return NextResponse.json({ error: "Could not resolve internal order id" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Could not resolve internal order id" },
+      { status: 404 },
+    );
   }
 
   const { data: orderRow } = await supabaseAdmin
@@ -332,7 +362,10 @@ export async function POST(req: NextRequest) {
         delivered_at: s.deliveredAt ?? null,
         reshipment: Boolean(s.reshipment ?? false),
         last_event_at: new Date().toISOString(),
-        raw_payload: { source: "manual_sync", fetched_at: new Date().toISOString() },
+        raw_payload: {
+          source: "manual_sync",
+          fetched_at: new Date().toISOString(),
+        },
       };
 
       const { data: upserted, error: upsertErr } = await supabaseAdmin
@@ -379,5 +412,6 @@ export async function POST(req: NextRequest) {
     shipmentsUpserted: totalUpserted,
     emailsSent: totalEmailed,
     emailEnabled: sendEmail,
+    storeIdUsed: printfulStoreId || null,
   });
 }
