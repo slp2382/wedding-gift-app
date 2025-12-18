@@ -28,12 +28,45 @@ type ShipmentRow = {
   shippedAt?: string | null;
   deliveredAt?: string | null;
   reshipment?: boolean;
+
+  // Debug helpers so we can see what Printful returned
+  rawShippedAt?: any;
+  rawDeliveredAt?: any;
 };
 
 function toIsoOrNull(v: any): string | null {
-  if (!v) return null;
-  const d = new Date(v);
-  return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  if (v === null || v === undefined) return null;
+
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return null;
+
+    // Numeric string timestamp
+    if (/^\d+(\.\d+)?$/.test(s)) {
+      const n = Number(s);
+      if (!Number.isFinite(n)) return null;
+      return toIsoOrNull(n);
+    }
+
+    const d = new Date(s);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  }
+
+  if (typeof v === "number") {
+    if (!Number.isFinite(v)) return null;
+
+    // Values under 1e12 are almost certainly seconds, convert to ms
+    const ms = v < 1_000_000_000_000 ? Math.round(v * 1000) : Math.round(v);
+    const d = new Date(ms);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  }
+
+  try {
+    const d = new Date(v);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  } catch {
+    return null;
+  }
 }
 
 function buildPrintfulHeaders(): Record<string, string> {
@@ -66,6 +99,7 @@ async function fetchShipmentsV2(printfulOrderId: string) {
       resp.status,
       txt,
     );
+    // Returning null means try fallback
     return null;
   }
 
@@ -86,6 +120,9 @@ async function fetchShipmentsV2(printfulOrderId: string) {
       const shipmentId = s?.id ?? s?.shipment_id ?? s?.shipmentId ?? null;
       if (!shipmentId) return null;
 
+      const rawShippedAt = s?.shipped_at ?? s?.shippedAt ?? null;
+      const rawDeliveredAt = s?.delivered_at ?? s?.deliveredAt ?? null;
+
       return {
         shipmentId: String(shipmentId),
         status: s?.shipment_status
@@ -97,9 +134,11 @@ async function fetchShipmentsV2(printfulOrderId: string) {
         service: s?.service ? String(s.service) : null,
         trackingNumber: s?.tracking_number ? String(s.tracking_number) : null,
         trackingUrl: s?.tracking_url ? String(s.tracking_url) : null,
-        shippedAt: toIsoOrNull(s?.shipped_at),
-        deliveredAt: toIsoOrNull(s?.delivered_at),
+        shippedAt: toIsoOrNull(rawShippedAt),
+        deliveredAt: toIsoOrNull(rawDeliveredAt),
         reshipment: Boolean(s?.is_reshipment ?? s?.reshipment ?? false),
+        rawShippedAt,
+        rawDeliveredAt,
       } as ShipmentRow;
     })
     .filter(Boolean) as ShipmentRow[];
@@ -126,7 +165,6 @@ async function fetchShipmentsV1(printfulOrderId: string) {
   }
 
   const json = await resp.json().catch(() => null);
-
   const shipments = json?.result?.shipments;
   if (!Array.isArray(shipments)) return [];
 
@@ -135,6 +173,9 @@ async function fetchShipmentsV1(printfulOrderId: string) {
       const shipmentId = s?.id ?? s?.shipment_id ?? s?.shipmentId ?? null;
       if (!shipmentId) return null;
 
+      const rawShippedAt = s?.shipped_at ?? s?.shippedAt ?? null;
+      const rawDeliveredAt = s?.delivered_at ?? s?.deliveredAt ?? null;
+
       return {
         shipmentId: String(shipmentId),
         status: s?.status ? String(s.status) : null,
@@ -142,18 +183,22 @@ async function fetchShipmentsV1(printfulOrderId: string) {
         service: s?.service ? String(s.service) : null,
         trackingNumber: s?.tracking_number ? String(s.tracking_number) : null,
         trackingUrl: s?.tracking_url ? String(s.tracking_url) : null,
-        shippedAt: toIsoOrNull(s?.shipped_at),
-        deliveredAt: toIsoOrNull(s?.delivered_at),
+        shippedAt: toIsoOrNull(rawShippedAt),
+        deliveredAt: toIsoOrNull(rawDeliveredAt),
         reshipment: Boolean(s?.reshipment ?? false),
+        rawShippedAt,
+        rawDeliveredAt,
       } as ShipmentRow;
     })
     .filter(Boolean) as ShipmentRow[];
 }
 
 async function fetchPrintfulShipments(printfulOrderId: string) {
+  // Prefer v1 first since you are using /orders/{id} elsewhere
   const v1 = await fetchShipmentsV1(printfulOrderId);
   if (v1.length > 0) return v1;
 
+  // Then try v2
   const v2 = await fetchShipmentsV2(printfulOrderId);
   if (v2 !== null && v2.length > 0) return v2;
 
@@ -233,24 +278,15 @@ async function sendTrackingEmail(args: {
 
 export async function POST(req: NextRequest) {
   if (!supabaseAdmin) {
-    return NextResponse.json(
-      { error: "Supabase not configured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
   }
 
   if (!printfulToken) {
-    return NextResponse.json(
-      { error: "Printful not configured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Printful not configured" }, { status: 500 });
   }
 
   if (!adminToken) {
-    return NextResponse.json(
-      { error: "ADMIN_SYNC_TOKEN not configured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "ADMIN_SYNC_TOKEN not configured" }, { status: 500 });
   }
 
   const providedToken = req.headers.get("xadmintoken") ?? "";
@@ -301,10 +337,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (printfulOrderIds.length === 0) {
-    return NextResponse.json(
-      { error: "No Printful order id found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "No Printful order id found" }, { status: 404 });
   }
 
   let resolvedOrderId = orderId;
@@ -317,20 +350,14 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json(
-        { error: "Failed to resolve order id" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Failed to resolve order id" }, { status: 500 });
     }
 
     resolvedOrderId = (job?.order_id as string | undefined) ?? null;
   }
 
   if (!resolvedOrderId) {
-    return NextResponse.json(
-      { error: "Could not resolve internal order id" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Could not resolve internal order id" }, { status: 404 });
   }
 
   const { data: orderRow } = await supabaseAdmin
@@ -345,8 +372,28 @@ export async function POST(req: NextRequest) {
   let totalUpserted = 0;
   let totalEmailed = 0;
 
-  for (const pfId of printfulOrderIds) {
+  const debug: any = {
+    storeIdUsed: printfulStoreId || null,
+    example: null,
+  };
+
+  for (let i = 0; i < printfulOrderIds.length; i++) {
+    const pfId = printfulOrderIds[i];
     const shipments = await fetchPrintfulShipments(pfId);
+
+    if (i === 0) {
+      const s0 = shipments[0] ?? null;
+      debug.example = s0
+        ? {
+            printfulOrderId: pfId,
+            printfulShipmentId: s0.shipmentId,
+            rawShippedAt: s0.rawShippedAt ?? null,
+            shippedAtComputed: s0.shippedAt ?? null,
+            rawDeliveredAt: s0.rawDeliveredAt ?? null,
+            deliveredAtComputed: s0.deliveredAt ?? null,
+          }
+        : { printfulOrderId: pfId, shipmentsFound: 0 };
+    }
 
     for (const s of shipments) {
       const upsertRow = {
@@ -365,6 +412,8 @@ export async function POST(req: NextRequest) {
         raw_payload: {
           source: "manual_sync",
           fetched_at: new Date().toISOString(),
+          raw_shipped_at: s.rawShippedAt ?? null,
+          raw_delivered_at: s.rawDeliveredAt ?? null,
         },
       };
 
@@ -413,5 +462,6 @@ export async function POST(req: NextRequest) {
     emailsSent: totalEmailed,
     emailEnabled: sendEmail,
     storeIdUsed: printfulStoreId || null,
+    debug,
   });
 }

@@ -27,6 +27,10 @@ type PrintfulShipment = {
   shippedAt?: string | null;
   deliveredAt?: string | null;
   reshipment?: boolean;
+
+  // Debug helpers
+  rawShippedAt?: any;
+  rawDeliveredAt?: any;
 };
 
 function toIsoOrNull(v: any): string | null {
@@ -36,6 +40,7 @@ function toIsoOrNull(v: any): string | null {
     const s = v.trim();
     if (!s) return null;
 
+    // Numeric string timestamps
     if (/^\d+(\.\d+)?$/.test(s)) {
       const n = Number(s);
       if (!Number.isFinite(n)) return null;
@@ -49,6 +54,7 @@ function toIsoOrNull(v: any): string | null {
   if (typeof v === "number") {
     if (!Number.isFinite(v)) return null;
 
+    // Values under 1e12 are almost certainly seconds, convert to ms
     const ms = v < 1_000_000_000_000 ? Math.round(v * 1000) : Math.round(v);
     const d = new Date(ms);
     return Number.isFinite(d.getTime()) ? d.toISOString() : null;
@@ -102,7 +108,11 @@ function inferFulfillmentStatus(
 function extractShipmentFromWebhookPayload(body: any): PrintfulShipment | null {
   const data = body?.data ?? {};
   const shipment =
-    data?.shipment ?? data?.package ?? data?.shipment_data ?? data?.shipping ?? null;
+    data?.shipment ??
+    data?.package ??
+    data?.shipment_data ??
+    data?.shipping ??
+    null;
 
   if (!shipment) return null;
 
@@ -112,13 +122,20 @@ function extractShipmentFromWebhookPayload(body: any): PrintfulShipment | null {
   if (!shipmentId) return null;
 
   const trackingNumber =
-    shipment?.tracking_number ?? shipment?.trackingNumber ?? shipment?.tracking ?? null;
+    shipment?.tracking_number ??
+    shipment?.trackingNumber ??
+    shipment?.tracking ??
+    null;
 
   const trackingUrl =
     shipment?.tracking_url ??
     shipment?.trackingUrl ??
     shipment?.tracking_url_raw ??
     null;
+
+  const rawShippedAt = shipment?.shipped_at ?? shipment?.shippedAt ?? null;
+  const rawDeliveredAt =
+    shipment?.delivered_at ?? shipment?.deliveredAt ?? null;
 
   return {
     shipmentId: String(shipmentId),
@@ -127,9 +144,11 @@ function extractShipmentFromWebhookPayload(body: any): PrintfulShipment | null {
     service: shipment?.service ? String(shipment.service) : null,
     trackingNumber: trackingNumber ? String(trackingNumber) : null,
     trackingUrl: trackingUrl ? String(trackingUrl) : null,
-    shippedAt: toIsoOrNull(shipment?.shipped_at ?? shipment?.shippedAt),
-    deliveredAt: toIsoOrNull(shipment?.delivered_at ?? shipment?.deliveredAt),
+    shippedAt: toIsoOrNull(rawShippedAt),
+    deliveredAt: toIsoOrNull(rawDeliveredAt),
     reshipment: Boolean(shipment?.reshipment ?? false),
+    rawShippedAt,
+    rawDeliveredAt,
   };
 }
 
@@ -167,6 +186,9 @@ async function fetchPrintfulOrderShipments(
       const shipmentId = s?.id ?? s?.shipment_id ?? s?.shipmentId ?? null;
       if (!shipmentId) return null;
 
+      const rawShippedAt = s?.shipped_at ?? s?.shippedAt ?? null;
+      const rawDeliveredAt = s?.delivered_at ?? s?.deliveredAt ?? null;
+
       return {
         shipmentId: String(shipmentId),
         status: s?.status ? String(s.status) : null,
@@ -174,9 +196,11 @@ async function fetchPrintfulOrderShipments(
         service: s?.service ? String(s.service) : null,
         trackingNumber: s?.tracking_number ? String(s.tracking_number) : null,
         trackingUrl: s?.tracking_url ? String(s.tracking_url) : null,
-        shippedAt: toIsoOrNull(s?.shipped_at),
-        deliveredAt: toIsoOrNull(s?.delivered_at),
+        shippedAt: toIsoOrNull(rawShippedAt),
+        deliveredAt: toIsoOrNull(rawDeliveredAt),
         reshipment: Boolean(s?.reshipment ?? false),
+        rawShippedAt,
+        rawDeliveredAt,
       } as PrintfulShipment;
     })
     .filter(Boolean) as PrintfulShipment[];
@@ -387,7 +411,16 @@ export async function POST(req: NextRequest) {
       delivered_at: s.deliveredAt ?? null,
       reshipment: Boolean(s.reshipment ?? false),
       last_event_at: new Date().toISOString(),
-      raw_payload: body,
+      raw_payload: {
+        ...body,
+        _giftlink_debug: {
+          raw_shipped_at: s.rawShippedAt ?? null,
+          raw_delivered_at: s.rawDeliveredAt ?? null,
+          shipped_at_computed: s.shippedAt ?? null,
+          delivered_at_computed: s.deliveredAt ?? null,
+          store_id_used: printfulStoreId || null,
+        },
+      },
     };
 
     const { data: upserted, error: upsertErr } = await supabaseAdmin
@@ -397,7 +430,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (upsertErr) {
-      console.error("[printful webhook] Failed to upsert order_shipments", upsertErr);
+      console.error(
+        "[printful webhook] Failed to upsert order_shipments",
+        upsertErr,
+      );
       continue;
     }
 
