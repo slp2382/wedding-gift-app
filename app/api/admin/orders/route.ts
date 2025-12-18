@@ -18,9 +18,14 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 
 export const runtime = "nodejs";
 
+function safeTime(value: any): number {
+  if (!value) return 0;
+  const t = new Date(value).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
 export async function GET(req: NextRequest) {
   try {
-    // Fetch recent card print jobs
     const { data: jobs, error: jobsError } = await supabaseAdmin
       .from("card_print_jobs")
       .select("*")
@@ -55,7 +60,6 @@ export async function GET(req: NextRequest) {
       ),
     );
 
-    // Fetch related orders
     let ordersById: Record<string, any> = {};
     if (orderIds.length > 0) {
       const { data: orders, error: ordersError } = await supabaseAdmin
@@ -66,13 +70,10 @@ export async function GET(req: NextRequest) {
       if (ordersError) {
         console.error("[admin orders] Error fetching orders", ordersError);
       } else if (orders) {
-        ordersById = Object.fromEntries(
-          orders.map((o) => [o.id as string, o]),
-        );
+        ordersById = Object.fromEntries(orders.map((o) => [String(o.id), o]));
       }
     }
 
-    // Fetch related cards
     let cardsByCardId: Record<string, any> = {};
     if (cardIds.length > 0) {
       const { data: cards, error: cardsError } = await supabaseAdmin
@@ -84,17 +85,49 @@ export async function GET(req: NextRequest) {
         console.error("[admin orders] Error fetching cards", cardsError);
       } else if (cards) {
         cardsByCardId = Object.fromEntries(
-          cards.map((c) => [c.card_id as string, c]),
+          cards.map((c) => [String(c.card_id), c]),
         );
       }
     }
 
-    const rows = jobs.map((job) => {
-      const order = job.order_id ? ordersById[job.order_id as string] : null;
-      const card =
-        job.card_id ? cardsByCardId[job.card_id as string] : null;
+    let latestShipmentByOrderId: Record<string, any> = {};
+    if (orderIds.length > 0) {
+      const { data: shipments, error: shipErr } = await supabaseAdmin
+        .from("order_shipments")
+        .select("*")
+        .in("order_id", orderIds);
 
-      const createdAt = job.created_at as string | null;
+      if (shipErr) {
+        console.error("[admin orders] Error fetching order_shipments", shipErr);
+      } else if (shipments && shipments.length > 0) {
+        for (const s of shipments) {
+          const oid = String(s.order_id);
+          const prev = latestShipmentByOrderId[oid];
+
+          const prevTime = Math.max(
+            safeTime(prev?.shipped_at),
+            safeTime(prev?.last_event_at),
+            safeTime(prev?.created_at),
+          );
+
+          const thisTime = Math.max(
+            safeTime(s?.shipped_at),
+            safeTime(s?.last_event_at),
+            safeTime(s?.created_at),
+          );
+
+          if (!prev || thisTime >= prevTime) {
+            latestShipmentByOrderId[oid] = s;
+          }
+        }
+      }
+    }
+
+    const rows = jobs.map((job) => {
+      const order = job.order_id ? ordersById[String(job.order_id)] : null;
+      const card = job.card_id ? cardsByCardId[String(job.card_id)] : null;
+
+      const createdAt = (job.created_at as string | null) ?? null;
 
       const fulfillmentStatus =
         (job.fulfillment_status as string | null) ?? "pending";
@@ -115,16 +148,20 @@ export async function GET(req: NextRequest) {
 
       const printfulOrderId = job.printful_order_id ?? null;
 
+      const shipment = job.order_id
+        ? latestShipmentByOrderId[String(job.order_id)]
+        : null;
+
       return {
         jobId: job.id,
         createdAt,
-        cardId: job.card_id as string | null,
-        orderId: job.order_id as string | null,
+        cardId: (job.card_id as string | null) ?? null,
+        orderId: (job.order_id as string | null) ?? null,
         fulfillmentStatus,
         printfulStatus,
         printfulOrderId,
-        jobStatus: job.status as string | null,
-        errorMessage: job.error_message as string | null,
+        jobStatus: (job.status as string | null) ?? null,
+        errorMessage: (job.error_message as string | null) ?? null,
         paymentStatus,
         shippingName,
         shippingCity,
@@ -133,6 +170,13 @@ export async function GET(req: NextRequest) {
         email,
         amountTotal,
         printFileUrl,
+
+        trackingNumber: shipment?.tracking_number ?? null,
+        trackingUrl: shipment?.tracking_url ?? null,
+        shipmentStatus: shipment?.status ?? null,
+        shippedAt: shipment?.shipped_at ?? null,
+        deliveredAt: shipment?.delivered_at ?? null,
+        trackingEmailSentAt: shipment?.tracking_email_sent_at ?? null,
       };
     });
 
