@@ -3,14 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 
 type AdminOrderRow = {
-  jobId: string;
-  createdAt: string | null;
-  cardId: string | null;
   orderId: string | null;
+  jobIds: string[];
+  quantity: number;
+
+  createdAt: string | null;
+
+  cardIds: string[];
+  primaryCardId: string | null;
+  printFileUrls: string[];
 
   fulfillmentStatus: string;
   printfulStatus: string | null;
   printfulOrderId: number | string | null;
+  printfulOrderIds: Array<number | string>;
 
   jobStatus: string | null;
   errorMessage: string | null;
@@ -24,7 +30,6 @@ type AdminOrderRow = {
 
   email: string | null;
   amountTotal: number | null;
-  printFileUrl: string | null;
 
   trackingNumber?: string | null;
   trackingUrl?: string | null;
@@ -55,6 +60,7 @@ type FilterKey = (typeof FILTER_TABS)[number]["key"];
 
 type SortKey =
   | "createdAt"
+  | "quantity"
   | "cardId"
   | "customer"
   | "paymentStatus"
@@ -94,10 +100,15 @@ function isDeliveredRow(row: AdminOrderRow): boolean {
   return false;
 }
 
+function shortId(v: string | null | undefined): string {
+  if (!v) return "n/a";
+  return v.length > 8 ? v.slice(0, 8) : v;
+}
+
 export default function AdminOrdersPage() {
   const [fetchState, setFetchState] = useState<FetchState>({ state: "idle" });
   const [filter, setFilter] = useState<FilterKey>("pending");
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [updatingKey, setUpdatingKey] = useState<string | null>(null);
 
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -127,31 +138,6 @@ export default function AdminOrdersPage() {
     loadOrders();
   }, []);
 
-  async function updateFulfillment(jobId: string, status: string) {
-    try {
-      setUpdatingId(jobId);
-      const res = await fetch("/api/admin/orders/updateFulfillment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId, fulfillmentStatus: status }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "Failed to update fulfillment status");
-      }
-      await loadOrders();
-    } catch (err) {
-      console.error(err);
-      alert(
-        err instanceof Error
-          ? err.message
-          : "Failed to update fulfillment status",
-      );
-    } finally {
-      setUpdatingId(null);
-    }
-  }
-
   function toggleSort(nextKey: SortKey) {
     setSortKey((prevKey) => {
       if (prevKey !== nextKey) {
@@ -163,11 +149,41 @@ export default function AdminOrdersPage() {
     });
   }
 
+  async function updateFulfillmentForOrder(row: AdminOrderRow, status: string) {
+    const key = row.orderId ?? row.jobIds[0] ?? "";
+    if (!key) return;
+
+    try {
+      setUpdatingKey(key);
+
+      for (const jobId of row.jobIds) {
+        const res = await fetch("/api/admin/orders/updateFulfillment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId, fulfillmentStatus: status }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error ?? "Failed to update fulfillment status");
+        }
+      }
+
+      await loadOrders();
+    } catch (err) {
+      console.error(err);
+      alert(
+        err instanceof Error ? err.message : "Failed to update fulfillment status",
+      );
+    } finally {
+      setUpdatingKey(null);
+    }
+  }
+
   const visibleOrders = useMemo(() => {
     if (fetchState.state !== "loaded") return [];
     const base = fetchState.data;
 
-    // tabs filter
     const tabFiltered =
       filter === "all"
         ? base
@@ -182,7 +198,6 @@ export default function AdminOrdersPage() {
             ? base.filter((row) => isDeliveredRow(row))
             : base.filter((row) => String(row.fulfillmentStatus) === filter);
 
-    // fulfillment dropdown filter (this is what you asked for)
     const fulfillmentFiltered =
       fulfillmentFilter === "all"
         ? tabFiltered
@@ -201,9 +216,12 @@ export default function AdminOrdersPage() {
       if (sortKey === "createdAt") {
         av = parseDateMs(a.createdAt);
         bv = parseDateMs(b.createdAt);
+      } else if (sortKey === "quantity") {
+        av = a.quantity ?? 0;
+        bv = b.quantity ?? 0;
       } else if (sortKey === "cardId") {
-        av = a.cardId ?? "";
-        bv = b.cardId ?? "";
+        av = a.primaryCardId ?? "";
+        bv = b.primaryCardId ?? "";
       } else if (sortKey === "customer") {
         av = a.shippingName ?? a.email ?? "";
         bv = b.shippingName ?? b.email ?? "";
@@ -233,38 +251,34 @@ export default function AdminOrdersPage() {
   function SortHeader(props: { label: string; k: SortKey }) {
     const active = sortKey === props.k;
     const arrow = active ? (sortDir === "asc" ? "▲" : "▼") : "↕";
+
     return (
       <button
         type="button"
         onClick={() => toggleSort(props.k)}
-        className={`inline-flex items-center gap-1 ${
-          active
-            ? "text-zinc-800 dark:text-zinc-100"
-            : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-        }`}
+        className="inline-flex items-center gap-1"
       >
-        <span className="font-medium">{props.label}</span>
-        <span className="text-[10px]">{arrow}</span>
+        <span>{props.label}</span>
+        <span className="text-xs text-zinc-500">{arrow}</span>
       </button>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-8 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div className="min-h-screen bg-zinc-50 px-4 py-10 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+      <main className="mx-auto w-full max-w-6xl space-y-6">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              GiftLink admin
-            </p>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-semibold">GiftLink admin</h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
               Card pack orders
-            </h1>
+            </p>
           </div>
+
           <button
             type="button"
             onClick={loadOrders}
-            className="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            className="rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
             Refresh
           </button>
@@ -290,7 +304,6 @@ export default function AdminOrdersPage() {
                 ))}
               </div>
 
-              {/* Fulfillment dropdown filter (NOT actions) */}
               <div className="ml-2 flex items-center gap-2">
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
                   Fulfillment
@@ -312,8 +325,7 @@ export default function AdminOrdersPage() {
 
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Showing {visibleOrders.length} of{" "}
-              {fetchState.state === "loaded" ? fetchState.data.length : 0} print
-              jobs
+              {fetchState.state === "loaded" ? fetchState.data.length : 0} orders
             </p>
           </div>
 
@@ -337,14 +349,17 @@ export default function AdminOrdersPage() {
 
           {fetchState.state === "loaded" && visibleOrders.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-xs">
-                <thead className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  <tr>
+              <table className="w-full min-w-[980px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                     <th className="px-3 py-2 font-medium">
                       <SortHeader label="Created" k="createdAt" />
                     </th>
                     <th className="px-3 py-2 font-medium">
                       <SortHeader label="Card" k="cardId" />
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      <SortHeader label="Qty" k="quantity" />
                     </th>
                     <th className="px-3 py-2 font-medium">
                       <SortHeader label="Customer" k="customer" />
@@ -365,9 +380,7 @@ export default function AdminOrdersPage() {
 
                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {visibleOrders.map((row) => {
-                    const created = row.createdAt
-                      ? new Date(row.createdAt)
-                      : null;
+                    const created = row.createdAt ? new Date(row.createdAt) : null;
 
                     const cityStateZip = [
                       row.shippingCity,
@@ -392,13 +405,22 @@ export default function AdminOrdersPage() {
                             ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-100"
                             : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-100";
 
-                    const isUpdating = updatingId === row.jobId;
+                    const key = row.orderId ?? row.jobIds[0] ?? "";
+                    const isUpdating = Boolean(key) && updatingKey === key;
 
                     const printfulOrdersDashboardUrl =
                       "https://www.printful.com/dashboard/default/orders";
 
+                    const hasMultiplePrintfulOrders =
+                      (row.printfulOrderIds?.length ?? 0) > 1;
+
+                    const primaryCardLine =
+                      row.primaryCardId && row.cardIds.length > 1
+                        ? `${row.primaryCardId} + ${row.cardIds.length - 1} more`
+                        : row.primaryCardId ?? "n/a";
+
                     return (
-                      <tr key={row.jobId} className="align-top">
+                      <tr key={key || row.jobIds.join(",")} className="align-top">
                         <td className="px-3 py-2">
                           <div className="text-xs text-zinc-800 dark:text-zinc-100">
                             {created
@@ -408,81 +430,75 @@ export default function AdminOrdersPage() {
                               : "n/a"}
                           </div>
                           <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                            Job {row.jobId.slice(0, 8)}
+                            Order {shortId(row.orderId)}
                           </div>
+                        </td>
+
+                        <td className="px-3 py-2">
+                          <div className="text-xs font-medium">{primaryCardLine}</div>
+                          {row.amountTotal != null && (
+                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                              Order total ${(row.amountTotal / 100).toFixed(2)}
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="px-3 py-2">
+                          <div className="text-xs font-medium">{row.quantity}</div>
                         </td>
 
                         <td className="px-3 py-2">
                           <div className="text-xs font-medium">
-                            {row.cardId ?? "unknown"}
-                          </div>
-                          {row.amountTotal != null && (
-                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                              Order total ${row.amountTotal.toFixed(2)}
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="px-3 py-2">
-                          <div className="text-xs text-zinc-800 dark:text-zinc-100">
-                            {row.shippingName ?? row.email ?? "unknown"}
+                            {row.shippingName ?? row.email ?? "n/a"}
                           </div>
                           <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                            {cityStateZip || "no address"}
+                            {cityStateZip || ""}
                           </div>
                         </td>
 
                         <td className="px-3 py-2">
-                          <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                            {row.paymentStatus ?? "unknown"}
-                          </span>
+                          <span className="text-xs">{row.paymentStatus ?? "n/a"}</span>
                         </td>
 
                         <td className="px-3 py-2">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${fulfillmentBadge}`}
+                            className={`inline-flex rounded-full px-2 py-1 text-[10px] font-medium ${fulfillmentBadge}`}
                           >
-                            {displayFulfillment}
+                            {displayFulfillment || "pending"}
                           </span>
-
-                          {displayFulfillment === "delivered" &&
-                            (row.deliveredAt || row.shipmentStatus) && (
-                              <div className="mt-1 text-[10px] text-zinc-600 dark:text-zinc-300">
-                                {row.deliveredAt
-                                  ? `Delivered ${new Date(row.deliveredAt).toLocaleDateString()}`
-                                  : row.shipmentStatus}
-                              </div>
-                            )}
-
-                          {row.errorMessage && (
-                            <div className="mt-1 max-w-[180px] text-[10px] text-red-700 dark:text-red-200">
-                              {row.errorMessage}
-                            </div>
-                          )}
                         </td>
 
                         <td className="px-3 py-2">
-                          <div className="text-[10px] text-zinc-700 dark:text-zinc-200">
-                            {row.printfulStatus ?? "n/a"}
-                          </div>
+                          <div className="text-xs">{row.printfulStatus ?? "n/a"}</div>
                           {row.printfulOrderId && (
                             <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
                               id {row.printfulOrderId}
+                              {hasMultiplePrintfulOrders ? " (multiple)" : ""}
                             </div>
                           )}
                         </td>
 
                         <td className="px-3 py-2">
                           <div className="flex flex-col gap-1 text-[10px]">
-                            {row.printFileUrl && (
-                              <a
-                                href={row.printFileUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-indigo-600 hover:underline dark:text-indigo-400"
-                              >
-                                Print file
-                              </a>
+                            {row.printFileUrls.length > 0 && (
+                              <details>
+                                <summary className="cursor-pointer text-indigo-600 hover:underline dark:text-indigo-400">
+                                  Print files ({row.printFileUrls.length})
+                                </summary>
+                                <div className="mt-1 flex flex-col gap-1">
+                                  {row.printFileUrls.map((url, idx) => (
+                                    <a
+                                      key={url + idx}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-indigo-600 hover:underline dark:text-indigo-400"
+                                    >
+                                      Print file {idx + 1}
+                                    </a>
+                                  ))}
+                                </div>
+                              </details>
                             )}
 
                             {row.trackingUrl && (
@@ -503,8 +519,7 @@ export default function AdminOrdersPage() {
                                 rel="noreferrer"
                                 className="text-indigo-600 hover:underline dark:text-indigo-400"
                               >
-                                Open Printful orders (search {row.printfulOrderId}
-                                )
+                                Open Printful orders (search {row.printfulOrderId})
                               </a>
                             )}
                           </div>
@@ -515,21 +530,19 @@ export default function AdminOrdersPage() {
                             <button
                               type="button"
                               disabled={
-                                String(row.fulfillmentStatus).toLowerCase() ===
-                                  "shipped" ||
-                                String(row.fulfillmentStatus).toLowerCase() ===
+                                String(displayFulfillment).toLowerCase() === "shipped" ||
+                                String(displayFulfillment).toLowerCase() ===
                                   "delivered" ||
                                 isUpdating
                               }
-                              onClick={() => updateFulfillment(row.jobId, "shipped")}
+                              onClick={() => updateFulfillmentForOrder(row, "shipped")}
                               className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isUpdating
                                 ? "Updating…"
-                                : String(row.fulfillmentStatus).toLowerCase() ===
-                                    "shipped" ||
-                                  String(row.fulfillmentStatus).toLowerCase() ===
-                                    "delivered"
+                                : String(displayFulfillment).toLowerCase() === "shipped" ||
+                                    String(displayFulfillment).toLowerCase() ===
+                                      "delivered"
                                   ? "Shipped"
                                   : "Mark shipped"}
                             </button>

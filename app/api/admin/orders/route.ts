@@ -16,12 +16,45 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false },
 });
 
-export const runtime = "nodejs";
-
 function safeTime(value: any): number {
   if (!value) return 0;
   const t = new Date(value).getTime();
   return Number.isFinite(t) ? t : 0;
+}
+
+function normalizeStatus(v: any): string {
+  return String(v ?? "").trim().toLowerCase();
+}
+
+function deriveGroupFulfillmentStatus(args: {
+  jobFulfillmentStatuses: Array<string | null | undefined>;
+  jobStatuses: Array<string | null | undefined>;
+  hasError: boolean;
+  shipmentStatus?: string | null;
+  deliveredAt?: string | null;
+  shippedAt?: string | null;
+}): string {
+  if (args.deliveredAt) return "delivered";
+
+  const shipStatus = normalizeStatus(args.shipmentStatus);
+  if (shipStatus.includes("deliver")) return "delivered";
+  if (args.shippedAt) return "shipped";
+  if (shipStatus.includes("ship")) return "shipped";
+
+  const f = args.jobFulfillmentStatuses.map(normalizeStatus);
+  const s = args.jobStatuses.map(normalizeStatus);
+
+  const any = (pred: (v: string) => boolean) => f.some(pred) || s.some(pred);
+
+  if (any((v) => v === "delivered")) return "delivered";
+  if (any((v) => v === "shipped")) return "shipped";
+
+  if (args.hasError || any((v) => v === "error")) return "error";
+
+  if (any((v) => v === "processing" || v === "inprocess" || v === "in_process"))
+    return "processing";
+
+  return "pending";
 }
 
 export async function GET(req: NextRequest) {
@@ -105,34 +138,72 @@ export async function GET(req: NextRequest) {
           const prev = latestShipmentByOrderId[oid];
 
           const prevTime = Math.max(
-            safeTime(prev?.shipped_at),
             safeTime(prev?.last_event_at),
-            safeTime(prev?.created_at),
+            safeTime(prev?.delivered_at),
+            safeTime(prev?.shipped_at),
           );
 
-          const thisTime = Math.max(
-            safeTime(s?.shipped_at),
+          const nextTime = Math.max(
             safeTime(s?.last_event_at),
-            safeTime(s?.created_at),
+            safeTime(s?.delivered_at),
+            safeTime(s?.shipped_at),
           );
 
-          if (!prev || thisTime >= prevTime) {
+          if (!prev || nextTime >= prevTime) {
             latestShipmentByOrderId[oid] = s;
           }
         }
       }
     }
 
-    const rows = jobs.map((job) => {
-      const order = job.order_id ? ordersById[String(job.order_id)] : null;
-      const card = job.card_id ? cardsByCardId[String(job.card_id)] : null;
+    const groups = new Map<
+      string,
+      { key: string; orderId: string | null; jobs: any[] }
+    >();
 
-      const createdAt = (job.created_at as string | null) ?? null;
+    for (const j of jobs) {
+      const oid = (j.order_id as string | null) ?? null;
+      const key = oid ? `order:${oid}` : `job:${String(j.id)}`;
 
-      const fulfillmentStatus =
-        (job.fulfillment_status as string | null) ?? "pending";
+      const existing = groups.get(key);
+      if (existing) existing.jobs.push(j);
+      else groups.set(key, { key, orderId: oid, jobs: [j] });
+    }
 
-      const printfulStatus = (job.printful_status as string | null) ?? null;
+    const rows = Array.from(groups.values()).map((g) => {
+      const order = g.orderId ? ordersById[String(g.orderId)] : null;
+      const shipment = g.orderId
+        ? latestShipmentByOrderId[String(g.orderId)]
+        : null;
+
+      const jobIds = g.jobs.map((j) => String(j.id));
+
+      const groupCardIds = g.jobs
+        .map((j) => (j.card_id as string | null) ?? null)
+        .filter((v): v is string => Boolean(v));
+
+      const printFileUrls = groupCardIds
+        .map((cid) => {
+          const card = cardsByCardId[String(cid)];
+          return (card?.print_file_url as string | null) ?? null;
+        })
+        .filter((v): v is string => Boolean(v));
+
+      const printfulOrderIds = Array.from(
+        new Set(
+          g.jobs
+            .map((j) => j.printful_order_id as string | number | null)
+            .filter((v) => v !== null && v !== undefined),
+        ),
+      );
+
+      const primaryPrintfulOrderId =
+        printfulOrderIds.length > 0 ? printfulOrderIds[0] : null;
+
+      const createdAt =
+        (order?.created_at as string | null) ??
+        (g.jobs[0]?.created_at as string | null) ??
+        null;
 
       const paymentStatus = order?.status ?? null;
 
@@ -140,36 +211,62 @@ export async function GET(req: NextRequest) {
       const shippingCity = order?.shipping_city ?? null;
       const shippingState = order?.shipping_state ?? null;
       const shippingPostalCode = order?.shipping_postal_code ?? null;
-      const email = order?.email ?? null;
 
+      const email = order?.email ?? null;
       const amountTotal = order?.amount_total ?? null;
 
-      const printFileUrl = card?.print_file_url ?? null;
+      const hasError =
+        g.jobs.some((j) => Boolean(j.error_message)) ||
+        g.jobs.some((j) => normalizeStatus(j.status) === "error");
 
-      const printfulOrderId = job.printful_order_id ?? null;
+      const fulfillmentStatus = deriveGroupFulfillmentStatus({
+        jobFulfillmentStatuses: g.jobs.map(
+          (j) => (j.fulfillment_status as string | null) ?? null,
+        ),
+        jobStatuses: g.jobs.map((j) => (j.status as string | null) ?? null),
+        hasError,
+        shipmentStatus: shipment?.status ?? null,
+        deliveredAt: shipment?.delivered_at ?? null,
+        shippedAt: shipment?.shipped_at ?? null,
+      });
 
-      const shipment = job.order_id
-        ? latestShipmentByOrderId[String(job.order_id)]
-        : null;
+      const printfulStatus =
+        (g.jobs[0]?.printful_status as string | null) ?? null;
+
+      const errorMessage =
+        (g.jobs.find((j) => Boolean(j.error_message))?.error_message as
+          | string
+          | null
+          | undefined) ?? null;
 
       return {
-        jobId: job.id,
+        orderId: g.orderId,
+        jobIds,
+        quantity: g.jobs.length,
+
         createdAt,
-        cardId: (job.card_id as string | null) ?? null,
-        orderId: (job.order_id as string | null) ?? null,
+
+        cardIds: groupCardIds,
+        primaryCardId: groupCardIds[0] ?? null,
+        printFileUrls,
+
         fulfillmentStatus,
         printfulStatus,
-        printfulOrderId,
-        jobStatus: (job.status as string | null) ?? null,
-        errorMessage: (job.error_message as string | null) ?? null,
+        printfulOrderId: primaryPrintfulOrderId,
+        printfulOrderIds,
+
+        jobStatus: (g.jobs[0]?.status as string | null) ?? null,
+        errorMessage,
+
         paymentStatus,
+
         shippingName,
         shippingCity,
         shippingState,
         shippingPostalCode,
+
         email,
         amountTotal,
-        printFileUrl,
 
         trackingNumber: shipment?.tracking_number ?? null,
         trackingUrl: shipment?.tracking_url ?? null,
@@ -177,8 +274,12 @@ export async function GET(req: NextRequest) {
         shippedAt: shipment?.shipped_at ?? null,
         deliveredAt: shipment?.delivered_at ?? null,
         trackingEmailSentAt: shipment?.tracking_email_sent_at ?? null,
+        carrier: shipment?.carrier ?? null,
+        service: shipment?.service ?? null,
       };
     });
+
+    rows.sort((a: any, b: any) => safeTime(b.createdAt) - safeTime(a.createdAt));
 
     return NextResponse.json({ orders: rows });
   } catch (err) {
