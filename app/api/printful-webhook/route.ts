@@ -28,7 +28,6 @@ type PrintfulShipment = {
   deliveredAt?: string | null;
   reshipment?: boolean;
 
-  // Debug helpers
   rawShippedAt?: any;
   rawDeliveredAt?: any;
 };
@@ -40,7 +39,6 @@ function toIsoOrNull(v: any): string | null {
     const s = v.trim();
     if (!s) return null;
 
-    // Numeric string timestamps
     if (/^\d+(\.\d+)?$/.test(s)) {
       const n = Number(s);
       if (!Number.isFinite(n)) return null;
@@ -54,7 +52,6 @@ function toIsoOrNull(v: any): string | null {
   if (typeof v === "number") {
     if (!Number.isFinite(v)) return null;
 
-    // Values under 1e12 are almost certainly seconds, convert to ms
     const ms = v < 1_000_000_000_000 ? Math.round(v * 1000) : Math.round(v);
     const d = new Date(ms);
     return Number.isFinite(d.getTime()) ? d.toISOString() : null;
@@ -276,12 +273,26 @@ async function sendTrackingEmail(args: {
   });
 }
 
+function stringifyError(err: any): string {
+  try {
+    if (!err) return "Unknown error";
+    if (typeof err === "string") return err;
+    if (err instanceof Error) return `${err.name}: ${err.message}`;
+    return JSON.stringify(err);
+  } catch {
+    return "Unserializable error";
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!supabaseAdmin) {
     console.error(
       "[printful webhook] Supabase server environment variables are not configured",
     );
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Supabase not configured" },
+      { status: 500 },
+    );
   }
 
   let body: any;
@@ -338,7 +349,10 @@ export async function POST(req: NextRequest) {
 
   if (updateError) {
     console.error("[printful webhook] Error updating card_print_jobs", updateError);
-    return NextResponse.json({ error: "Failed to update print job" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update print job" },
+      { status: 500 },
+    );
   }
 
   if (!updatedJobs || updatedJobs.length === 0) {
@@ -426,41 +440,81 @@ export async function POST(req: NextRequest) {
     const { data: upserted, error: upsertErr } = await supabaseAdmin
       .from("order_shipments")
       .upsert(upsertRow, { onConflict: "order_id,printful_shipment_id" })
-      .select("id,tracking_email_sent_at")
+      .select("id,tracking_email_sent_at,tracking_email_claimed_at")
       .maybeSingle();
 
     if (upsertErr) {
-      console.error(
-        "[printful webhook] Failed to upsert order_shipments",
-        upsertErr,
-      );
+      console.error("[printful webhook] Failed to upsert order_shipments", upsertErr);
       continue;
     }
 
-    const alreadyEmailed = Boolean(upserted?.tracking_email_sent_at);
     const emailTo = (orderRow?.email as string | undefined) ?? null;
+    if (!emailTo || !upserted?.id) continue;
 
-    if (!alreadyEmailed && emailTo) {
-      try {
-        await sendTrackingEmail({
-          to: emailTo,
-          orderId,
-          trackingUrl: s.trackingUrl ?? null,
-          trackingNumber: s.trackingNumber ?? null,
-        });
+    const alreadySent = Boolean(upserted.tracking_email_sent_at);
+    if (alreadySent) {
+      continue;
+    }
 
-        await supabaseAdmin
-          .from("order_shipments")
-          .update({ tracking_email_sent_at: new Date().toISOString() })
-          .eq("id", upserted?.id);
+    const claimedAlready = Boolean(upserted.tracking_email_claimed_at);
+    if (claimedAlready) {
+      continue;
+    }
 
-        console.log(
-          "[printful webhook] Tracking email sent for shipment",
-          s.shipmentId,
-        );
-      } catch (err) {
-        console.error("[printful webhook] Tracking email failed", err);
-      }
+    const nowIso = new Date().toISOString();
+
+    const { data: claimed, error: claimErr } = await supabaseAdmin
+      .from("order_shipments")
+      .update({
+        tracking_email_claimed_at: nowIso,
+        tracking_email_error: null,
+      })
+      .eq("id", upserted.id)
+      .is("tracking_email_sent_at", null)
+      .is("tracking_email_claimed_at", null)
+      .select("id")
+      .maybeSingle();
+
+    if (claimErr) {
+      console.error("[printful webhook] Failed to claim tracking email send", claimErr);
+      continue;
+    }
+
+    if (!claimed) {
+      continue;
+    }
+
+    try {
+      await sendTrackingEmail({
+        to: emailTo,
+        orderId,
+        trackingUrl: s.trackingUrl ?? null,
+        trackingNumber: s.trackingNumber ?? null,
+      });
+
+      await supabaseAdmin
+        .from("order_shipments")
+        .update({
+          tracking_email_sent_at: new Date().toISOString(),
+          tracking_email_error: null,
+        })
+        .eq("id", upserted.id);
+
+      console.log(
+        "[printful webhook] Tracking email sent for shipment",
+        s.shipmentId,
+      );
+    } catch (err) {
+      const msg = stringifyError(err);
+      console.error("[printful webhook] Tracking email failed", err);
+
+      await supabaseAdmin
+        .from("order_shipments")
+        .update({
+          tracking_email_error: msg,
+          tracking_email_claimed_at: null,
+        })
+        .eq("id", upserted.id);
     }
   }
 
