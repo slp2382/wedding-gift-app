@@ -15,12 +15,8 @@ const supabaseAdmin =
       })
     : null;
 
-// Replace this with your real admin auth check
+// Replace this with your real admin auth check if needed
 async function requireAdmin(req: NextRequest): Promise<NextResponse | null> {
-  // If you already protect admin routes via cookie session, import and call that here.
-  // Example (adjust to your actual export):
-  // const res = await requireAdminSession(req)
-  // if (res) return res
   return null;
 }
 
@@ -61,7 +57,7 @@ function extractPrintfulCostsCents(rawPayload: any): number {
   const costs = p?.data?.order?.costs ?? null;
   if (!costs) return 0;
 
-  // Printful gives strings like "7.39" in USD
+  // Printful returns strings like "7.39"
   const total = costs?.total ?? null;
   return dollarsToCents(total);
 }
@@ -109,33 +105,9 @@ export async function GET(req: NextRequest) {
   const orderList = Array.isArray(orders) ? orders : [];
   const orderIds = orderList.map((o: any) => o.id).filter(Boolean);
 
-  // Bucket orders per day
-  const dayMap: Record<
-    string,
-    {
-      ordersCount: number;
-      revenueCents: number;
-      printfulCostCents: number;
-    }
-  > = {};
-
-  const orderDay: Record<string, string> = {};
-  for (const o of orderList) {
-    const created = new Date(o.created_at);
-    const day = ymdUTC(created);
-    orderDay[o.id] = day;
-
-    if (!dayMap[day]) {
-      dayMap[day] = { ordersCount: 0, revenueCents: 0, printfulCostCents: 0 };
-    }
-
-    dayMap[day].ordersCount += 1;
-    dayMap[day].revenueCents += Number(o.amount_total ?? 0) || 0;
-  }
-
-  // 2. Map orders to unique Printful order ids via card_print_jobs
-  let orderToPrintfulIds: Record<string, Set<string>> = {};
-  let allPrintfulIds: string[] = [];
+  // 2. Map each order to unique Printful order ids via card_print_jobs
+  const orderToPrintfulIds: Record<string, Set<string>> = {};
+  const allPrintfulIdsSet = new Set<string>();
 
   if (orderIds.length > 0) {
     const { data: jobs, error: jobsErr } = await supabaseAdmin
@@ -143,10 +115,11 @@ export async function GET(req: NextRequest) {
       .select("order_id, printful_order_id")
       .in("order_id", orderIds);
 
-    if (!jobsErr && Array.isArray(jobs)) {
-      orderToPrintfulIds = {};
-      const pfSet = new Set<string>();
+    if (jobsErr) {
+      return NextResponse.json({ error: "Failed to load print jobs" }, { status: 500 });
+    }
 
+    if (Array.isArray(jobs)) {
       for (const j of jobs) {
         const oid = j.order_id as string | null;
         const pfidRaw = j.printful_order_id;
@@ -155,29 +128,37 @@ export async function GET(req: NextRequest) {
         const pfid = String(pfidRaw);
         if (!orderToPrintfulIds[oid]) orderToPrintfulIds[oid] = new Set<string>();
         orderToPrintfulIds[oid].add(pfid);
-        pfSet.add(pfid);
+        allPrintfulIdsSet.add(pfid);
       }
-
-      allPrintfulIds = Array.from(pfSet);
     }
   }
 
-  // 3. Load shipment payloads for those Printful order ids and extract Printful costs
+  const allPrintfulIds = Array.from(allPrintfulIdsSet);
+
+  // 3. Load shipment payloads for those Printful order ids and extract latest Printful cost per Printful order id
   const printfulCostByPrintfulId: Record<string, number> = {};
+
   if (allPrintfulIds.length > 0) {
     const { data: shipments, error: shipErr } = await supabaseAdmin
       .from("order_shipments")
       .select("printful_order_id, updated_at, raw_payload")
       .in("printful_order_id", allPrintfulIds);
 
-    if (!shipErr && Array.isArray(shipments)) {
-      // Keep the latest shipment row per Printful order id
+    if (shipErr) {
+      return NextResponse.json({ error: "Failed to load shipments" }, { status: 500 });
+    }
+
+    if (Array.isArray(shipments)) {
       const latest: Record<string, { updated_at: string; raw_payload: any }> = {};
+
       for (const s of shipments) {
         const pfid = String(s.printful_order_id ?? "");
         if (!pfid) continue;
+
         const updatedAt = String(s.updated_at ?? "");
-        if (!latest[pfid] || updatedAt > latest[pfid].updated_at) {
+        const prev = latest[pfid];
+
+        if (!prev || updatedAt > prev.updated_at) {
           latest[pfid] = { updated_at: updatedAt, raw_payload: s.raw_payload };
         }
       }
@@ -188,19 +169,48 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 4. Allocate Printful costs to each order day using unique Printful order ids
-  for (const oid of Object.keys(orderToPrintfulIds)) {
-    const day = orderDay[oid];
-    if (!day || !dayMap[day]) continue;
-
-    let pfCents = 0;
-    for (const pfid of orderToPrintfulIds[oid]) {
-      pfCents += printfulCostByPrintfulId[pfid] ?? 0;
+  // 4. Compute Printful cost per GiftLink order by summing unique Printful order ids
+  const printfulCostByOrderId: Record<string, number> = {};
+  for (const oid of orderIds) {
+    const pfSet = orderToPrintfulIds[String(oid)];
+    if (!pfSet || pfSet.size === 0) {
+      printfulCostByOrderId[String(oid)] = 0;
+      continue;
     }
+
+    let cents = 0;
+    for (const pfid of pfSet) {
+      cents += printfulCostByPrintfulId[pfid] ?? 0;
+    }
+    printfulCostByOrderId[String(oid)] = cents;
+  }
+
+  // 5. Build day buckets, excluding any order with Printful cost 0
+  const dayMap: Record<
+    string,
+    { ordersCount: number; revenueCents: number; printfulCostCents: number }
+  > = {};
+
+  for (const o of orderList) {
+    const oid = String(o.id);
+    const pfCents = printfulCostByOrderId[oid] ?? 0;
+
+    // This is the new rule
+    if (pfCents <= 0) continue;
+
+    const created = new Date(o.created_at);
+    const day = ymdUTC(created);
+
+    if (!dayMap[day]) {
+      dayMap[day] = { ordersCount: 0, revenueCents: 0, printfulCostCents: 0 };
+    }
+
+    dayMap[day].ordersCount += 1;
+    dayMap[day].revenueCents += Number(o.amount_total ?? 0) || 0;
     dayMap[day].printfulCostCents += pfCents;
   }
 
-  // 5. Build rows with derived fields
+  // 6. Build rows for every day in range
   const daysInRange: string[] = [];
   {
     const cur = new Date(start);
@@ -217,8 +227,7 @@ export async function GET(req: NextRequest) {
     const v = dayMap[day] ?? { ordersCount: 0, revenueCents: 0, printfulCostCents: 0 };
     const avgOrderCents = v.ordersCount > 0 ? Math.round(v.revenueCents / v.ordersCount) : 0;
     const grossProfitCents = v.revenueCents - v.printfulCostCents;
-    const marginPct =
-      v.revenueCents > 0 ? (grossProfitCents / v.revenueCents) * 100 : null;
+    const marginPct = v.revenueCents > 0 ? (grossProfitCents / v.revenueCents) * 100 : null;
 
     return {
       day,
