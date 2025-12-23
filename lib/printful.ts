@@ -216,7 +216,7 @@ export async function createPrintfulOrderForCards(
     body: JSON.stringify({
       recipient,
       items,
-      confirm: false, // send as draft
+      confirm: true, // place order with printful
     }),
   });
 
