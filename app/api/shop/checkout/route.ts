@@ -26,6 +26,12 @@ type RecipientPayload = {
   zip: string;
 };
 
+function maskSecret(v: string | null | undefined): string | null {
+  if (!v) return null;
+  if (v.length <= 8) return "********";
+  return `${v.slice(0, 8)}...${v.slice(-4)}`;
+}
+
 function buildItemsMetadata(
   metadataItems: Array<{ templateId: string; size: string; quantity: number }>,
 ): Record<string, string> {
@@ -74,12 +80,45 @@ function buildItemsMetadata(
   return out;
 }
 
+function isStripeLikeError(err: any) {
+  return (
+    err &&
+    typeof err === "object" &&
+    (typeof err.type === "string" || typeof err.code === "string")
+  );
+}
+
 export async function POST(req: NextRequest) {
+  const debugEnabled =
+    req.headers.get("x-giftlink-debug") === "1" ||
+    req.nextUrl.searchParams.get("debug") === "1";
+
+  const debug: Record<string, any> = {
+    debugEnabled,
+    env: {
+      STRIPE_SECRET_KEY: maskSecret(process.env.STRIPE_SECRET_KEY ?? null),
+      STRIPE_SHOP_CARD_PRICE_ID: process.env.STRIPE_SHOP_CARD_PRICE_ID ?? null,
+      STRIPE_SHOP_SHIPPING_PRICE_ID:
+        process.env.STRIPE_SHOP_SHIPPING_PRICE_ID ?? null,
+      PRINTFUL_API_KEY: maskSecret(process.env.PRINTFUL_API_KEY ?? null),
+      VERCEL_ENV: process.env.VERCEL_ENV ?? null,
+      GIFTLINK_BASE_URL: process.env.GIFTLINK_BASE_URL ?? null,
+    },
+    request: {
+      originHeader: req.headers.get("origin"),
+      url: req.nextUrl.toString(),
+    },
+    computed: {},
+  };
+
   try {
     if (!stripe) {
       console.error("[shop/checkout] Missing STRIPE_SECRET_KEY");
       return NextResponse.json(
-        { error: "Stripe is not configured" },
+        {
+          error: "Stripe is not configured",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 500 },
       );
     }
@@ -87,7 +126,10 @@ export async function POST(req: NextRequest) {
     if (!PRINTFUL_API_KEY) {
       console.error("[shop/checkout] Missing PRINTFUL_API_KEY");
       return NextResponse.json(
-        { error: "Shipping is not configured" },
+        {
+          error: "Shipping is not configured",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 500 },
       );
     }
@@ -104,19 +146,39 @@ export async function POST(req: NextRequest) {
 
     if (!body || !Array.isArray(body.items) || body.items.length === 0) {
       console.error("[shop/checkout] Missing or empty items in request body");
-      return NextResponse.json({ error: "Your cart is empty" }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: "Your cart is empty",
+          ...(debugEnabled ? { debug } : {}),
+        },
+        { status: 400 },
+      );
     }
 
     if (!body.recipient) {
       console.error("[shop/checkout] Missing recipient in request body");
       return NextResponse.json(
-        { error: "Shipping address is required" },
+        {
+          error: "Shipping address is required",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 400 },
       );
     }
 
     const cartItems = body.items;
     const recipient = body.recipient;
+
+    debug.computed.origin = origin;
+    debug.computed.cartItems = cartItems.map((i) => ({
+      templateId: i.templateId,
+      quantity: i.quantity,
+    }));
+    debug.computed.recipientSummary = {
+      countryCode: recipient.countryCode,
+      stateCode: recipient.stateCode,
+      zip: recipient.zip,
+    };
 
     // Build Stripe line items from cart using pack based pricing (1, 3, 5)
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
@@ -125,6 +187,8 @@ export async function POST(req: NextRequest) {
       size: string;
       quantity: number;
     }> = [];
+
+    const priceIdsUsed: string[] = [];
 
     for (const item of cartItems) {
       const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
@@ -135,7 +199,10 @@ export async function POST(req: NextRequest) {
           item.templateId,
         );
         return NextResponse.json(
-          { error: "Unknown product in cart" },
+          {
+            error: "Unknown product in cart",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
@@ -144,7 +211,10 @@ export async function POST(req: NextRequest) {
       if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) {
         console.error("[shop/checkout] Invalid quantity in cart", item.quantity);
         return NextResponse.json(
-          { error: "Invalid quantity in cart" },
+          {
+            error: "Invalid quantity in cart",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
@@ -159,7 +229,10 @@ export async function POST(req: NextRequest) {
           (template as any).id ?? template,
         );
         return NextResponse.json(
-          { error: "Pricing not configured for this product" },
+          {
+            error: "Pricing not configured for this product",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 500 },
         );
       }
@@ -174,6 +247,7 @@ export async function POST(req: NextRequest) {
 
         while (remaining >= packSize) {
           lineItems.push({ price: priceId, quantity: 1 });
+          priceIdsUsed.push(priceId);
 
           metadataItems.push({
             templateId: (template as any).id ?? "",
@@ -193,7 +267,10 @@ export async function POST(req: NextRequest) {
           remaining,
         );
         return NextResponse.json(
-          { error: "Unsupported quantity in cart" },
+          {
+            error: "Unsupported quantity in cart",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
@@ -202,9 +279,61 @@ export async function POST(req: NextRequest) {
     if (lineItems.length === 0) {
       console.error("[shop/checkout] No valid line items after processing cart");
       return NextResponse.json(
-        { error: "No valid items in cart" },
+        {
+          error: "No valid items in cart",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 400 },
       );
+    }
+
+    debug.computed.lineItems = lineItems.map((li) => ({
+      price: (li as any).price ?? null,
+      quantity: (li as any).quantity ?? null,
+    }));
+    debug.computed.metadataItems = metadataItems;
+    debug.computed.priceIdsUsed = Array.from(new Set(priceIdsUsed));
+
+    // Optional price validation when debugging
+    if (debugEnabled) {
+      const uniquePriceIds = Array.from(new Set(priceIdsUsed));
+      const checks: Array<{ priceId: string; ok: boolean; info?: any }> = [];
+
+      for (const priceId of uniquePriceIds) {
+        try {
+          const p = await stripe.prices.retrieve(priceId);
+          checks.push({
+            priceId,
+            ok: true,
+            info: {
+              id: p.id,
+              active: p.active,
+              currency: p.currency,
+              livemode: p.livemode,
+              product: typeof p.product === "string" ? p.product : (p.product as any)?.id,
+              type: p.type,
+              unit_amount: p.unit_amount,
+            },
+          });
+        } catch (e: any) {
+          checks.push({
+            priceId,
+            ok: false,
+            info: isStripeLikeError(e)
+              ? {
+                  type: e.type,
+                  code: e.code,
+                  param: e.param,
+                  message: e.message,
+                  requestId: e.requestId,
+                  statusCode: e.statusCode,
+                }
+              : { message: String(e?.message ?? e) },
+          });
+        }
+      }
+
+      debug.computed.priceValidation = checks;
     }
 
     // Compute Printful shipping again on the server to avoid trusting the client
@@ -251,7 +380,10 @@ export async function POST(req: NextRequest) {
         "[shop/checkout] Could not map any items to Printful variants for shipping",
       );
       return NextResponse.json(
-        { error: "Could not calculate shipping for this cart" },
+        {
+          error: "Could not calculate shipping for this cart",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 400 },
       );
     }
@@ -262,6 +394,8 @@ export async function POST(req: NextRequest) {
         quantity,
       }),
     );
+
+    debug.computed.printfulShippingItems = itemsForPrintful;
 
     const shippingBody = {
       recipient: {
@@ -292,8 +426,15 @@ export async function POST(req: NextRequest) {
         shippingRes.status,
         text,
       );
+      debug.computed.printfulShippingError = {
+        status: shippingRes.status,
+        body: text.slice(0, 2000),
+      };
       return NextResponse.json(
-        { error: "Failed to calculate shipping" },
+        {
+          error: "Failed to calculate shipping",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 500 },
       );
     }
@@ -311,7 +452,10 @@ export async function POST(req: NextRequest) {
     if (!shippingJson.result || shippingJson.result.length === 0) {
       console.error("[shop/checkout] No shipping methods returned from Printful");
       return NextResponse.json(
-        { error: "No shipping methods available" },
+        {
+          error: "No shipping methods available",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 400 },
       );
     }
@@ -321,7 +465,10 @@ export async function POST(req: NextRequest) {
     if (!Number.isFinite(printfulRate)) {
       console.error("[shop/checkout] Invalid Printful rate value", best.rate);
       return NextResponse.json(
-        { error: "Invalid shipping rate received" },
+        {
+          error: "Invalid shipping rate received",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 500 },
       );
     }
@@ -333,6 +480,16 @@ export async function POST(req: NextRequest) {
     const totalCards = metadataItems.reduce((sum, item) => sum + item.quantity, 0);
 
     const itemsMetadata = buildItemsMetadata(metadataItems);
+
+    debug.computed.shipping = {
+      methodId: best.id,
+      methodName: best.name,
+      printfulRateCents,
+      handlingCents,
+      totalShippingCents,
+      currency: best.currency,
+    };
+    debug.computed.totalCards = totalCards;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -372,11 +529,41 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    return NextResponse.json({ url: session.url }, { status: 200 });
-  } catch (err) {
-    console.error("Error creating shop checkout session", err);
+    debug.computed.session = {
+      id: session.id,
+      url: session.url,
+      livemode: session.livemode,
+    };
+
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
+      { url: session.url, ...(debugEnabled ? { debug } : {}) },
+      { status: 200 },
+    );
+  } catch (err: any) {
+    console.error("Error creating shop checkout session", err);
+
+    const stripeErr = isStripeLikeError(err)
+      ? {
+          type: err.type,
+          code: err.code,
+          param: err.param,
+          message: err.message,
+          requestId: err.requestId,
+          statusCode: err.statusCode,
+        }
+      : null;
+
+    if (stripeErr) {
+      debug.computed.stripeError = stripeErr;
+    } else {
+      debug.computed.error = { message: String(err?.message ?? err) };
+    }
+
+    return NextResponse.json(
+      {
+        error: "Failed to create checkout session",
+        ...(debugEnabled ? { debug } : {}),
+      },
       { status: 500 },
     );
   }
