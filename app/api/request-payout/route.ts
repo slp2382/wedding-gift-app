@@ -53,6 +53,20 @@ export async function POST(req: NextRequest) {
     const contactNameClean = String(contactName).trim();
     const contactEmailClean = String(contactEmail).trim();
 
+    if (!contactNameClean) {
+      return NextResponse.json(
+        { error: "contactName is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!contactEmailClean) {
+      return NextResponse.json(
+        { error: "contactEmail is required" },
+        { status: 400 },
+      );
+    }
+
     const { data: card, error: cardError } = await supabase
       .from("cards")
       .select("id, card_id, amount, claimed, payout_request_id")
@@ -72,6 +86,53 @@ export async function POST(req: NextRequest) {
     }
 
     if (card.payout_request_id) {
+      const { data: existingReq, error: existingReqErr } = await supabase
+        .from("payout_requests")
+        .select("id,status,payout_method")
+        .eq("id", card.payout_request_id)
+        .maybeSingle();
+
+      if (existingReqErr) {
+        console.warn(
+          "request payout: failed to load existing payout request",
+          existingReqErr,
+        );
+      }
+
+      if (existingReq?.id) {
+        const existingStatus = String(existingReq.status ?? "")
+          .trim()
+          .toLowerCase();
+        const existingMethod = String(existingReq.payout_method ?? "")
+          .trim()
+          .toLowerCase();
+
+        const stripeMethods = new Set(["stripe_connect", "bank_transfer"]);
+        const terminal = new Set(["paid", "completed", "succeeded"]);
+
+        const isExistingStripe = stripeMethods.has(existingMethod);
+        const isRequestedStripe = stripeMethods.has(payoutMethodNorm);
+
+        if (isExistingStripe && isRequestedStripe && !terminal.has(existingStatus)) {
+          return NextResponse.json({
+            ok: true,
+            payoutRequestId: existingReq.id,
+            reused: true,
+            status: existingReq.status ?? null,
+          });
+        }
+
+        return NextResponse.json(
+          {
+            error: "A payout request has already been created for this card.",
+            payoutRequestId: existingReq.id,
+            status: existingReq.status ?? null,
+            payoutMethod: existingReq.payout_method ?? null,
+          },
+          { status: 400 },
+        );
+      }
+
       return NextResponse.json(
         { error: "A payout request has already been created for this card." },
         { status: 400 },
@@ -102,8 +163,6 @@ export async function POST(req: NextRequest) {
         status: payoutMethodNorm === "venmo" ? "pending" : "not_onboarded",
         payout_amount_cents: amountCents,
         payout_currency: "usd",
-        stripe_connect_status:
-          payoutMethodNorm === "stripe_connect" ? "not_onboarded" : "not_onboarded",
       })
       .select("id")
       .single();
@@ -111,7 +170,7 @@ export async function POST(req: NextRequest) {
     if (insertError || !inserted) {
       console.error("request payout: insert error", insertError);
       return NextResponse.json(
-        { error: "Failed to create payout request." },
+        { error: "Failed to create payout request" },
         { status: 500 },
       );
     }
