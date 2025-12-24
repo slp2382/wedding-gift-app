@@ -32,9 +32,7 @@ async function createAndStoreAccount(args: {
       transfers: { requested: true },
       card_payments: { requested: true },
     },
-    business_profile: {
-      product_description: "Receive wedding gifts through GiftLink",
-    },
+    
     email: args.email ?? undefined,
   });
 

@@ -14,7 +14,6 @@ async function isUsableConnectedAccount(accountId: string): Promise<boolean> {
     const acct = await stripe.accounts.retrieve(accountId);
     if (!acct || typeof acct !== "object") return false;
 
-    // Stripe returns livemode on Account objects
     const live = Boolean((acct as any).livemode);
     return live === expectedLivemode();
   } catch {
@@ -42,12 +41,17 @@ export async function POST(req: NextRequest) {
 
     if (error || !payoutRequest) {
       console.error("payout_requests lookup error", error);
-      return NextResponse.json({ error: "Payout request not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Payout request not found" },
+        { status: 404 },
+      );
     }
 
     // If it already has a connect account, verify it belongs to the current Stripe mode
     if (payoutRequest.stripe_connect_account_id) {
-      const ok = await isUsableConnectedAccount(payoutRequest.stripe_connect_account_id);
+      const ok = await isUsableConnectedAccount(
+        payoutRequest.stripe_connect_account_id,
+      );
       if (ok) {
         return NextResponse.json({
           accountId: payoutRequest.stripe_connect_account_id,
@@ -66,44 +70,13 @@ export async function POST(req: NextRequest) {
         .eq("id", payoutRequestId);
     }
 
-    // Optional reuse logic by email, but only if the account is valid for this Stripe key and mode
-    if (payoutRequest.contact_email) {
-      const { data: existing } = await supabase
-        .from("payout_requests")
-        .select("stripe_connect_account_id, stripe_connect_status")
-        .eq("contact_email", payoutRequest.contact_email)
-        .not("stripe_connect_account_id", "is", null)
-        .limit(1)
-        .maybeSingle();
-
-      const existingId = existing?.stripe_connect_account_id ?? null;
-      if (existingId && (await isUsableConnectedAccount(existingId))) {
-        await supabase
-          .from("payout_requests")
-          .update({
-            stripe_connect_account_id: existingId,
-            stripe_connect_status: existing?.stripe_connect_status ?? "onboarding",
-          })
-          .eq("id", payoutRequestId);
-
-        return NextResponse.json({
-          accountId: existingId,
-          status: existing?.stripe_connect_status ?? "onboarding",
-          reused: true,
-        });
-      }
-    }
-
     // Create a brand new Express account for this payout request
     const account = await stripe.accounts.create({
       type: "express",
+      business_type: "individual",
       capabilities: {
         transfers: { requested: true },
         card_payments: { requested: true },
-      },
-      business_type: "individual",
-      business_profile: {
-        product_description: "Receive wedding gifts through GiftLink",
       },
       email: payoutRequest.contact_email ?? undefined,
     });
@@ -124,7 +97,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ accountId: account.id, status: "onboarding", reused: false });
+    return NextResponse.json({
+      accountId: account.id,
+      status: "onboarding",
+      reused: false,
+    });
   } catch (err: any) {
     console.error("createAccount error", err);
     return NextResponse.json(
