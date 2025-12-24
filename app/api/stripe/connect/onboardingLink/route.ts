@@ -30,6 +30,7 @@ async function createAndStoreAccount(args: {
     business_type: "individual",
     capabilities: {
       transfers: { requested: true },
+      card_payments: { requested: true },
     },
     business_profile: {
       product_description: "Receive wedding gifts through GiftLink",
