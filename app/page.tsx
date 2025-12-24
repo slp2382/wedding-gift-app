@@ -51,7 +51,7 @@ export default function HomePage() {
               <p className="max-w-xl text-sm text-slate-900/80 dark:text-slate-100/80">
                 GiftLink turns a simple card into a QR powered gift. Guests scan
                 a card, load a monetary gift through Stripe, and the couple
-                scans the same card to claim their funds later. No envelopes, no
+                scans the same card to claim their funds later. No ATM, no
                 loose cash.
               </p>
 
