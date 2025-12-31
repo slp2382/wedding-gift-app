@@ -34,9 +34,9 @@ export default function CardPage() {
   const [payoutName, setPayoutName] = useState("");
   const [payoutEmail, setPayoutEmail] = useState("");
   // Now support Venmo or Stripe Connect
-  const [payoutMethod, setPayoutMethod] = useState<
-    "venmo" | "stripe_connect"
-  >("venmo");
+  const [payoutMethod, setPayoutMethod] = useState<"venmo" | "stripe_connect">(
+    "venmo",
+  );
   const [payoutDetails, setPayoutDetails] = useState("");
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutError, setPayoutError] = useState<string | null>(null);
@@ -62,9 +62,7 @@ export default function CardPage() {
 
       if (error) {
         console.error("Supabase select error:", error);
-        setErrorMessage(
-          error.message || "Card not found or something went wrong.",
-        );
+        setErrorMessage(error.message || "Card not found or something went wrong.");
         setCard(null);
       } else {
         setCard(data as CardRecord);
@@ -124,8 +122,7 @@ export default function CardPage() {
       if (!response.ok) {
         const result = await response.json().catch(() => null);
         const message =
-          (result && result.error) ||
-          "Could not start checkout. Please try again.";
+          (result && result.error) || "Could not start checkout. Please try again.";
         setGuestError(message);
         setLoadingCheckout(false);
         return;
@@ -137,16 +134,12 @@ export default function CardPage() {
       if (redirectUrl) {
         window.location.href = redirectUrl;
       } else {
-        setGuestError(
-          "Checkout link was not returned. Please try again.",
-        );
+        setGuestError("Checkout link was not returned. Please try again.");
         setLoadingCheckout(false);
       }
     } catch (err) {
       console.error("Error starting Stripe checkout:", err);
-      setGuestError(
-        "Something went wrong while starting secure checkout.",
-      );
+      setGuestError("Something went wrong while starting secure checkout.");
       setLoadingCheckout(false);
     }
   }
@@ -167,9 +160,7 @@ export default function CardPage() {
     }
 
     if (!email) {
-      setPayoutError(
-        "Please enter your email so we can contact you about the payout.",
-      );
+      setPayoutError("Please enter your email so we can contact you about the payout.");
       return;
     }
 
@@ -234,9 +225,7 @@ export default function CardPage() {
       setShowClaimForm(false);
     } catch (err) {
       console.error("Error submitting payout request:", err);
-      setPayoutError(
-        "Something went wrong while submitting your payout request.",
-      );
+      setPayoutError("Something went wrong while submitting your payout request.");
     }
 
     setPayoutLoading(false);
@@ -257,9 +246,7 @@ export default function CardPage() {
     }
 
     if (!email) {
-      setPayoutError(
-        "Please enter your email so we can contact you about the payout.",
-      );
+      setPayoutError("Please enter your email so we can contact you about the payout.");
       return;
     }
 
@@ -284,8 +271,7 @@ export default function CardPage() {
       if (!res.ok) {
         const result = await res.json().catch(() => null);
         const message =
-          (result && result.error) ||
-          "Could not start Stripe payout. Please try again.";
+          (result && result.error) || "Could not start Stripe payout. Please try again.";
         setPayoutError(message);
         setPayoutLoading(false);
         return;
@@ -300,14 +286,11 @@ export default function CardPage() {
       }
 
       // 2) Ensure a Connect account exists
-      const createAccountRes = await fetch(
-        "/api/stripe/connect/createAccount",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payoutRequestId }),
-        },
-      );
+      const createAccountRes = await fetch("/api/stripe/connect/createAccount", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payoutRequestId }),
+      });
 
       if (!createAccountRes.ok) {
         const result = await createAccountRes.json().catch(() => null);
@@ -320,21 +303,17 @@ export default function CardPage() {
       }
 
       // 3) Get onboarding link
-      const onboardingRes = await fetch(
-        "/api/stripe/connect/onboardingLink",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payoutRequestId }),
-        },
-      );
+      const onboardingRes = await fetch("/api/stripe/connect/onboardingLink", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payoutRequestId }),
+      });
 
       const onboardingData = await onboardingRes.json();
 
       if (!onboardingRes.ok || !onboardingData.url) {
         const message =
-          onboardingData.error ||
-          "Could not start Stripe onboarding. Please try again.";
+          onboardingData.error || "Could not start Stripe onboarding. Please try again.";
         setPayoutError(message);
         setPayoutLoading(false);
         return;
@@ -344,9 +323,7 @@ export default function CardPage() {
       window.location.href = onboardingData.url;
     } catch (err) {
       console.error("Error starting Stripe payout:", err);
-      setPayoutError(
-        "Something went wrong while starting bank payout setup.",
-      );
+      setPayoutError("Something went wrong while starting bank payout setup.");
       setPayoutLoading(false);
     }
   }
@@ -358,17 +335,11 @@ export default function CardPage() {
         <header className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-500 shadow-md shadow-emerald-400/40">
-              <span className="text-lg font-semibold text-emerald-50">
-                G
-              </span>
+              <span className="text-lg font-semibold text-emerald-50">G</span>
             </div>
             <div className="leading-tight">
-              <p className="text-lg font-semibold tracking-tight">
-                GiftLink
-              </p>
-              <p className="text-xs text-emerald-700/80">
-                Wedding gift QR cards
-              </p>
+              <p className="text-lg font-semibold tracking-tight">GiftLink</p>
+              <p className="text-xs text-emerald-700/80">Wedding gift QR cards</p>
             </div>
           </div>
 
@@ -408,21 +379,16 @@ export default function CardPage() {
           {/* Loading state */}
           {loading && (
             <section className="mt-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-6 text-center shadow-lg shadow-emerald-100/80 backdrop-blur-sm">
-              <p className="text-sm text-emerald-900/90">
-                Loading card details…
-              </p>
+              <p className="text-sm text-emerald-900/90">Loading card details…</p>
             </section>
           )}
 
           {/* Error / not found */}
           {!loading && errorMessage && !card && (
             <section className="mt-4 rounded-2xl border border-rose-200/80 bg-rose-50/80 p-6 text-center shadow-md shadow-rose-100/60 backdrop-blur-sm">
-              <p className="text-sm font-medium text-rose-700">
-                {errorMessage}
-              </p>
+              <p className="text-sm font-medium text-rose-700">{errorMessage}</p>
               <p className="mt-2 text-xs text-rose-700/80">
-                Try scanning a different QR or creating a fresh card from the
-                homepage.
+                Try scanning a different QR or creating a fresh card from the homepage.
               </p>
             </section>
           )}
@@ -495,9 +461,7 @@ export default function CardPage() {
                     <p className="text-sm text-emerald-800/80">From</p>
                     <p className="text-lg font-semibold">
                       {card.giver_name ||
-                        (isFunded
-                          ? "A generous guest"
-                          : "Waiting for a guest to load")}
+                        (isFunded ? "A generous guest" : "Waiting for a guest to load")}
                     </p>
                   </div>
                   <div className="text-right">
@@ -537,21 +501,17 @@ export default function CardPage() {
                   ) : isFunded ? (
                     <>
                       <p className="text-sm text-emerald-900/90">
-                        Choose how you would like to receive this gift, then
-                        enter your details to claim it.
+                        Choose how you would like to receive this gift, then enter
+                        your details to claim it.
                       </p>
 
                       {/* Payout method toggle */}
                       <div className="mt-2 flex flex-col gap-2 text-xs">
-                        <p className="font-medium text-emerald-900/90">
-                          Payout method
-                        </p>
+                        <p className="font-medium text-emerald-900/90">Payout method</p>
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() =>
-                              setPayoutMethod("venmo")
-                            }
+                            onClick={() => setPayoutMethod("venmo")}
                             className={`rounded-full border px-3 py-1 text-xs font-medium ${
                               payoutMethod === "venmo"
                                 ? "border-emerald-600 bg-emerald-600 text-emerald-50"
@@ -562,9 +522,7 @@ export default function CardPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() =>
-                              setPayoutMethod("stripe_connect")
-                            }
+                            onClick={() => setPayoutMethod("stripe_connect")}
                             className={`rounded-full border px-3 py-1 text-xs font-medium ${
                               payoutMethod === "stripe_connect"
                                 ? "border-emerald-600 bg-emerald-600 text-emerald-50"
@@ -578,9 +536,7 @@ export default function CardPage() {
 
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowClaimForm((v) => !v)
-                        }
+                        onClick={() => setShowClaimForm((v) => !v)}
                         className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         {showClaimForm
@@ -605,9 +561,10 @@ export default function CardPage() {
                           {payoutMethod === "venmo" ? (
                             <>
                               <p className="mb-3 text-xs text-emerald-800/90">
-                                For now, we send payouts via Venmo. Enter your
-                                name, email, and Venmo handle and we&apos;ll
-                                review and send your gift there shortly.
+                                For now, we send payouts via Venmo. Enter your name,
+                                email, and Venmo handle and we&apos;ll review and send
+                                your gift there shortly. Venmo is fast and free and
+                                payouts generally process in a few hours.
                               </p>
 
                               <form
@@ -622,11 +579,7 @@ export default function CardPage() {
                                     <input
                                       type="text"
                                       value={payoutName}
-                                      onChange={(e) =>
-                                        setPayoutName(
-                                          e.target.value,
-                                        )
-                                      }
+                                      onChange={(e) => setPayoutName(e.target.value)}
                                       className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                       placeholder="Name for payout"
                                     />
@@ -638,11 +591,7 @@ export default function CardPage() {
                                     <input
                                       type="email"
                                       value={payoutEmail}
-                                      onChange={(e) =>
-                                        setPayoutEmail(
-                                          e.target.value,
-                                        )
-                                      }
+                                      onChange={(e) => setPayoutEmail(e.target.value)}
                                       className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                       placeholder="you@example.com"
                                     />
@@ -656,18 +605,13 @@ export default function CardPage() {
                                   <input
                                     type="text"
                                     value={payoutDetails}
-                                    onChange={(e) =>
-                                      setPayoutDetails(
-                                        e.target.value,
-                                      )
-                                    }
+                                    onChange={(e) => setPayoutDetails(e.target.value)}
                                     className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                     placeholder="@your-venmo-handle"
                                   />
                                   <p className="mt-1 text-[11px] text-emerald-800/90">
-                                    We’ll use this Venmo handle to send your
-                                    gift. Make sure it matches your Venmo
-                                    profile exactly.
+                                    We’ll use this Venmo handle to send your gift.
+                                    Make sure it matches your Venmo profile exactly.
                                   </p>
                                 </div>
 
@@ -682,25 +626,21 @@ export default function CardPage() {
                                   disabled={payoutLoading}
                                   className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
-                                  {payoutLoading
-                                    ? "Sending claim…"
-                                    : "Submit Venmo details"}
+                                  {payoutLoading ? "Sending claim…" : "Submit Venmo details"}
                                 </button>
                               </form>
                             </>
                           ) : (
                             <>
                               <p className="mb-3 text-xs text-emerald-800/90">
-                                We&apos;ll connect to Stripe to securely set up
-                                a bank payout. Enter your name and email, then
-                                we&apos;ll take you to Stripe to add your bank
-                                details.
+                                We&apos;ll connect to Stripe to securely set up a bank
+                                payout. Enter your name and email, then we&apos;ll take
+                                you to Stripe to add your bank details. Bank payouts
+                                can take 3 to 5 business days and a payout processing
+                                fee applies and will be deducted from the gift amount.
                               </p>
 
-                              <form
-                                onSubmit={handleStripePayout}
-                                className="space-y-3"
-                              >
+                              <form onSubmit={handleStripePayout} className="space-y-3">
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
                                     <label className="mb-1 block text-xs font-medium text-emerald-900/90">
@@ -709,11 +649,7 @@ export default function CardPage() {
                                     <input
                                       type="text"
                                       value={payoutName}
-                                      onChange={(e) =>
-                                        setPayoutName(
-                                          e.target.value,
-                                        )
-                                      }
+                                      onChange={(e) => setPayoutName(e.target.value)}
                                       className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                       placeholder="Name for payout"
                                     />
@@ -725,11 +661,7 @@ export default function CardPage() {
                                     <input
                                       type="email"
                                       value={payoutEmail}
-                                      onChange={(e) =>
-                                        setPayoutEmail(
-                                          e.target.value,
-                                        )
-                                      }
+                                      onChange={(e) => setPayoutEmail(e.target.value)}
                                       className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                       placeholder="you@example.com"
                                     />
@@ -737,9 +669,7 @@ export default function CardPage() {
                                 </div>
 
                                 {payoutError && (
-                                  <p className="text-xs text-rose-600">
-                                    {payoutError}
-                                  </p>
+                                  <p className="text-xs text-rose-600">{payoutError}</p>
                                 )}
 
                                 <button
@@ -762,16 +692,12 @@ export default function CardPage() {
                       {isBlankStoreCard ? (
                         <>
                           <p className="text-sm text-amber-900">
-                            This GiftLink card is ready for a guest to load.
-                            When someone uses this QR link to send a gift,
-                            the amount and their name will appear here for
-                            the couple to claim.
+                            This GiftLink card is ready for a guest to load. When
+                            someone uses this QR link to send a gift, the amount and
+                            their name will appear here for the couple to claim.
                           </p>
 
-                          <form
-                            onSubmit={handleGuestLoad}
-                            className="mt-3 space-y-3"
-                          >
+                          <form onSubmit={handleGuestLoad} className="mt-3 space-y-3">
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div>
                                 <label className="mb-1 block text-xs font-medium text-emerald-900/90">
@@ -780,9 +706,7 @@ export default function CardPage() {
                                 <input
                                   type="text"
                                   value={guestName}
-                                  onChange={(e) =>
-                                    setGuestName(e.target.value)
-                                  }
+                                  onChange={(e) => setGuestName(e.target.value)}
                                   className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                   placeholder="Jane Guest"
                                 />
@@ -800,9 +724,7 @@ export default function CardPage() {
                                     min="1"
                                     step="1"
                                     value={guestAmount}
-                                    onChange={(e) =>
-                                      setGuestAmount(e.target.value)
-                                    }
+                                    onChange={(e) => setGuestAmount(e.target.value)}
                                     className="w-full rounded-xl border border-emerald-200 bg-emerald-50 pl-6 pr-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                     placeholder="100"
                                   />
@@ -817,9 +739,7 @@ export default function CardPage() {
                               <textarea
                                 rows={2}
                                 value={guestNote}
-                                onChange={(e) =>
-                                  setGuestNote(e.target.value)
-                                }
+                                onChange={(e) => setGuestNote(e.target.value)}
                                 className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                 placeholder="Add a short message for the couple"
                               />
@@ -836,19 +756,17 @@ export default function CardPage() {
                             </button>
 
                             {guestError && (
-                              <p className="text-sm text-rose-600">
-                                {guestError}
-                              </p>
+                              <p className="text-sm text-rose-600">{guestError}</p>
                             )}
                           </form>
                         </>
                       ) : (
                         <>
                           <p className="text-sm text-amber-900">
-                            This GiftLink hasn&apos;t been loaded yet. Once a
-                            guest uses the QR code to send a wedding gift, the
-                            amount and their name will show up here and
-                            you&apos;ll be able to claim it.
+                            This GiftLink hasn&apos;t been loaded yet. Once a guest
+                            uses the QR code to send a wedding gift, the amount and
+                            their name will show up here and you&apos;ll be able to
+                            claim it.
                           </p>
                           <button
                             disabled
@@ -873,6 +791,16 @@ export default function CardPage() {
             >
               Back to create a new GiftLink card
             </Link>
+          </div>
+
+          <div className="mt-3 text-center text-xs text-emerald-800/80">
+            Need help? Contact{" "}
+            <a
+              href="mailto:admin@giftlink.cards"
+              className="font-medium underline-offset-4 hover:underline"
+            >
+              admin@giftlink.cards
+            </a>
           </div>
         </main>
       </div>
