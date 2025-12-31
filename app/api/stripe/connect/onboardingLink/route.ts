@@ -30,7 +30,6 @@ async function createAndStoreAccount(args: {
     business_type: "individual",
     capabilities: {
       transfers: { requested: true },
-      card_payments: { requested: true },
     },
     
     email: args.email ?? undefined,

@@ -76,7 +76,6 @@ export async function POST(req: NextRequest) {
       business_type: "individual",
       capabilities: {
         transfers: { requested: true },
-        card_payments: { requested: true },
       },
       email: payoutRequest.contact_email ?? undefined,
     });
