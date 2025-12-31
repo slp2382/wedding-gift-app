@@ -17,9 +17,17 @@ type CardRecord = {
 const BANK_PAYOUT_NOTICE =
   "A GiftLink fee of 3.5 percent plus $0.30 will be deducted from your payout amount. Bank payouts typically arrive within 3 business days.";
 
+function firstParamValue(v: string | string[] | undefined): string {
+  if (!v) return "";
+  return Array.isArray(v) ? v[0] ?? "" : v;
+}
+
 export default function CardPage() {
-  const params = useParams() as { id?: string };
-  const cardId = params?.id ?? "";
+  const params = useParams() as Record<string, string | string[] | undefined>;
+
+  // Supports either route segment name: [id] or [cardId]
+  const cardId =
+    firstParamValue(params.id) || firstParamValue(params.cardId) || "";
 
   const [loading, setLoading] = useState(true);
   const [card, setCard] = useState<CardRecord | null>(null);
@@ -52,30 +60,46 @@ export default function CardPage() {
     let cancelled = false;
 
     async function loadCard() {
-      if (!cardId) return;
+      if (!cardId) {
+        setError("Missing card id");
+        setCard(null);
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       setError(null);
 
-      const { data, error: err } = await supabase
-        .from("cards")
-        .select("card_id,giver_name,amount,note,claimed,created_at")
-        .eq("card_id", cardId)
-        .maybeSingle();
+      try {
+        const { data, error: err } = await supabase
+          .from("cards")
+          .select("card_id,giver_name,amount,note,claimed,created_at")
+          .eq("card_id", cardId)
+          .maybeSingle();
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (err) {
-        setError(err.message);
-        setCard(null);
-      } else if (!data) {
-        setError("Card not found");
-        setCard(null);
-      } else {
+        if (err) {
+          setError(err.message);
+          setCard(null);
+          return;
+        }
+
+        if (!data) {
+          setError("Card not found");
+          setCard(null);
+          return;
+        }
+
         setCard(data as CardRecord);
+      } catch (err: any) {
+        if (cancelled) return;
+        setError(err?.message ?? "Unexpected error while loading card");
+        setCard(null);
+      } finally {
+        if (cancelled) return;
+        setLoading(false);
       }
-
-      setLoading(false);
     }
 
     loadCard();
@@ -491,8 +515,8 @@ export default function CardPage() {
                     {showClaimForm
                       ? "Hide claim form"
                       : payoutMethod === "venmo"
-                      ? "Claim gift via Venmo"
-                      : "Claim gift via bank payout"}
+                        ? "Claim gift via Venmo"
+                        : "Claim gift via bank payout"}
                   </button>
 
                   {payoutSuccess && (
@@ -602,10 +626,7 @@ export default function CardPage() {
           <div className="mt-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
             <p>
               Need help? Email{" "}
-              <a
-                className="underline"
-                href="mailto:support@giftlink.cards"
-              >
+              <a className="underline" href="mailto:support@giftlink.cards">
                 support@giftlink.cards
               </a>
             </p>
