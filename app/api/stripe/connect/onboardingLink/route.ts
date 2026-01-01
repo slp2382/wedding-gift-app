@@ -5,6 +5,11 @@ import { stripe } from "../../../../../lib/stripe";
 
 export const runtime = "nodejs";
 
+const DEFAULT_BUSINESS_PROFILE = {
+  url: "https://giftlink.cards",
+  product_description: "One time gift recipient receiving a payout from GiftLink.",
+};
+
 function expectedLivemode(): boolean {
   const key = process.env.STRIPE_SECRET_KEY ?? "";
   return key.startsWith("sk_live_");
@@ -20,6 +25,16 @@ async function isUsableConnectedAccount(accountId: string): Promise<boolean> {
   }
 }
 
+async function ensureBusinessProfilePrefill(accountId: string): Promise<void> {
+  try {
+    await stripe.accounts.update(accountId, {
+      business_profile: DEFAULT_BUSINESS_PROFILE,
+    });
+  } catch (err) {
+    console.error("onboardingLink: business_profile prefill update error", err);
+  }
+}
+
 async function createAndStoreAccount(args: {
   supabase: any;
   payoutRequestId: string;
@@ -31,8 +46,8 @@ async function createAndStoreAccount(args: {
     capabilities: {
       transfers: { requested: true },
     },
-    
     email: args.email ?? undefined,
+    business_profile: DEFAULT_BUSINESS_PROFILE,
   });
 
   await args.supabase
@@ -62,7 +77,10 @@ export async function POST(req: NextRequest) {
     const { payoutRequestId } = body || {};
 
     if (!payoutRequestId) {
-      return NextResponse.json({ error: "payoutRequestId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "payoutRequestId is required" },
+        { status: 400 },
+      );
     }
 
     const { data: payout, error: payoutError } = await supabase
@@ -73,7 +91,10 @@ export async function POST(req: NextRequest) {
 
     if (payoutError || !payout) {
       console.error("onboardingLink: payout_request lookup error", payoutError);
-      return NextResponse.json({ error: "Payout request not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Payout request not found" },
+        { status: 404 },
+      );
     }
 
     let accountId: string | null = payout.stripe_connect_account_id ?? null;
@@ -91,6 +112,9 @@ export async function POST(req: NextRequest) {
         payoutRequestId,
         email: payout.contact_email ?? null,
       });
+    } else {
+      // Prefill business profile fields so recipients do not need to provide a website
+      await ensureBusinessProfilePrefill(accountId);
     }
 
     const baseUrl =
@@ -118,7 +142,10 @@ export async function POST(req: NextRequest) {
     } catch (err: any) {
       if (!isAccountLinkMismatchError(err)) throw err;
 
-      console.warn("onboardingLink: stale connect account, recreating", err?.message ?? err);
+      console.warn(
+        "onboardingLink: stale connect account, recreating",
+        err?.message ?? err,
+      );
 
       // Recreate account and retry
       const newAccountId = await createAndStoreAccount({

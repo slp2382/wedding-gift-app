@@ -561,9 +561,9 @@ export default function CardPage() {
                           {payoutMethod === "venmo" ? (
                             <>
                               <p className="mb-3 text-xs text-emerald-800/90">
-                                For now, we send payouts via Venmo. Enter your name,
-                                email, and Venmo handle and we&apos;ll review and send
-                                your gift there shortly. Venmo is fast and free and
+                                Enter your name, email, and Venmo handle and we&apos;ll 
+                                review and send your gift there shortly. 
+                                Venmo is fast and free and
                                 payouts generally process in a few hours.
                               </p>
 
@@ -638,6 +638,7 @@ export default function CardPage() {
                                 you to Stripe to add your bank details. Bank payouts
                                 can take 3 to 5 business days and a payout processing
                                 fee applies and will be deducted from the gift amount.
+                                (Processing fee of 3.5% of gift amount plus $0.30)
                               </p>
 
                               <form onSubmit={handleStripePayout} className="space-y-3">

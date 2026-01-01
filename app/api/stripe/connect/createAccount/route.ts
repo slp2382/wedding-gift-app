@@ -53,6 +53,18 @@ export async function POST(req: NextRequest) {
         payoutRequest.stripe_connect_account_id,
       );
       if (ok) {
+        try {
+          await stripe.accounts.update(payoutRequest.stripe_connect_account_id, {
+            business_profile: {
+              url: "https://giftlink.cards",
+              product_description:
+                "One time gift recipient receiving a payout from GiftLink.",
+            },
+          });
+        } catch (err) {
+          console.error("connect account business_profile update error", err);
+        }
+
         return NextResponse.json({
           accountId: payoutRequest.stripe_connect_account_id,
           status: payoutRequest.stripe_connect_status,
@@ -78,6 +90,10 @@ export async function POST(req: NextRequest) {
         transfers: { requested: true },
       },
       email: payoutRequest.contact_email ?? undefined,
+      business_profile: {
+        url: "https://giftlink.cards",
+        product_description: "One time gift recipient receiving a payout from GiftLink.",
+      },
     });
 
     const { error: updateError } = await supabase
