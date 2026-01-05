@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "../providers/CartProvider";
@@ -26,6 +26,24 @@ type ShippingQuoteResponse = {
   methodName: string;
 };
 
+type DiscountPreviewOk = {
+  ok: true;
+  code: string;
+  discountType: "percent" | "fixed";
+  discountValue: number;
+  discountAmountCents: number;
+  productSubtotalCents: number;
+  productSubtotalAfterDiscountCents: number;
+  message?: string;
+};
+
+type DiscountPreviewErr = {
+  ok: false;
+  error: string;
+};
+
+type DiscountPreviewResponse = DiscountPreviewOk | DiscountPreviewErr;
+
 export default function CartPage() {
   const { items, removeItem, clearCart, itemCount } = useCart();
   const router = useRouter();
@@ -43,6 +61,17 @@ export default function CartPage() {
 
   const [shippingQuote, setShippingQuote] = useState<ShippingQuoteResponse | null>(null);
   const [quoting, setQuoting] = useState(false);
+
+  const [discountInput, setDiscountInput] = useState("");
+  const [discountApplying, setDiscountApplying] = useState(false);
+  const [appliedDiscount, setAppliedDiscount] = useState<DiscountPreviewOk | null>(null);
+
+  const itemsSignature = useMemo(() => JSON.stringify(items ?? []), [items]);
+
+  useEffect(() => {
+    setAppliedDiscount(null);
+    setDiscountInput("");
+  }, [itemsSignature]);
 
   // Attach template details to each cart item, skip anything with a missing template
   const enrichedItems = items
@@ -73,12 +102,13 @@ export default function CartPage() {
     return subtotalAcc;
   }, [enrichedItems]);
 
-  const shippingAmount =
-    hasItems && shippingQuote
-      ? shippingQuote.totalShippingCents / 100
-      : 0;
+  const discountAmount =
+    appliedDiscount ? appliedDiscount.discountAmountCents / 100 : 0;
 
-  const total = subtotal + shippingAmount;
+  const shippingAmount =
+    hasItems && shippingQuote ? shippingQuote.totalShippingCents / 100 : 0;
+
+  const total = subtotal - discountAmount + shippingAmount;
 
   const addressComplete =
     recipient.name.trim() &&
@@ -128,6 +158,50 @@ export default function CartPage() {
     }
   };
 
+  const handleApplyDiscount = async () => {
+    if (!hasItems) return;
+
+    const raw = discountInput.trim();
+    if (!raw) {
+      setAppliedDiscount(null);
+      return;
+    }
+
+    try {
+      setDiscountApplying(true);
+      setError(null);
+
+      const res = await fetch("/api/discount/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: raw,
+          items: items.map((i) => ({
+            templateId: i.templateId,
+            quantity: i.quantity,
+          })),
+        }),
+      });
+
+      const data = (await res.json()) as DiscountPreviewResponse;
+
+      if (!res.ok || !data.ok) {
+        setAppliedDiscount(null);
+        setError((data as DiscountPreviewErr).error ?? "Invalid discount code.");
+        setDiscountApplying(false);
+        return;
+      }
+
+      setAppliedDiscount(data as DiscountPreviewOk);
+      setDiscountApplying(false);
+    } catch (err) {
+      console.error("Discount preview error", err);
+      setAppliedDiscount(null);
+      setError("Failed to validate discount code.");
+      setDiscountApplying(false);
+    }
+  };
+
   const handleCheckout = async () => {
     if (!hasItems) return;
     if (!shippingQuote) {
@@ -148,6 +222,7 @@ export default function CartPage() {
             quantity: i.quantity,
           })),
           recipient,
+          discountCode: appliedDiscount?.code ?? null,
         }),
       });
 
@@ -238,7 +313,6 @@ export default function CartPage() {
               ))}
             </section>
 
-            {/* Shipping address form */}
             <section className="mt-4 rounded-2xl border bg-white p-4 shadow-sm space-y-3 dark:border-zinc-800 dark:bg-zinc-900">
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 Shipping address
@@ -300,31 +374,79 @@ export default function CartPage() {
                   {quoting ? "Calculating" : "Update shipping"}
                 </button>
               </div>
-{shippingQuote && (
-  <p className="text-xs text-zinc-600 dark:text-zinc-400">
-    Method {shippingQuote.methodName} · Estimated shipping and handling{" "}
-    {(shippingQuote.totalShippingCents / 100).toLocaleString("en-US", {
-      style: "currency",
-      currency: "USD",
-    })}
-  </p>
-)}
 
+              {shippingQuote && (
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                  Method {shippingQuote.methodName} · Estimated shipping and handling{" "}
+                  {(shippingQuote.totalShippingCents / 100).toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  })}
+                </p>
+              )}
+            </section>
+
+            <section className="mt-4 rounded-2xl border bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                      Discount code
+                    </div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Applies to products only, not shipping.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                    placeholder="Enter code"
+                    value={discountInput}
+                    onChange={(e) => setDiscountInput(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyDiscount}
+                    disabled={discountApplying}
+                    className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  >
+                    {discountApplying ? "Applying" : "Apply"}
+                  </button>
+                </div>
+
+                {appliedDiscount && (
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                    Code {appliedDiscount.code} applied.
+                  </p>
+                )}
+              </div>
             </section>
 
             <section className="mt-4 rounded-2xl border bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex flex-col gap-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 dark:text-zinc-400">
-                    Subtotal
-                  </span>
+                  <span className="text-zinc-600 dark:text-zinc-400">Subtotal</span>
                   <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                    {subtotal.toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}
+                    {subtotal.toLocaleString("en-US", { style: "currency", currency: "USD" })}
                   </span>
                 </div>
+
+                {appliedDiscount && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-600 dark:text-zinc-400">
+                      Discount
+                    </span>
+                    <span className="font-medium text-zinc-900 dark:text-zinc-50">
+                      {(0 - discountAmount).toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-600 dark:text-zinc-400">
                     Shipping and handling
@@ -338,15 +460,13 @@ export default function CartPage() {
                       : "Enter address to calculate"}
                   </span>
                 </div>
+
                 <div className="mt-2 flex items-center justify-between border-t border-zinc-200 pt-3 dark:border-zinc-800">
                   <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                     Order total
                   </span>
                   <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                    {total.toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}
+                    {total.toLocaleString("en-US", { style: "currency", currency: "USD" })}
                   </span>
                 </div>
               </div>
@@ -354,11 +474,7 @@ export default function CartPage() {
           </>
         )}
 
-        {error && (
-          <p className="text-sm text-red-600">
-            {error}
-          </p>
-        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
 
         {hasItems && (
           <div className="mt-4 flex items-center justify-between gap-4">

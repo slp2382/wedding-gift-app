@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -26,6 +27,35 @@ type RecipientPayload = {
   zip: string;
 };
 
+type DiscountRow = {
+  id: string;
+  code: string;
+  active: boolean;
+  discount_type: "percent" | "fixed";
+  discount_value: number;
+  valid_from: string | null;
+  valid_to: string | null;
+  max_redemptions: number | null;
+  redemption_count: number;
+  min_subtotal_cents: number | null;
+  stripe_coupon_id: string | null;
+};
+
+function getSupabaseAdmin(): SupabaseClient | null {
+  const supabaseUrl =
+    process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  if (!supabaseUrl || !supabaseServiceKey) return null;
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { persistSession: false },
+  });
+}
+
+function normalizeCode(input: string) {
+  return input.trim().toUpperCase();
+}
+
 function maskSecret(v: string | null | undefined): string | null {
   if (!v) return null;
   if (v.length <= 8) return "********";
@@ -47,8 +77,7 @@ function buildItemsMetadata(
     Array<{ templateId: string; size: string; quantity: number }>
   > = [];
 
-  let current: Array<{ templateId: string; size: string; quantity: number }> =
-    [];
+  let current: Array<{ templateId: string; size: string; quantity: number }> = [];
 
   for (const item of metadataItems) {
     const candidate = [...current, item];
@@ -60,7 +89,6 @@ function buildItemsMetadata(
     }
 
     if (current.length === 0) {
-      // Single item is too large, still store it alone
       chunks.push([item]);
       current = [];
       continue;
@@ -88,6 +116,59 @@ function isStripeLikeError(err: any) {
   );
 }
 
+function isWithinWindow(row: DiscountRow, now: Date) {
+  const from = row.valid_from ? new Date(row.valid_from) : null;
+  const to = row.valid_to ? new Date(row.valid_to) : null;
+  if (from && now < from) return false;
+  if (to && now > to) return false;
+  return true;
+}
+
+async function computeProductSubtotalCents(
+  stripeClient: Stripe,
+  lineItems: Stripe.Checkout.SessionCreateParams.LineItem[],
+) {
+  const counts = new Map<string, number>();
+
+  for (const li of lineItems) {
+    const priceId = (li as any).price as string | undefined;
+    const qty = Number((li as any).quantity ?? 0);
+    if (!priceId || !Number.isFinite(qty) || qty <= 0) continue;
+    counts.set(priceId, (counts.get(priceId) ?? 0) + qty);
+  }
+
+  let subtotal = 0;
+
+  for (const [priceId, qty] of counts.entries()) {
+    const price = await stripeClient.prices.retrieve(priceId);
+    const unit = price.unit_amount ?? null;
+    if (unit === null) {
+      throw new Error("One or more prices are missing unit_amount");
+    }
+    subtotal += unit * qty;
+  }
+
+  return subtotal;
+}
+
+function computeDiscountAmountCents(args: {
+  row: DiscountRow;
+  productSubtotalCents: number;
+}) {
+  const { row, productSubtotalCents } = args;
+
+  if (row.discount_type === "percent") {
+    const pct = Number(row.discount_value);
+    const amt = Math.round((productSubtotalCents * pct) / 100);
+    return Math.max(0, Math.min(productSubtotalCents, amt));
+  }
+
+  // fixed
+  // Assumption: discount_value is stored in cents for fixed discounts
+  const fixed = Number(row.discount_value);
+  return Math.max(0, Math.min(productSubtotalCents, fixed));
+}
+
 export async function POST(req: NextRequest) {
   const debugEnabled =
     req.headers.get("x-giftlink-debug") === "1" ||
@@ -103,6 +184,8 @@ export async function POST(req: NextRequest) {
       PRINTFUL_API_KEY: maskSecret(process.env.PRINTFUL_API_KEY ?? null),
       VERCEL_ENV: process.env.VERCEL_ENV ?? null,
       GIFTLINK_BASE_URL: process.env.GIFTLINK_BASE_URL ?? null,
+      SUPABASE_URL: process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
+      SUPABASE_SERVICE_ROLE_KEY: maskSecret(process.env.SUPABASE_SERVICE_ROLE_KEY ?? null),
     },
     request: {
       originHeader: req.headers.get("origin"),
@@ -141,7 +224,7 @@ export async function POST(req: NextRequest) {
       "https://www.giftlink.cards";
 
     const body = (await req.json().catch(() => null)) as
-      | { items?: CartItemPayload[]; recipient?: RecipientPayload }
+      | { items?: CartItemPayload[]; recipient?: RecipientPayload; discountCode?: string | null }
       | null;
 
     if (!body || !Array.isArray(body.items) || body.items.length === 0) {
@@ -294,46 +377,17 @@ export async function POST(req: NextRequest) {
     debug.computed.metadataItems = metadataItems;
     debug.computed.priceIdsUsed = Array.from(new Set(priceIdsUsed));
 
-    // Optional price validation when debugging
-    if (debugEnabled) {
-      const uniquePriceIds = Array.from(new Set(priceIdsUsed));
-      const checks: Array<{ priceId: string; ok: boolean; info?: any }> = [];
+    const totalCards = metadataItems.reduce((sum, item) => sum + item.quantity, 0);
+    const itemsMetadata = buildItemsMetadata(metadataItems);
 
-      for (const priceId of uniquePriceIds) {
-        try {
-          const p = await stripe.prices.retrieve(priceId);
-          checks.push({
-            priceId,
-            ok: true,
-            info: {
-              id: p.id,
-              active: p.active,
-              currency: p.currency,
-              livemode: p.livemode,
-              product: typeof p.product === "string" ? p.product : (p.product as any)?.id,
-              type: p.type,
-              unit_amount: p.unit_amount,
-            },
-          });
-        } catch (e: any) {
-          checks.push({
-            priceId,
-            ok: false,
-            info: isStripeLikeError(e)
-              ? {
-                  type: e.type,
-                  code: e.code,
-                  param: e.param,
-                  message: e.message,
-                  requestId: e.requestId,
-                  statusCode: e.statusCode,
-                }
-              : { message: String(e?.message ?? e) },
-          });
-        }
-      }
-
-      debug.computed.priceValidation = checks;
+    // Compute product subtotal cents for discount validation and metadata
+    let productSubtotalCents = 0;
+    try {
+      productSubtotalCents = await computeProductSubtotalCents(stripe, lineItems);
+      debug.computed.productSubtotalCents = productSubtotalCents;
+    } catch (e: any) {
+      console.error("[shop/checkout] Failed to compute product subtotal", e);
+      debug.computed.productSubtotalError = String(e?.message ?? e);
     }
 
     // Compute Printful shipping again on the server to avoid trusting the client
@@ -477,10 +531,6 @@ export async function POST(req: NextRequest) {
     const handlingCents = 50;
     const totalShippingCents = printfulRateCents + handlingCents;
 
-    const totalCards = metadataItems.reduce((sum, item) => sum + item.quantity, 0);
-
-    const itemsMetadata = buildItemsMetadata(metadataItems);
-
     debug.computed.shipping = {
       methodId: best.id,
       methodName: best.name,
@@ -491,9 +541,146 @@ export async function POST(req: NextRequest) {
     };
     debug.computed.totalCards = totalCards;
 
+    // Optional discount code handling
+    const rawDiscountInput = String(body.discountCode ?? "").trim();
+    let discountsParam: Stripe.Checkout.SessionCreateParams["discounts"] | undefined = undefined;
+
+    const discountMetadata: Record<string, string> = {};
+
+    if (rawDiscountInput) {
+      const supabase = getSupabaseAdmin();
+      if (!supabase) {
+        return NextResponse.json(
+          { error: "Discounts are not configured", ...(debugEnabled ? { debug } : {}) },
+          { status: 500 },
+        );
+      }
+
+      const code = normalizeCode(rawDiscountInput);
+
+      const { data, error } = await supabase
+        .from("discount_codes")
+        .select(
+          "id, code, active, discount_type, discount_value, valid_from, valid_to, max_redemptions, redemption_count, min_subtotal_cents, stripe_coupon_id",
+        )
+        .ilike("code", code)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        return NextResponse.json(
+          { error: "Failed to look up discount code", ...(debugEnabled ? { debug } : {}) },
+          { status: 500 },
+        );
+      }
+
+      const row = data as DiscountRow | null;
+      if (!row) {
+        return NextResponse.json(
+          { error: "Invalid discount code", ...(debugEnabled ? { debug } : {}) },
+          { status: 400 },
+        );
+      }
+
+      if (!row.active) {
+        return NextResponse.json(
+          { error: "This discount code is not active", ...(debugEnabled ? { debug } : {}) },
+          { status: 400 },
+        );
+      }
+
+      const now = new Date();
+      if (!isWithinWindow(row, now)) {
+        return NextResponse.json(
+          { error: "This discount code is not currently valid", ...(debugEnabled ? { debug } : {}) },
+          { status: 400 },
+        );
+      }
+
+      if (row.max_redemptions !== null && row.redemption_count >= row.max_redemptions) {
+        return NextResponse.json(
+          { error: "This discount code has reached its redemption limit", ...(debugEnabled ? { debug } : {}) },
+          { status: 400 },
+        );
+      }
+
+      if (row.min_subtotal_cents !== null && productSubtotalCents < row.min_subtotal_cents) {
+        return NextResponse.json(
+          { error: "Cart subtotal does not meet the minimum for this discount", ...(debugEnabled ? { debug } : {}) },
+          { status: 400 },
+        );
+      }
+
+      const discountAmountCents = computeDiscountAmountCents({
+        row,
+        productSubtotalCents,
+      });
+
+      if (discountAmountCents <= 0) {
+        return NextResponse.json(
+          { error: "This discount code does not apply to this cart", ...(debugEnabled ? { debug } : {}) },
+          { status: 400 },
+        );
+      }
+
+      let couponId = row.stripe_coupon_id ?? null;
+
+      if (!couponId) {
+        // Create a Stripe coupon once and store it back onto the row
+        const created = await stripe.coupons.create(
+          row.discount_type === "percent"
+            ? {
+                duration: "once",
+                percent_off: row.discount_value,
+                name: `GiftLink ${code}`,
+              }
+            : {
+                duration: "once",
+                amount_off: row.discount_value,
+                currency: "usd",
+                name: `GiftLink ${code}`,
+              },
+        );
+
+        couponId = created.id;
+
+        // Best effort update, no hard failure if it cannot update
+        try {
+          await supabase
+            .from("discount_codes")
+            .update({ stripe_coupon_id: couponId })
+            .eq("id", row.id);
+        } catch (e) {
+          console.warn("[shop/checkout] Failed to persist stripe_coupon_id", e);
+        }
+      }
+
+      discountsParam = [{ coupon: couponId }];
+
+      discountMetadata.discount_code = code;
+      discountMetadata.discount_code_id = row.id;
+      discountMetadata.discount_type = row.discount_type;
+      discountMetadata.discount_value = String(row.discount_value);
+      discountMetadata.discount_amount_cents = String(discountAmountCents);
+      discountMetadata.product_subtotal_cents = String(productSubtotalCents);
+      discountMetadata.product_subtotal_after_discount_cents = String(
+        Math.max(0, productSubtotalCents - discountAmountCents),
+      );
+
+      debug.computed.discount = {
+        code,
+        rowId: row.id,
+        type: row.discount_type,
+        value: row.discount_value,
+        discountAmountCents,
+        couponId,
+      };
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: lineItems,
+      discounts: discountsParam,
       success_url: `${origin}/shop?status=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/shop?status=cancelled`,
       metadata: {
@@ -501,6 +688,9 @@ export async function POST(req: NextRequest) {
         packQuantity: String(totalCards),
 
         ...itemsMetadata,
+
+        // Discount metadata (if present)
+        ...discountMetadata,
 
         // Additional shipping metadata for webhook and admin use
         shipping_printful_method_id: best.id,
