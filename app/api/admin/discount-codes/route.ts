@@ -1,5 +1,3 @@
-// app/api/admin/discount-codes/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
@@ -32,9 +30,7 @@ function getSupabaseAdmin() {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   }
 
-  return createClient(url, serviceRole, {
-    auth: { persistSession: false },
-  });
+  return createClient(url, serviceRole, { auth: { persistSession: false } });
 }
 
 function timingSafeEqual(a: string, b: string) {
@@ -51,30 +47,21 @@ function base64UrlToBuffer(input: string) {
 }
 
 function tryParseSessionPayload(payloadPart: string): { exp?: number } | null {
-  // Supports either:
-  // 1) base64url encoded JSON like {"exp": 123}
-  // 2) plain JSON
-  // 3) a simple "exp:<unix>" string
   try {
     const asBuf = base64UrlToBuffer(payloadPart);
     const asText = asBuf.toString("utf8");
     const asJson = JSON.parse(asText);
     if (asJson && typeof asJson === "object") return asJson;
-  } catch {
-    // ignore
-  }
+  } catch {}
 
   try {
     const asJson = JSON.parse(payloadPart);
     if (asJson && typeof asJson === "object") return asJson;
-  } catch {
-    // ignore
-  }
+  } catch {}
 
   const m = payloadPart.match(/exp[:=](\d{9,13})/i);
   if (m) {
     const raw = Number(m[1]);
-    // support seconds or ms
     const exp = raw > 10_000_000_000 ? Math.floor(raw / 1000) : raw;
     return { exp };
   }
@@ -83,10 +70,6 @@ function tryParseSessionPayload(payloadPart: string): { exp?: number } | null {
 }
 
 function verifyAdminSessionCookie(cookieValue: string): boolean {
-  // If ADMIN_SESSION_SECRET is present and the cookie is "payload.sig",
-  // we verify HMAC SHA256 over payload using the secret.
-  // If we cannot verify, we still require a nonempty cookie value (keeps compatibility),
-  // but we do enforce exp if present in payload.
   const secret = process.env.ADMIN_SESSION_SECRET;
 
   const parts = cookieValue.split(".");
@@ -105,12 +88,9 @@ function verifyAdminSessionCookie(cookieValue: string): boolean {
 
   if (!payload || !sig) return false;
 
-  const h = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  if (sig.length === h.length) {
-    return timingSafeEqual(sig, h);
-  }
+  const hHex = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+  if (sig.length === hHex.length) return timingSafeEqual(sig, hHex);
 
-  // Some implementations store signature as base64url
   const hB64Url = crypto
     .createHmac("sha256", secret)
     .update(payload)
@@ -119,15 +99,12 @@ function verifyAdminSessionCookie(cookieValue: string): boolean {
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-  if (sig.length === hB64Url.length) {
-    return timingSafeEqual(sig, hB64Url);
-  }
+  if (sig.length === hB64Url.length) return timingSafeEqual(sig, hB64Url);
 
   return false;
 }
 
 function assertAdmin(req: NextRequest): NextResponse | null {
-  // Optional server to server admin token override (you used this pattern elsewhere)
   const headerToken = req.headers.get("xadmintoken");
   const syncToken = process.env.ADMIN_SYNC_TOKEN;
   if (syncToken && headerToken && headerToken === syncToken) {
@@ -135,10 +112,7 @@ function assertAdmin(req: NextRequest): NextResponse | null {
   }
 
   const cookie = req.cookies.get("gl_admin_session")?.value;
-  if (!cookie) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+  if (!cookie) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!verifyAdminSessionCookie(cookie)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -181,6 +155,20 @@ function coerceIsoOrNull(input: unknown) {
   return d.toISOString();
 }
 
+function buildCompatListResponse(rows: DiscountCodeRow[]) {
+  return NextResponse.json({
+    ok: true,
+    rows,
+    codes: rows,
+    data: rows,
+  });
+}
+
+function getIdFromReq(req: NextRequest, body: any): string | null {
+  const url = new URL(req.url);
+  return url.searchParams.get("id") || body?.id || null;
+}
+
 export async function GET(req: NextRequest) {
   const auth = assertAdmin(req);
   if (auth) return auth;
@@ -198,16 +186,12 @@ export async function GET(req: NextRequest) {
       )
       .order("created_at", { ascending: false });
 
-    if (!includeInactive) {
-      q = q.eq("active", true);
-    }
+    if (!includeInactive) q = q.eq("active", true);
 
     const { data, error } = await q;
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    return NextResponse.json({ ok: true, codes: (data ?? []) as DiscountCodeRow[] });
+    return buildCompatListResponse((data ?? []) as DiscountCodeRow[]);
   } catch (e) {
     console.error("discount codes GET error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -279,11 +263,15 @@ export async function POST(req: NextRequest) {
         error.message?.toLowerCase().includes("duplicate")
           ? "Code already exists"
           : error.message;
-
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, code: data as DiscountCodeRow });
+    return NextResponse.json({
+      ok: true,
+      row: data as DiscountCodeRow,
+      code: data as DiscountCodeRow,
+      data: data as DiscountCodeRow,
+    });
   } catch (e) {
     console.error("discount codes POST error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -294,39 +282,36 @@ export async function PATCH(req: NextRequest) {
   const auth = assertAdmin(req);
   if (auth) return auth;
 
-  const url = new URL(req.url);
-  const id = url.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-
-  let body: any;
+  let body: any = null;
   try {
     body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  } catch {}
+
+  const id = getIdFromReq(req, body);
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
   const update: any = {};
 
-  if (body.code != null) {
+  if (body?.code != null) {
     const code = normalizeCode(body.code);
     if (!code) return NextResponse.json({ error: "Invalid code" }, { status: 400 });
     update.code = code;
   }
 
-  if (body.active != null) {
+  if (body?.active != null) {
     const active = coerceBool(body.active);
     if (active == null) return NextResponse.json({ error: "Invalid active" }, { status: 400 });
     update.active = active;
   }
 
-  if (body.discount_type != null) {
+  if (body?.discount_type != null) {
     if (body.discount_type !== "percent" && body.discount_type !== "fixed") {
       return NextResponse.json({ error: "Invalid discount_type" }, { status: 400 });
     }
     update.discount_type = body.discount_type;
   }
 
-  if (body.discount_value != null) {
+  if (body?.discount_value != null) {
     const v = coerceInt(body.discount_value);
     if (v == null || v <= 0) {
       return NextResponse.json({ error: "Invalid discount_value" }, { status: 400 });
@@ -334,27 +319,26 @@ export async function PATCH(req: NextRequest) {
     update.discount_value = v;
   }
 
-  // Validate percent range if both present or if type already percent
   if (update.discount_type === "percent" && update.discount_value != null) {
     if (update.discount_value < 1 || update.discount_value > 100) {
       return NextResponse.json({ error: "Percent must be 1 to 100" }, { status: 400 });
     }
   }
 
-  if (body.valid_from !== undefined) update.valid_from = coerceIsoOrNull(body.valid_from);
-  if (body.valid_to !== undefined) update.valid_to = coerceIsoOrNull(body.valid_to);
+  if (body?.valid_from !== undefined) update.valid_from = coerceIsoOrNull(body.valid_from);
+  if (body?.valid_to !== undefined) update.valid_to = coerceIsoOrNull(body.valid_to);
 
-  if (body.max_redemptions !== undefined) {
+  if (body?.max_redemptions !== undefined) {
     update.max_redemptions = body.max_redemptions == null ? null : coerceInt(body.max_redemptions);
   }
 
-  if (body.min_subtotal_cents !== undefined) {
+  if (body?.min_subtotal_cents !== undefined) {
     update.min_subtotal_cents =
       body.min_subtotal_cents == null ? null : coerceInt(body.min_subtotal_cents);
   }
 
-  if (body.notes !== undefined) update.notes = typeof body.notes === "string" ? body.notes : null;
-  if (body.stripe_coupon_id !== undefined) {
+  if (body?.notes !== undefined) update.notes = typeof body.notes === "string" ? body.notes : null;
+  if (body?.stripe_coupon_id !== undefined) {
     update.stripe_coupon_id =
       typeof body.stripe_coupon_id === "string" ? body.stripe_coupon_id : null;
   }
@@ -385,7 +369,12 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, code: data as DiscountCodeRow });
+    return NextResponse.json({
+      ok: true,
+      row: data as DiscountCodeRow,
+      code: data as DiscountCodeRow,
+      data: data as DiscountCodeRow,
+    });
   } catch (e) {
     console.error("discount codes PATCH error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -396,9 +385,12 @@ export async function DELETE(req: NextRequest) {
   const auth = assertAdmin(req);
   if (auth) return auth;
 
-  // Soft delete: set active false
-  const url = new URL(req.url);
-  const id = url.searchParams.get("id");
+  let body: any = null;
+  try {
+    body = await req.json();
+  } catch {}
+
+  const id = getIdFromReq(req, body);
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
   try {
@@ -413,11 +405,14 @@ export async function DELETE(req: NextRequest) {
       )
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-    return NextResponse.json({ ok: true, code: data as DiscountCodeRow });
+    return NextResponse.json({
+      ok: true,
+      row: data as DiscountCodeRow,
+      code: data as DiscountCodeRow,
+      data: data as DiscountCodeRow,
+    });
   } catch (e) {
     console.error("discount codes DELETE error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
