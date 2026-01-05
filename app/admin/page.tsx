@@ -65,6 +65,28 @@ export default function AdminHomePage() {
             </div>
           </Link>
 
+          {/* Discount codes */}
+          <Link
+            href="/admin/discountCodes"
+            className="group rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+          >
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-base font-semibold">Discount codes</h2>
+                <span className="text-xs text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200">
+                  Open
+                </span>
+              </div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Create, update, activate, and disable discount codes used at
+                checkout. Discounts apply to product subtotal only.
+              </p>
+              <div className="mt-2 inline-flex items-center text-xs font-medium text-indigo-600 group-hover:text-indigo-700 dark:text-indigo-400 dark:group-hover:text-indigo-300">
+                Go to discount codes
+              </div>
+            </div>
+          </Link>
+
           {/* Printful test order */}
           <Link
             href="/admin/printfulTestOrder"
