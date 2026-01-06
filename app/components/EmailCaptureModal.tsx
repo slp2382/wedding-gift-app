@@ -164,10 +164,10 @@ export default function EmailCaptureModal() {
                 GiftLink updates
               </p>
               <h3 className="mt-2 text-lg font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                Want early access to new designs and retail drops?
+                Join our mailing list to recieve 10% off your next order!
               </h3>
               <p className="mt-2 text-sm text-slate-900/80 dark:text-slate-100/80">
-                Enter your email to get product updates. No spam.
+                Enter your email to get product updates and discounts.
               </p>
             </div>
 
