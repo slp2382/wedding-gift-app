@@ -357,7 +357,7 @@ export default function CardPage() {
               Wedding Gift Card
             </p>
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-              A gift for the happy couple
+              Your GiftLink funds are ready!
             </h1>
             <p className="text-xs text-emerald-800/80">
               Card ID{" "}
@@ -370,7 +370,7 @@ export default function CardPage() {
             <div className="mt-3 flex items-center justify-center gap-3">
               <div className="h-px w-16 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600" />
               <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-700/90">
-                Couple view
+                recipient view
               </p>
               <div className="h-px w-16 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />
             </div>
@@ -695,7 +695,7 @@ export default function CardPage() {
                           <p className="text-sm text-amber-900">
                             This GiftLink card is ready for a guest to load. When
                             someone uses this QR link to send a gift, the amount and
-                            their name will appear here for the couple to claim.
+                            their name will appear here for the recipient to claim.
                           </p>
 
                           <form onSubmit={handleGuestLoad} className="mt-3 space-y-3">
@@ -742,7 +742,7 @@ export default function CardPage() {
                                 value={guestNote}
                                 onChange={(e) => setGuestNote(e.target.value)}
                                 className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                                placeholder="Add a short message for the couple"
+                                placeholder="Add a short message for the recipient"
                               />
                             </div>
 
