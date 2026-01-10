@@ -75,7 +75,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5078065456,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 908804108,
-    printfulBackFileId: 927404363,
+    printfulBackFileId: 927435293,
     images: [
       "/LoveBirdsImages/LoveBirdsMockup1.png",
       "/LoveBirdsImages/LoveBirdsMockup2.png",
