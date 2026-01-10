@@ -283,7 +283,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
     printfulSyncVariantId: 5072394027,
     printfulShippingVariantId: 14457,
-    printfulCoverFileId: 918082054,
+    printfulCoverFileId: 927665211,
     images: [
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup1.png",
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup2.png",
