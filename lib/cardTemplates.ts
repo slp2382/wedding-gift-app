@@ -262,6 +262,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079273568,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 918069908,
+    printfulBackFileId:  927651412,
     images: [
       "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup1.png",
       "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup2.png",
@@ -284,6 +285,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5072394027,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 927665211,
+    printfulBackFileId:  927651412,
     images: [
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup1.png",
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup2.png",
