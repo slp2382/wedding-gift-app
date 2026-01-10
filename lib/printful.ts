@@ -158,8 +158,16 @@ export async function createPrintfulOrderForCards(
       );
     }
 
+   const backFileId = template.printfulBackFileId ?? null;
+   if (!backFileId) {
+   throw new Error(
+        `Template ${templateIdForCard} is missing printfulBackFileId. Refusing to create order that could ship with blank back covers.`,
+     );
+   }
+
     const files: PrintfulFile[] = [
       { type: "front", id: coverFileId },
+      { type: "back", id: backFileId },
       { type: "inside1", url: fileUrl }, // inner left panel
     ];
 
