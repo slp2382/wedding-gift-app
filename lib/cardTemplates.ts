@@ -22,6 +22,52 @@ export type CardTemplate = {
 
 export const CARD_TEMPLATES: CardTemplate[] = [
   {
+    id: "love_birds_4x6",
+    name: "Love Birds",
+    size: "4x6",
+    sku: "LOVE_BIRDS_4X6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5078065456,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 908804108,
+    printfulBackFileId: 927435293,
+    images: [
+      "/LoveBirdsImages/LoveBirdsMockup1.png",
+      "/LoveBirdsImages/LoveBirdsMockup2.png",
+      "/LoveBirdsImages/LoveBirdsMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },  
+
+ {
+    id: "floral_wedding_4x6",
+    name: "Floral Wedding",
+    size: "4x6",
+    sku: "FLORAL_WEDDING_4X6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5079482998,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 909328917,
+    printfulBackFileId:  927622597,
+    images: [
+      "/FloralWeddingImages/FloralWeddingMockup1.png",
+      "/FloralWeddingImages/FloralWeddingMockup2.png",
+      "/FloralWeddingImages/FloralWeddingMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
+
+{
     id: "love_and_happiness_4x6",
     name: "Love and Happiness",
     size: "4x6",
@@ -31,6 +77,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079220284,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 909170418,
+    printfulBackFileId:  927653597,
     images: [
       "/LoveandHappinessImages/LoveandHappinessMockup1.png",
       "/LoveandHappinessImages/LoveandHappinessMockup2.png",
@@ -53,6 +100,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5064628437,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 918073326,
+    printfulBackFileId:  927656679,
     images: [
       "/Card1Images/Card1Mockup1.png",
       "/Card1Images/Card1Mockup2.png",
@@ -65,50 +113,6 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },
 
-  {
-    id: "love_birds_4x6",
-    name: "Love Birds",
-    size: "4x6",
-    sku: "LOVE_BIRDS_4X6",
-    occasion: "wedding",
-    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
-    printfulSyncVariantId: 5078065456,
-    printfulShippingVariantId: 14457,
-    printfulCoverFileId: 908804108,
-    printfulBackFileId: 927435293,
-    images: [
-      "/LoveBirdsImages/LoveBirdsMockup1.png",
-      "/LoveBirdsImages/LoveBirdsMockup2.png",
-      "/LoveBirdsImages/LoveBirdsMockup3.png",
-    ],
-    stripePrices: {
-      1: "price_1SWJVN0btTMST7LgTBriW2Am",
-      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
-      5: "price_1SWJX90btTMST7LgosTE6QSI",
-    },
-  },
-
-  {
-    id: "floral_wedding_4x6",
-    name: "Floral Wedding",
-    size: "4x6",
-    sku: "FLORAL_WEDDING_4X6",
-    occasion: "wedding",
-    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
-    printfulSyncVariantId: 5079482998,
-    printfulShippingVariantId: 14457,
-    printfulCoverFileId: 909328917,
-    images: [
-      "/FloralWeddingImages/FloralWeddingMockup1.png",
-      "/FloralWeddingImages/FloralWeddingMockup2.png",
-      "/FloralWeddingImages/FloralWeddingMockup3.png",
-    ],
-    stripePrices: {
-      1: "price_1SWJVN0btTMST7LgTBriW2Am",
-      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
-      5: "price_1SWJX90btTMST7LgosTE6QSI",
-    },
-  },
 
   {
     id: "wedding_poem_4x6",
@@ -120,6 +124,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079297309,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 918080160,
+    printfulBackFileId:  927626037,
     images: [
       "/WeddingPoemImages/WeddingPoemMockup1.png",
       "/WeddingPoemImages/WeddingPoemMockup2.png",
@@ -142,6 +147,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079282339,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 918047142,
+    printfulBackFileId:  927643558,
     images: [
       "/WatercolorWeddingImages/WatercolorWeddingMockup1.png",
       "/WatercolorWeddingImages/WatercolorWeddingMockup2.png",
@@ -164,6 +170,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079444047,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 909319453,
+    printfulBackFileId:  927635985,
     images: [
       "/ColorfulWeddingImages/ColorfulWeddingMockup1.png",
       "/ColorfulWeddingImages/ColorfulWeddingMockup2.png",
@@ -186,6 +193,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5071152160,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 906317612,
+    printfulBackFileId:  927630617,
     images: [
       "/FizzyBubblyImages/FizzyMockup1.png",
       "/FizzyBubblyImages/FizzyMockup2.png",
@@ -208,6 +216,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5078093148,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 908816971,
+    printfulBackFileId:  927646701,
     images: [
       "/ConfettiBirthdayImages/ConfettiBirthdayMockup1.png",
       "/ConfettiBirthdayImages/ConfettiBirthdayMockup2.png",
@@ -230,6 +239,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079262069,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 918071119,
+    printfulBackFileId:  927651412,
     images: [
       "/PinkBirthdayImages/PinkBirthdayMockup1.png",
       "/PinkBirthdayImages/PinkBirthdayMockup2.png",
