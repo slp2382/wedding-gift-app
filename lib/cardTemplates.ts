@@ -15,6 +15,7 @@ export type CardTemplate = {
   printfulSyncVariantId: number;
   printfulShippingVariantId?: number;
   printfulCoverFileId: number;
+  printfulBackFileId?: number;
   images: string[];
   stripePrices: { 1: string; 3: string; 5: string };
 };
@@ -74,6 +75,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5078065456,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 908804108,
+    printfulBackFileId: 927404363,
     images: [
       "/LoveBirdsImages/LoveBirdsMockup1.png",
       "/LoveBirdsImages/LoveBirdsMockup2.png",

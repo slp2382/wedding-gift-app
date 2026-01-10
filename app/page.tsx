@@ -251,7 +251,8 @@ export default function HomePage() {
                   How long can gifts remain unclaimed
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Funds stay linked to the card until a payout request is
+                  Funds stay linked to the card until a payout request is made
+		  or a year after the card is loaded. 
                   submitted and processed.
                 </p>
               </div>
