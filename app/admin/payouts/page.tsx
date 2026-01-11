@@ -1,10 +1,7 @@
-//app/admin/payouts/page.tsx
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "../../../lib/supabaseClient";
 
 type PayoutRequest = {
   id: string;
@@ -17,77 +14,37 @@ type PayoutRequest = {
   created_at: string;
 };
 
-type CardMini = {
-  card_id: string;
-  amount: number | null;
-};
-
 export default function AdminPayoutsPage() {
   const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
-  const [cardAmounts, setCardAmounts] = useState<Record<string, number | null>>(
-    {},
-  );
+  const [cardAmounts, setCardAmounts] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadPendingPayouts() {
-      setLoading(true);
-      setAdminError(null);
+  async function loadPendingPayouts() {
+    setLoading(true);
+    setAdminError(null);
 
-      // 1) Get pending payout requests
-      const { data: payoutRows, error: payoutError } = await supabase
-        .from("payout_requests")
-        .select("*")
-        .eq("status", "pending")
-        .order("created_at", { ascending: true });
+    try {
+      const res = await fetch("/api/admin/payouts", { method: "GET" });
+      const data = await res.json().catch(() => null);
 
-      if (payoutError) {
-        console.error("Error loading payout_requests:", payoutError);
-        setAdminError(
-          payoutError.message ||
-            "Could not load payout requests. Check Supabase.",
-        );
+      if (!res.ok) {
+        setAdminError((data && data.error) || "Could not load payout requests.");
         setLoading(false);
         return;
       }
 
-      const payoutsData = (payoutRows || []) as PayoutRequest[];
-      setPayouts(payoutsData);
-
-      // 2) Lookup related card amounts in a second query
-      if (payoutsData.length > 0) {
-        const cardIds = payoutsData.map((p) => p.card_id);
-
-        const { data: cardRows, error: cardError } = await supabase
-          .from("cards")
-          .select("card_id, amount")
-          .in("card_id", cardIds);
-
-        if (cardError) {
-          console.error("Error loading cards for payouts:", cardError);
-          setAdminError(
-            cardError.message ||
-              "Could not load card amounts for payout requests.",
-          );
-          setLoading(false);
-          return;
-        }
-
-        const map: Record<string, number | null> = {};
-        (cardRows || []).forEach((row) => {
-          const c = row as CardMini;
-          map[c.card_id] = c.amount;
-        });
-        setCardAmounts(map);
-      } else {
-        setCardAmounts({});
-      }
-
-      setLoading(false);
+      setPayouts((data && data.payouts) || []);
+      setCardAmounts((data && data.cardAmountMap) || {});
+    } catch (err) {
+      setAdminError("Unexpected error while loading payout requests.");
     }
 
+    setLoading(false);
+  }
+
+  useEffect(() => {
     loadPendingPayouts();
   }, []);
 
@@ -96,25 +53,22 @@ export default function AdminPayoutsPage() {
     setUpdatingId(id);
 
     try {
-      const { error } = await supabase
-        .from("payout_requests")
-        .update({ status: "paid" })
-        .eq("id", id);
+      const res = await fetch("/api/admin/payouts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
 
-      if (error) {
-        console.error("Error marking payout as paid:", error);
-        setAdminError(
-          error.message ||
-            "Could not update payout status. Check Supabase or logs.",
-        );
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setAdminError((data && data.error) || "Could not update payout status.");
         setUpdatingId(null);
         return;
       }
 
-      // Remove from local list of pending payouts
       setPayouts((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
-      console.error("Unexpected error updating payout:", err);
       setAdminError("Unexpected error while updating payout status.");
     }
 
@@ -124,7 +78,6 @@ export default function AdminPayoutsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-6 text-slate-50">
       <div className="mx-auto flex min-h-[90vh] max-w-5xl flex-col">
-        {/* Top nav / wordmark */}
         <header className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-400 to-emerald-400 shadow-md shadow-indigo-500/30">
@@ -132,9 +85,7 @@ export default function AdminPayoutsPage() {
             </div>
             <div className="leading-tight">
               <p className="text-lg font-semibold tracking-tight">GiftLink</p>
-              <p className="text-xs text-slate-400">
-                Internal admin · Payouts
-              </p>
+              <p className="text-xs text-slate-400">Internal admin · Payouts</p>
             </div>
           </div>
 
@@ -148,12 +99,9 @@ export default function AdminPayoutsPage() {
 
         <main className="flex-1 space-y-6">
           <section className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Pending payout requests
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Pending Venmo payout requests</h1>
             <p className="text-sm text-slate-400">
-              This view is for internal use only. When you send a payout (e.g.
-              via Venmo), click “Mark as paid” to update the status.
+              This view is for internal use only. When you send a payout via Venmo, click Mark as paid to mark it completed.
             </p>
           </section>
 
@@ -174,21 +122,13 @@ export default function AdminPayoutsPage() {
             <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 text-sm text-slate-200 shadow-lg shadow-slate-900/80">
               <p className="font-medium">No pending payouts 🎉</p>
               <p className="mt-1 text-xs text-slate-400">
-                When someone claims a funded card and submits their Venmo
-                details, the request will appear here.
+                When someone submits their Venmo handle for a funded card, the request will appear here.
               </p>
             </section>
           )}
 
           {!loading && !adminError && payouts.length > 0 && (
             <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-100 shadow-lg shadow-slate-900/80">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs text-slate-400">
-                  Showing {payouts.length} pending{" "}
-                  {payouts.length === 1 ? "payout" : "payouts"}.
-                </p>
-              </div>
-
               <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse text-xs">
                   <thead>
@@ -199,81 +139,33 @@ export default function AdminPayoutsPage() {
                       <th className="px-2 py-2 text-left">Email</th>
                       <th className="px-2 py-2 text-left">Venmo</th>
                       <th className="px-2 py-2 text-left">Requested</th>
-                      <th className="px-2 py-2 text-right">Action</th>
+                      <th className="px-2 py-2 text-left">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {payouts.map((p) => {
-                      const amt = cardAmounts[p.card_id];
-                      const formattedAmount =
-                        typeof amt === "number" && amt > 0
-                          ? amt.toLocaleString("en-US", {
-                              style: "currency",
-                              currency: "USD",
-                            })
-                          : "—";
-
-                      const created = new Date(p.created_at);
-                      const createdStr = created.toLocaleString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
-
-                      return (
-                        <tr
-                          key={p.id}
-                          className="border-b border-slate-800/80 last:border-none"
-                        >
-                          <td className="px-2 py-2 align-top font-mono text-[11px] text-slate-300">
-                            <div className="flex flex-col gap-0.5">
-                              <span>{p.card_id}</span>
-                              <Link
-                                href={`/card/${p.card_id}`}
-                                className="text-[10px] text-indigo-300 underline-offset-2 hover:text-indigo-200 hover:underline"
-                                target="_blank"
-                              >
-                                View card
-                              </Link>
-                            </div>
-                          </td>
-                          <td className="px-2 py-2 align-top text-slate-100">
-                            {formattedAmount}
-                          </td>
-                          <td className="px-2 py-2 align-top text-slate-100">
-                            {p.contact_name}
-                          </td>
-                          <td className="px-2 py-2 align-top text-slate-200">
-                            <a
-                              href={`mailto:${p.contact_email}`}
-                              className="hover:underline"
-                            >
-                              {p.contact_email}
-                            </a>
-                          </td>
-                          <td className="px-2 py-2 align-top text-slate-100">
-                            {p.payout_method === "venmo" && (
-                              <span>@{p.payout_details.replace(/^@/, "")}</span>
-                            )}
-                          </td>
-                          <td className="px-2 py-2 align-top text-slate-300">
-                            {createdStr}
-                          </td>
-                          <td className="px-2 py-2 align-top text-right">
-                            <button
-                              onClick={() => handleMarkPaid(p.id)}
-                              disabled={updatingId === p.id}
-                              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {updatingId === p.id
-                                ? "Marking…"
-                                : "Mark as paid"}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {payouts.map((p) => (
+                      <tr key={p.id} className="border-b border-slate-800/70">
+                        <td className="px-2 py-2 font-mono text-[11px] text-slate-200">{p.card_id}</td>
+                        <td className="px-2 py-2 text-slate-200">
+                          {cardAmounts[p.card_id] != null ? `$${Number(cardAmounts[p.card_id]).toFixed(2)}` : "—"}
+                        </td>
+                        <td className="px-2 py-2 text-slate-200">{p.contact_name}</td>
+                        <td className="px-2 py-2 text-slate-300">{p.contact_email}</td>
+                        <td className="px-2 py-2 text-slate-200">{p.payout_details}</td>
+                        <td className="px-2 py-2 text-slate-400">
+                          {new Date(p.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-2 py-2">
+                          <button
+                            onClick={() => handleMarkPaid(p.id)}
+                            disabled={updatingId === p.id}
+                            className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+                          >
+                            {updatingId === p.id ? "Updating…" : "Mark as paid"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

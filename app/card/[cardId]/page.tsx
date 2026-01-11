@@ -799,7 +799,7 @@ export default function CardPage() {
               href="/"
               className="text-sm font-medium text-emerald-800 underline-offset-4 hover:text-emerald-700 hover:underline"
             >
-              Back to create a new GiftLink card
+              Back to GiftLink Home
             </Link>
           </div>
 
