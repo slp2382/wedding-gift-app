@@ -16,9 +16,9 @@ export default function HomePage() {
   <Image
     src="/giftlink_logo.svg"
     alt="GiftLink"
-    width={240}
-    height={60}
-    className="h-20 w-auto sm:h-24"
+    width={200}
+    height={200}
+    className="h-40 w-auto sm:h-48"
     priority
   />
 </div>
