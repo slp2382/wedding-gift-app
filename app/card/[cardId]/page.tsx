@@ -220,7 +220,7 @@ export default function CardPage() {
       }
 
       setPayoutSuccess(
-        "Thanks! We’ve received your Venmo details. Please allow up to 3 hours for the payout to be processed. We’ll send your gift to that handle as soon as it is approved.",
+        "Thanks! We’ve received your Venmo details. Venmo payouts are typically sent the next business day after approval. We’ll email you when it is complete.",
       );
       setShowClaimForm(false);
     } catch (err) {
@@ -319,7 +319,7 @@ export default function CardPage() {
         return;
       }
 
-      // 4) Redirect to Stripe-hosted onboarding
+      // 4) Redirect to Stripe hosted onboarding
       window.location.href = onboardingData.url;
     } catch (err) {
       console.error("Error starting Stripe payout:", err);
@@ -450,7 +450,9 @@ export default function CardPage() {
 
                   {isClaimed && (
                     <p className="text-[11px] text-emerald-900/80">
-                      Status saved — this card is fully received.
+                      Claim received. Venmo payouts are typically sent the next business
+                      day. Bank transfers typically take 3 to 5 business days to
+                      complete.
                     </p>
                   )}
                 </div>
@@ -487,15 +489,22 @@ export default function CardPage() {
                 {/* Status + actions */}
                 <div className="space-y-3 border-t border-emerald-100 pt-4">
                   {isClaimed ? (
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
-                        <span className="font-medium text-emerald-900">
-                          Gift claimed
-                        </span>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
+                          <span className="font-medium text-emerald-900">
+                            Gift claimed
+                          </span>
+                        </div>
+                        <p className="text-xs text-emerald-900/80">
+                          Saved to this card — you&apos;re all set.
+                        </p>
                       </div>
+
                       <p className="text-xs text-emerald-900/80">
-                        Saved to this card — you&apos;re all set.
+                        Venmo payouts are typically sent the next business day. Bank
+                        transfers typically take 3 to 5 business days to complete.
                       </p>
                     </div>
                   ) : isFunded ? (
@@ -561,10 +570,10 @@ export default function CardPage() {
                           {payoutMethod === "venmo" ? (
                             <>
                               <p className="mb-3 text-xs text-emerald-800/90">
-                                Enter your name, email, and Venmo handle and we&apos;ll 
-                                review and send your gift there shortly. 
-                                Venmo is fast and free and
-                                payouts generally process in a few hours.
+                                Enter your name, email, and Venmo handle and we&apos;ll
+                                review and send your gift there shortly. Venmo is fast
+                                and free and payouts are typically sent the next business
+                                day.
                               </p>
 
                               <form
