@@ -39,11 +39,11 @@ export default function HomePage() {
           <section className="grid gap-10 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-center">
             <div className="space-y-5">
               <p className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/80 px-3 py-1 text-xs font-medium text-sky-700 shadow-sm backdrop-blur dark:border-sky-500/50 dark:bg-sky-950/60 dark:text-sky-200">
-                New · Cashless wedding gifts
+                New · Cashless wedding and birthday gifts
               </p>
 
               <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-                Physical wedding cards with{" "}
+                Physical event cards with{" "}
                 <span className="bg-gradient-to-r from-sky-700 via-sky-500 to-sky-300 bg-clip-text text-transparent">
                   scannable gift links
                 </span>
@@ -52,7 +52,7 @@ export default function HomePage() {
 
               <p className="max-w-xl text-sm text-slate-900/80 dark:text-slate-100/80">
                 GiftLink turns a simple card into a QR powered gift. Guests scan
-                a card, load a monetary gift through Stripe, and the couple
+                a card, load a monetary gift through Stripe, and the recipient
                 scans the same card to claim their funds later. No ATM, no
                 loose cash.
               </p>
@@ -74,7 +74,7 @@ export default function HomePage() {
               </div>
 
               <p className="text-[11px] text-slate-900/70 dark:text-slate-200/80">
-                Couples keep the gift amount. Guests cover a small service fee.
+                Recipients keep the gift amount. Guests cover a small service fee.
                 Payments are handled securely by Stripe.
               </p>
             </div>
@@ -100,7 +100,7 @@ export default function HomePage() {
 
                 <p className="mt-2 text-[11px] text-slate-900/80 dark:text-slate-100/80">
                   Each card has its own unique QR code that guests can scan to
-                  send a gift, and the couple can later scan to claim it.
+                  send a gift, and the recipient can later scan to claim it.
                 </p>
               </div>
             </div>
@@ -168,7 +168,7 @@ export default function HomePage() {
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                  For couples and shops
+                  For recipients and shops
                 </p>
                 <h2 className="text-lg font-semibold tracking-tight">
                   Ready to put GiftLink in the real world?
@@ -205,7 +205,7 @@ export default function HomePage() {
                 Frequently asked questions
               </p>
               <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
-                Answers for couples and guests
+                Answers for recipients and gifters
               </h2>
               <p className="mx-auto max-w-2xl text-sm text-slate-900/80 dark:text-slate-100/80">
                 GiftLink is a new way to give and receive event gifts. Here are
@@ -231,7 +231,8 @@ export default function HomePage() {
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
                   Guests pay for the physical card and a small service fee when
-                  they send a gift. Couples keep the full gift amount.
+                  they send a gift. Recipients keep the full gift amount if using a 
+                  free transfer method.
                 </p>
               </div>
 
@@ -241,7 +242,7 @@ export default function HomePage() {
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
                   The QR code on the physical card is the key to the gift. We
-                  recommend couples keep cards in a safe place once they are
+                  recommend recipients keep cards in a safe place once they are
                   opened. If a card is lost before a payout, contact us.
                 </p>
               </div>
@@ -259,10 +260,10 @@ export default function HomePage() {
 
               <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  Do couples need an app or account
+                  Do recipients need an app or account
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  No app is required. Couples scan the QR code printed inside
+                  No app is required. Recipients scan the QR code printed inside
                   the card and submit a payout request through a mobile friendly
                   page.
                 </p>
@@ -273,9 +274,10 @@ export default function HomePage() {
                   Which payout methods are supported
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  GiftLink is expanding payout options over time. Our goal is to
-                  give couples familiar ways to move gift money where they want
-                  it.
+                  GiftLink is expanding payout options over time. Currently we 
+                  support Venmo payouts and bank transfers. Our goal is to
+                  give recipients familiar ways to move gift money where they want
+                  it easily.
                 </p>
               </div>
             </div>
