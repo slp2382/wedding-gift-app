@@ -39,9 +39,9 @@ export const POST = async (request: NextRequest) => {
       );
     }
 
-    // Service fee: 3.5 percent plus $0.35
+    // Service fee: 3.5 percent plus 30 cents
     const amountCents = Math.round(amountNumber * 100);
-    const feeCents = Math.round(amountCents * 0.035) + 35;
+    const feeCents = Math.round(amountCents * 0.035) + 30;
     const totalCents = amountCents + feeCents;
 
     const giftAmountDollars = (amountCents / 100).toFixed(2);
@@ -83,6 +83,7 @@ export const POST = async (request: NextRequest) => {
       success_url: `${baseUrl}/card/${cardId}?status=paid&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/card/${cardId}?status=cancelled`,
       metadata: {
+        type: "card_funding",
         cardId,
         giverName: giverName || "",
         note: note || "",

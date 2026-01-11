@@ -837,6 +837,7 @@ export async function POST(req: NextRequest) {
             giver_name: giverName,
             amount: giftAmount,
             note,
+	    funded: true,
           })
           .eq("card_id", cardId);
 
