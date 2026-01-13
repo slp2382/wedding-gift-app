@@ -20,94 +20,47 @@ type CardRow = {
   payout_request_id: string | null;
 };
 
-type PayoutMini = {
-  id: string;
-  status: string;
-  created_at: string;
-};
-
-export default function AdminFundedUnpaidPage() {
+export default function AdminFundedUnclaimedPage() {
   const [loading, setLoading] = useState(true);
   const [adminError, setAdminError] = useState<string | null>(null);
 
   const [cards, setCards] = useState<CardRow[]>([]);
-  const [payoutsById, setPayoutsById] = useState<Record<string, PayoutMini>>({});
 
   useEffect(() => {
-    async function loadFundedUnpaid() {
+    async function loadFundedUnclaimed() {
       setLoading(true);
       setAdminError(null);
 
-      // 1) Load funded cards
+      // Load only funded cards that are still unclaimed
       const { data: cardRows, error: cardError } = await supabase
         .from("cards")
-        .select(
-          "id, card_id, giver_name, amount, note, created_at, funded, claimed, claimed_at, claimed_via, payout_request_id",
-        )
+        .select("id, card_id, giver_name, amount, note, created_at, funded, claimed")
         .eq("funded", true)
+        .eq("claimed", false)
         .order("created_at", { ascending: false });
 
       if (cardError) {
-        console.error("Error loading funded cards:", cardError);
+        console.error("Error loading funded unclaimed cards:", cardError);
         setAdminError(
-          cardError.message || "Could not load funded cards. Check Supabase.",
+          cardError.message || "Could not load funded unclaimed cards. Check Supabase.",
         );
         setLoading(false);
         return;
       }
 
-      const fundedCards = (cardRows || []) as CardRow[];
-
-      // 2) Load payout requests referenced by these cards
-      const payoutIds = Array.from(
-        new Set(
-          fundedCards
-            .map((c) => c.payout_request_id)
-            .filter((id): id is string => Boolean(id)),
-        ),
-      );
-
-      let payoutMap: Record<string, PayoutMini> = {};
-      if (payoutIds.length > 0) {
-        const { data: payoutRows, error: payoutError } = await supabase
-          .from("payout_requests")
-          .select("id, status, created_at")
-          .in("id", payoutIds);
-
-        if (payoutError) {
-          console.error("Error loading payout requests:", payoutError);
-          setAdminError(
-            payoutError.message ||
-              "Could not load payout requests for funded cards.",
-          );
-          setLoading(false);
-          return;
-        }
-
-        (payoutRows || []).forEach((row) => {
-          const p = row as PayoutMini;
-          payoutMap[p.id] = p;
-        });
-      }
-
-      // 3) Keep only cards not fully paid out
-      const unpaid = fundedCards.filter((c) => {
-        if (!c.payout_request_id) return true;
-        const p = payoutMap[c.payout_request_id];
-        if (!p) return true;
-        return (p.status || "").toLowerCase() !== "paid";
-      });
-
-      setCards(unpaid);
-      setPayoutsById(payoutMap);
+      const rows = (cardRows || []) as CardRow[];
+      setCards(rows);
       setLoading(false);
     }
 
-    loadFundedUnpaid();
+    loadFundedUnclaimed();
   }, []);
 
   const totalAmount = useMemo(() => {
-    return cards.reduce((sum, c) => sum + (typeof c.amount === "number" ? c.amount : 0), 0);
+    return cards.reduce(
+      (sum, c) => sum + (typeof c.amount === "number" ? c.amount : 0),
+      0,
+    );
   }, [cards]);
 
   const formattedTotal = useMemo(() => {
@@ -125,7 +78,7 @@ export default function AdminFundedUnpaidPage() {
             </div>
             <div className="leading-tight">
               <p className="text-lg font-semibold tracking-tight">GiftLink</p>
-              <p className="text-xs text-slate-400">Internal admin · Funded</p>
+              <p className="text-xs text-slate-400">Internal admin · Funded balance</p>
             </div>
           </div>
 
@@ -147,12 +100,11 @@ export default function AdminFundedUnpaidPage() {
 
         <main className="flex-1 space-y-6">
           <section className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Funded cards not paid out
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Funded unclaimed balance</h1>
             <p className="text-sm text-slate-400">
-              Shows cards that have funds loaded but are not fully paid out yet.
-              This includes cards with no payout request and cards whose payout request is not marked paid.
+              Shows funded cards that have not been claimed yet. This total represents the gift
+              balance you should keep available. Once a card is claimed, it is removed from this
+              list.
             </p>
           </section>
 
@@ -171,9 +123,9 @@ export default function AdminFundedUnpaidPage() {
 
           {!loading && !adminError && cards.length === 0 && (
             <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 text-sm text-slate-200 shadow-lg shadow-slate-900/80">
-              <p className="font-medium">No funded unpaid cards 🎉</p>
+              <p className="font-medium">No funded unclaimed cards</p>
               <p className="mt-1 text-xs text-slate-400">
-                When someone loads a gift, it will appear here until it is paid out.
+                When someone loads a gift, it will appear here until the recipient claims it.
               </p>
             </section>
           )}
@@ -182,11 +134,12 @@ export default function AdminFundedUnpaidPage() {
             <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-100 shadow-lg shadow-slate-900/80">
               <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-slate-400">
-                  Showing {cards.length} funded{" "}
-                  {cards.length === 1 ? "card" : "cards"} not paid out.
+                  Showing {cards.length} funded {cards.length === 1 ? "card" : "cards"} not yet
+                  claimed.
                 </p>
                 <p className="text-xs text-slate-300">
-                  Total amount: <span className="font-semibold text-slate-100">{formattedTotal}</span>
+                  Total amount:{" "}
+                  <span className="font-semibold text-slate-100">{formattedTotal}</span>
                 </p>
               </div>
 
@@ -198,9 +151,6 @@ export default function AdminFundedUnpaidPage() {
                       <th className="px-2 py-2 text-left">Amount</th>
                       <th className="px-2 py-2 text-left">Giver</th>
                       <th className="px-2 py-2 text-left">Created</th>
-                      <th className="px-2 py-2 text-left">Claimed</th>
-                      <th className="px-2 py-2 text-left">Payout status</th>
-                      <th className="px-2 py-2 text-left">Payout request</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -220,27 +170,6 @@ export default function AdminFundedUnpaidPage() {
                         hour: "2-digit",
                         minute: "2-digit",
                       });
-
-                      const claimedStr = c.claimed
-                        ? c.claimed_at
-                          ? new Date(c.claimed_at).toLocaleString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "Yes"
-                        : "No";
-
-                      const payout = c.payout_request_id
-                        ? payoutsById[c.payout_request_id]
-                        : null;
-
-                      const payoutStatus = !c.payout_request_id
-                        ? "No request"
-                        : payout
-                        ? payout.status
-                        : "Unknown";
 
                       return (
                         <tr
@@ -267,25 +196,6 @@ export default function AdminFundedUnpaidPage() {
                           </td>
 
                           <td className="px-2 py-2 align-top text-slate-300">{createdStr}</td>
-
-                          <td className="px-2 py-2 align-top text-slate-100">
-                            <div className="flex flex-col gap-0.5">
-                              <span>{claimedStr}</span>
-                              {c.claimed_via && (
-                                <span className="text-[10px] text-slate-400">
-                                  via {c.claimed_via}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="px-2 py-2 align-top text-slate-100">
-                            {payoutStatus}
-                          </td>
-
-                          <td className="px-2 py-2 align-top font-mono text-[11px] text-slate-300">
-                            {c.payout_request_id ? c.payout_request_id : "—"}
-                          </td>
                         </tr>
                       );
                     })}
@@ -294,7 +204,8 @@ export default function AdminFundedUnpaidPage() {
               </div>
 
               <p className="mt-3 text-[11px] text-slate-400">
-                Tip: If you want this page to exclude cards that are claimed but not yet requested, add a filter for claimed true and payout_request_id not set.
+                Tip: This page intentionally excludes claimed cards. Use the payouts page for Venmo
+                requests.
               </p>
             </section>
           )}
