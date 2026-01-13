@@ -18,14 +18,22 @@ export default function SmsOptInPage() {
   const stopKeyword = "STOP";
   const helpKeyword = "HELP";
 
+  const lastUpdated = "January 12, 2026";
+
   const programPurpose =
-    "Internal operational alerts for the GiftLink team, including Venmo payout request notifications.";
+    "Internal operational alerts for the GiftLink team. This program is used for payout and order operations notifications and does not send marketing messages.";
+
+  const programEligibility =
+    "This SMS program is intended for GiftLink team members and authorized contractors only. Only people who text START to the number above will be enrolled.";
+
   const messageTypes = [
     "Venmo payout request alerts",
     "Operational and status notifications related to GiftLink orders and fulfillment",
   ];
+
   const messageFrequency =
     "Message frequency varies and depends on payout and operational activity.";
+
   const costsLine = "Message and data rates may apply.";
 
   return (
@@ -34,14 +42,19 @@ export default function SmsOptInPage() {
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <h1 className="text-2xl font-semibold">{brand} SMS Opt In</h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-            This page explains how to opt in to receive text messages from{" "}
-            {brand} and how to stop or get help.
+            This page explains how to opt in to receive text messages from {brand} and
+            how to stop or get help.
           </p>
 
           <section className="mt-6 space-y-3">
             <h2 className="text-lg font-medium">Program purpose</h2>
+            <p className="text-sm text-zinc-700 dark:text-zinc-200">{programPurpose}</p>
+          </section>
+
+          <section className="mt-6 space-y-3">
+            <h2 className="text-lg font-medium">Program eligibility</h2>
             <p className="text-sm text-zinc-700 dark:text-zinc-200">
-              {programPurpose}
+              {programEligibility}
             </p>
           </section>
 
@@ -57,22 +70,28 @@ export default function SmsOptInPage() {
           <section className="mt-6 space-y-3">
             <h2 className="text-lg font-medium">How to opt in</h2>
             <p className="text-sm text-zinc-700 dark:text-zinc-200">
-              To subscribe, text{" "}
-              <span className="font-semibold">{optInKeyword}</span> to{" "}
+              To opt in, text <span className="font-semibold">{optInKeyword}</span> to{" "}
               <span className="font-semibold">{sendingNumberDisplay}</span>.
             </p>
+
             <p className="text-sm text-zinc-700 dark:text-zinc-200">
-              After you text {optInKeyword}, you will receive a confirmation
-              message. By subscribing, you agree to receive SMS messages from{" "}
-              {brand} for the purposes described on this page.
+              By texting <span className="font-semibold">{optInKeyword}</span>, you
+              consent to receive recurring text messages (SMS) from {brand} for the
+              internal operational purposes described on this page. {messageFrequency}{" "}
+              Reply <span className="font-semibold">{stopKeyword}</span> to unsubscribe
+              and <span className="font-semibold">{helpKeyword}</span> for help.{" "}
+              {costsLine} Consent is not a condition of purchase.
+            </p>
+
+            <p className="text-sm text-zinc-700 dark:text-zinc-200">
+              After you text <span className="font-semibold">{optInKeyword}</span>, you
+              will receive a confirmation message.
             </p>
           </section>
 
           <section className="mt-6 space-y-3">
             <h2 className="text-lg font-medium">Message frequency</h2>
-            <p className="text-sm text-zinc-700 dark:text-zinc-200">
-              {messageFrequency}
-            </p>
+            <p className="text-sm text-zinc-700 dark:text-zinc-200">{messageFrequency}</p>
           </section>
 
           <section className="mt-6 space-y-3">
@@ -91,16 +110,14 @@ export default function SmsOptInPage() {
 
           <section className="mt-6 space-y-3">
             <h2 className="text-lg font-medium">Costs</h2>
-            <p className="text-sm text-zinc-700 dark:text-zinc-200">
-              {costsLine}
-            </p>
+            <p className="text-sm text-zinc-700 dark:text-zinc-200">{costsLine}</p>
           </section>
 
           <section className="mt-6 space-y-3">
             <h2 className="text-lg font-medium">Privacy</h2>
             <p className="text-sm text-zinc-700 dark:text-zinc-200">
-              Text messaging originator opt in data and consent will not be shared
-              with any third parties.
+              Opt in data and consent for this SMS program will not be shared with any
+              third parties.
             </p>
             <p className="text-sm text-zinc-700 dark:text-zinc-200">
               See our{" "}
@@ -111,10 +128,7 @@ export default function SmsOptInPage() {
                 Privacy Policy
               </a>{" "}
               and{" "}
-              <a
-                href={termsUrl}
-                className="font-medium underline underline-offset-4"
-              >
+              <a href={termsUrl} className="font-medium underline underline-offset-4">
                 Terms of Service
               </a>
               .
@@ -137,7 +151,7 @@ export default function SmsOptInPage() {
         </div>
 
         <p className="mt-6 text-xs text-zinc-500 dark:text-zinc-400">
-          Last updated {new Date().toLocaleDateString("en-US")}
+          Last updated {lastUpdated}
         </p>
       </div>
     </main>
