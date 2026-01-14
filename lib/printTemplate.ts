@@ -7,21 +7,26 @@ import sharp from "sharp";
 const PAGE_WIDTH = 1245;
 const PAGE_HEIGHT = 1845;
 
-/**
- * Generate a PNG of the inside-right panel with:
- * - your inside-right-base.png background
- * - a QR code centered horizontally, positioned at y ~ 320
- */
+// These match the base artwork we created
+const OVERLAY_SIZE = 560;
+const OVERLAY_BOTTOM_MARGIN = 150;
+
+// Tune these if you want the QR larger or positioned slightly differently
+const QR_SIZE = 360;     // final rendered QR size in pixels
+const QR_MARGIN = 4;     // quiet zone
+const QR_Y_OFFSET = 120; // distance from overlay top to QR top
+
 export async function generateGiftlinkInsidePng(cardId: string) {
   const cardUrl = `https://www.giftlink.cards/card/${cardId}`;
 
-  // 1) Generate QR code PNG buffer
+  // Generate QR at the exact size we will print, with a quiet zone
   const qrBuffer = await QRCode.toBuffer(cardUrl, {
-    width: 600,
-    margin: 0,
+    width: QR_SIZE,
+    margin: QR_MARGIN,
+    errorCorrectionLevel: "H",
+    color: { dark: "#000000", light: "#FFFFFF" },
   });
 
-  // 2) Load the base inside-right template
   const templatePath = path.join(
     process.cwd(),
     "public",
@@ -29,25 +34,34 @@ export async function generateGiftlinkInsidePng(cardId: string) {
     "inside-right-base.png",
   );
 
-  // Ensure base is the expected size
   const base = sharp(templatePath).resize(PAGE_WIDTH, PAGE_HEIGHT);
 
-  // 3) Compute QR placement (same as PDF layout)
-  const qrSize = 400;
-  const qrX = Math.round((PAGE_WIDTH - qrSize) / 2);
-  const qrY = 320; // tweak if you want to nudge vertically
+  // Overlay is bottom centered in the base artwork
+  const overlayTop = PAGE_HEIGHT - OVERLAY_SIZE - OVERLAY_BOTTOM_MARGIN;
 
-  // 4) Composite QR onto the base image
+  // Center QR horizontally and place it inside the gift box window
+  const qrX = Math.round((PAGE_WIDTH - QR_SIZE) / 2);
+  const qrY = Math.round(overlayTop + QR_Y_OFFSET);
+
+  // Optional white plate for extra safety (QR stays black/white)
+  const whitePlate = await sharp({
+    create: {
+      width: QR_SIZE,
+      height: QR_SIZE,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  })
+    .png()
+    .toBuffer();
+
   const resultBuffer = await base
     .composite([
-      {
-        input: qrBuffer,
-        left: qrX,
-        top: qrY,
-      },
+      { input: whitePlate, left: qrX, top: qrY },
+      { input: qrBuffer, left: qrX, top: qrY },
     ])
     .png()
     .toBuffer();
 
-  return resultBuffer; // Buffer with PNG data
+  return resultBuffer;
 }
