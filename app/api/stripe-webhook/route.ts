@@ -854,6 +854,8 @@ export async function POST(req: NextRequest) {
 
             const publicUrl = publicUrlData?.publicUrl ?? null;
 
+            console.log("[stripe-webhook] print file url", publicUrl);
+
             await supabaseAdmin
               .from("cards")
               .update({
