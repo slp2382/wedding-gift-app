@@ -92,14 +92,14 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 
   {
     id: "card1_4x6",
-    name: "To Have and To Hold",
+    name: "Wedding Cake",
     size: "4x6",
     sku: "CARD1_4X6",
     occasion: "wedding",
     stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
     printfulSyncVariantId: 5064628437,
     printfulShippingVariantId: 14457,
-    printfulCoverFileId: 918073326,
+    printfulCoverFileId: 929752160,
     printfulBackFileId:  927656679,
     images: [
       "/Card1Images/Card1Mockup1.png",
