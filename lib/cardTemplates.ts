@@ -192,7 +192,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
     printfulSyncVariantId: 5071152160,
     printfulShippingVariantId: 14457,
-    printfulCoverFileId: 906317612,
+    printfulCoverFileId: 929726697,
     printfulBackFileId:  927630617,
     images: [
       "/FizzyBubblyImages/FizzyMockup1.png",
