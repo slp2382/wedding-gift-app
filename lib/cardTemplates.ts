@@ -76,7 +76,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am", // legacy single price
     printfulSyncVariantId: 5079220284,
     printfulShippingVariantId: 14457,
-    printfulCoverFileId: 909170418,
+    printfulCoverFileId: 929720683,
     printfulBackFileId:  927653597,
     images: [
       "/LoveandHappinessImages/LoveandHappinessMockup1.png",
