@@ -261,7 +261,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
     printfulSyncVariantId: 5079273568,
     printfulShippingVariantId: 14457,
-    printfulCoverFileId: 918069908,
+    printfulCoverFileId: 929733444,
     printfulBackFileId:  927651412,
     images: [
       "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup1.png",
