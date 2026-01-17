@@ -44,6 +44,12 @@ type DiscountPreviewErr = {
 
 type DiscountPreviewResponse = DiscountPreviewOk | DiscountPreviewErr;
 
+function getCartUnitPrice(totalQty: number) {
+  if (totalQty >= 5) return 4.99;
+  if (totalQty >= 3) return 5.49;
+  return 5.99;
+}
+
 export default function CartPage() {
   const { items, removeItem, clearCart, itemCount } = useCart();
   const router = useRouter();
@@ -59,12 +65,14 @@ export default function CartPage() {
     zip: "",
   });
 
-  const [shippingQuote, setShippingQuote] = useState<ShippingQuoteResponse | null>(null);
+  const [shippingQuote, setShippingQuote] =
+    useState<ShippingQuoteResponse | null>(null);
   const [quoting, setQuoting] = useState(false);
 
   const [discountInput, setDiscountInput] = useState("");
   const [discountApplying, setDiscountApplying] = useState(false);
-  const [appliedDiscount, setAppliedDiscount] = useState<DiscountPreviewOk | null>(null);
+  const [appliedDiscount, setAppliedDiscount] =
+    useState<DiscountPreviewOk | null>(null);
 
   const itemsSignature = useMemo(() => JSON.stringify(items ?? []), [items]);
 
@@ -73,7 +81,6 @@ export default function CartPage() {
     setDiscountInput("");
   }, [itemsSignature]);
 
-  // Attach template details to each cart item, skip anything with a missing template
   const enrichedItems = items
     .map((item) => {
       const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
@@ -84,23 +91,16 @@ export default function CartPage() {
 
   const hasItems = enrichedItems.length > 0;
 
-  const subtotal = useMemo(() => {
-    let subtotalAcc = 0;
-
-    for (const item of enrichedItems) {
-      const qty = item.quantity;
-      let unit = 0;
-
-      // Only four by six cards exist now
-      if (qty >= 5) unit = 4.99;
-      else if (qty >= 3) unit = 5.49;
-      else unit = 5.99;
-
-      subtotalAcc += unit * qty;
-    }
-
-    return subtotalAcc;
+  const totalQty = useMemo(() => {
+    return enrichedItems.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
   }, [enrichedItems]);
+
+  const unitPrice = useMemo(() => getCartUnitPrice(totalQty), [totalQty]);
+
+  const subtotal = useMemo(() => {
+    if (!hasItems) return 0;
+    return unitPrice * totalQty;
+  }, [hasItems, totalQty, unitPrice]);
 
   const discountAmount =
     appliedDiscount ? appliedDiscount.discountAmountCents / 100 : 0;
@@ -298,6 +298,9 @@ export default function CartPage() {
                     </div>
                     <div className="text-xs text-zinc-500 dark:text-zinc-400">
                       Quantity {item.quantity}
+                    </div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Unit price {unitPrice.toLocaleString("en-US", { style: "currency", currency: "USD" })} based on total quantity {totalQty}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

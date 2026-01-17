@@ -10,7 +10,6 @@ const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
 
-// Stripe metadata value limit is tight, so we keep a little headroom
 const METADATA_VALUE_SAFE_LIMIT = 450;
 
 type CartItemPayload = {
@@ -124,31 +123,10 @@ function isWithinWindow(row: DiscountRow, now: Date) {
   return true;
 }
 
-async function computeProductSubtotalCents(
-  stripeClient: Stripe,
-  lineItems: Stripe.Checkout.SessionCreateParams.LineItem[],
-) {
-  const counts = new Map<string, number>();
-
-  for (const li of lineItems) {
-    const priceId = (li as any).price as string | undefined;
-    const qty = Number((li as any).quantity ?? 0);
-    if (!priceId || !Number.isFinite(qty) || qty <= 0) continue;
-    counts.set(priceId, (counts.get(priceId) ?? 0) + qty);
-  }
-
-  let subtotal = 0;
-
-  for (const [priceId, qty] of counts.entries()) {
-    const price = await stripeClient.prices.retrieve(priceId);
-    const unit = price.unit_amount ?? null;
-    if (unit === null) {
-      throw new Error("One or more prices are missing unit_amount");
-    }
-    subtotal += unit * qty;
-  }
-
-  return subtotal;
+function getCartUnitPriceCents(totalQty: number) {
+  if (totalQty >= 5) return 499;
+  if (totalQty >= 3) return 549;
+  return 599;
 }
 
 function computeDiscountAmountCents(args: {
@@ -163,8 +141,6 @@ function computeDiscountAmountCents(args: {
     return Math.max(0, Math.min(productSubtotalCents, amt));
   }
 
-  // fixed
-  // Assumption: discount_value is stored in cents for fixed discounts
   const fixed = Number(row.discount_value);
   return Math.max(0, Math.min(productSubtotalCents, fixed));
 }
@@ -184,8 +160,13 @@ export async function POST(req: NextRequest) {
       PRINTFUL_API_KEY: maskSecret(process.env.PRINTFUL_API_KEY ?? null),
       VERCEL_ENV: process.env.VERCEL_ENV ?? null,
       GIFTLINK_BASE_URL: process.env.GIFTLINK_BASE_URL ?? null,
-      SUPABASE_URL: process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
-      SUPABASE_SERVICE_ROLE_KEY: maskSecret(process.env.SUPABASE_SERVICE_ROLE_KEY ?? null),
+      SUPABASE_URL:
+        process.env.SUPABASE_URL ??
+        process.env.NEXT_PUBLIC_SUPABASE_URL ??
+        null,
+      SUPABASE_SERVICE_ROLE_KEY: maskSecret(
+        process.env.SUPABASE_SERVICE_ROLE_KEY ?? null,
+      ),
     },
     request: {
       originHeader: req.headers.get("origin"),
@@ -224,7 +205,11 @@ export async function POST(req: NextRequest) {
       "https://www.giftlink.cards";
 
     const body = (await req.json().catch(() => null)) as
-      | { items?: CartItemPayload[]; recipient?: RecipientPayload; discountCode?: string | null }
+      | {
+          items?: CartItemPayload[];
+          recipient?: RecipientPayload;
+          discountCode?: string | null;
+        }
       | null;
 
     if (!body || !Array.isArray(body.items) || body.items.length === 0) {
@@ -263,29 +248,21 @@ export async function POST(req: NextRequest) {
       zip: recipient.zip,
     };
 
-    // Build Stripe line items from cart using pack based pricing (1, 3, 5)
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
     const metadataItems: Array<{
       templateId: string;
       size: string;
       quantity: number;
     }> = [];
 
-    const priceIdsUsed: string[] = [];
+    let totalCards = 0;
 
     for (const item of cartItems) {
       const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
 
       if (!template) {
-        console.error(
-          "[shop/checkout] Unknown templateId in cart",
-          item.templateId,
-        );
+        console.error("[shop/checkout] Unknown templateId in cart", item.templateId);
         return NextResponse.json(
-          {
-            error: "Unknown product in cart",
-            ...(debugEnabled ? { debug } : {}),
-          },
+          { error: "Unknown product in cart", ...(debugEnabled ? { debug } : {}) },
           { status: 400 },
         );
       }
@@ -294,112 +271,66 @@ export async function POST(req: NextRequest) {
       if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) {
         console.error("[shop/checkout] Invalid quantity in cart", item.quantity);
         return NextResponse.json(
-          {
-            error: "Invalid quantity in cart",
-            ...(debugEnabled ? { debug } : {}),
-          },
+          { error: "Invalid quantity in cart", ...(debugEnabled ? { debug } : {}) },
           { status: 400 },
         );
       }
 
-      const stripePrices = (template as any).stripePrices as
-        | Record<number, string>
-        | undefined;
+      totalCards += rawQuantity;
 
-      if (!stripePrices) {
-        console.error(
-          "[shop/checkout] Missing stripePrices for template",
-          (template as any).id ?? template,
-        );
-        return NextResponse.json(
-          {
-            error: "Pricing not configured for this product",
-            ...(debugEnabled ? { debug } : {}),
-          },
-          { status: 500 },
-        );
-      }
-
-      // Decompose the quantity into packs of 5, 3, and 1
-      let remaining = rawQuantity;
-      const packSizes = [5, 3, 1];
-
-      for (const packSize of packSizes) {
-        const priceId = stripePrices[packSize];
-        if (!priceId) continue;
-
-        while (remaining >= packSize) {
-          lineItems.push({ price: priceId, quantity: 1 });
-          priceIdsUsed.push(priceId);
-
-          metadataItems.push({
-            templateId: (template as any).id ?? "",
-            size: (template as any).size ?? "",
-            quantity: packSize,
-          });
-
-          remaining -= packSize;
-        }
-      }
-
-      if (remaining > 0) {
-        console.error(
-          "[shop/checkout] Could not decompose quantity into supported packs",
-          rawQuantity,
-          "remaining",
-          remaining,
-        );
-        return NextResponse.json(
-          {
-            error: "Unsupported quantity in cart",
-            ...(debugEnabled ? { debug } : {}),
-          },
-          { status: 400 },
-        );
-      }
+      metadataItems.push({
+        templateId: (template as any).id ?? "",
+        size: (template as any).size ?? "",
+        quantity: rawQuantity,
+      });
     }
 
-    if (lineItems.length === 0) {
-      console.error("[shop/checkout] No valid line items after processing cart");
+    if (totalCards <= 0) {
+      console.error("[shop/checkout] Computed totalCards is zero");
       return NextResponse.json(
-        {
-          error: "No valid items in cart",
-          ...(debugEnabled ? { debug } : {}),
-        },
+        { error: "No valid items in cart", ...(debugEnabled ? { debug } : {}) },
         { status: 400 },
       );
     }
 
-    debug.computed.lineItems = lineItems.map((li) => ({
-      price: (li as any).price ?? null,
-      quantity: (li as any).quantity ?? null,
-    }));
-    debug.computed.metadataItems = metadataItems;
-    debug.computed.priceIdsUsed = Array.from(new Set(priceIdsUsed));
+    const unitPriceCents = getCartUnitPriceCents(totalCards);
+    const productSubtotalCents = unitPriceCents * totalCards;
 
-    const totalCards = metadataItems.reduce((sum, item) => sum + item.quantity, 0);
+    debug.computed.totalCards = totalCards;
+    debug.computed.unitPriceCents = unitPriceCents;
+    debug.computed.productSubtotalCents = productSubtotalCents;
+
     const itemsMetadata = buildItemsMetadata(metadataItems);
 
-    // Compute product subtotal cents for discount validation and metadata
-    let productSubtotalCents = 0;
-    try {
-      productSubtotalCents = await computeProductSubtotalCents(stripe, lineItems);
-      debug.computed.productSubtotalCents = productSubtotalCents;
-    } catch (e: any) {
-      console.error("[shop/checkout] Failed to compute product subtotal", e);
-      debug.computed.productSubtotalError = String(e?.message ?? e);
-    }
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cartItems.map(
+      (item) => {
+        const template = CARD_TEMPLATES.find((t) => t.id === item.templateId)!;
 
-    // Compute Printful shipping again on the server to avoid trusting the client
+        return {
+          quantity: Number(item.quantity),
+          price_data: {
+            currency: "usd",
+            unit_amount: unitPriceCents,
+            product_data: {
+              name: `${(template as any).name ?? "GiftLink card"} (4x6)`,
+            },
+          },
+        };
+      },
+    );
+
+    debug.computed.lineItems = lineItems.map((li) => ({
+      quantity: (li as any).quantity ?? null,
+      unit_amount: (li as any).price_data?.unit_amount ?? null,
+      name: (li as any).price_data?.product_data?.name ?? null,
+    }));
+
     const variantQuantity = new Map<number, number>();
 
     for (const item of cartItems) {
       const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
       if (!template) {
-        console.error(
-          "[shop/checkout] Unknown template when mapping shipping",
-          item.templateId,
-        );
+        console.error("[shop/checkout] Unknown template when mapping shipping", item.templateId);
         continue;
       }
 
@@ -408,20 +339,13 @@ export async function POST(req: NextRequest) {
         (template as any).printfulCatalogVariantId;
 
       if (!shippingVariant) {
-        console.error(
-          "[shop/checkout] Missing Printful shipping variant for template",
-          item.templateId,
-        );
+        console.error("[shop/checkout] Missing Printful shipping variant for template", item.templateId);
         continue;
       }
 
       const variantId = Number(shippingVariant);
       if (!Number.isFinite(variantId)) {
-        console.error(
-          "[shop/checkout] Invalid Printful shipping variant id for template",
-          item.templateId,
-          shippingVariant,
-        );
+        console.error("[shop/checkout] Invalid Printful shipping variant id for template", item.templateId, shippingVariant);
         continue;
       }
 
@@ -430,14 +354,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (!variantQuantity.size) {
-      console.error(
-        "[shop/checkout] Could not map any items to Printful variants for shipping",
-      );
+      console.error("[shop/checkout] Could not map any items to Printful variants for shipping");
       return NextResponse.json(
-        {
-          error: "Could not calculate shipping for this cart",
-          ...(debugEnabled ? { debug } : {}),
-        },
+        { error: "Could not calculate shipping for this cart", ...(debugEnabled ? { debug } : {}) },
         { status: 400 },
       );
     }
@@ -475,20 +394,13 @@ export async function POST(req: NextRequest) {
 
     if (!shippingRes.ok) {
       const text = await shippingRes.text().catch(() => "");
-      console.error(
-        "[shop/checkout] Printful shipping error",
-        shippingRes.status,
-        text,
-      );
+      console.error("[shop/checkout] Printful shipping error", shippingRes.status, text);
       debug.computed.printfulShippingError = {
         status: shippingRes.status,
         body: text.slice(0, 2000),
       };
       return NextResponse.json(
-        {
-          error: "Failed to calculate shipping",
-          ...(debugEnabled ? { debug } : {}),
-        },
+        { error: "Failed to calculate shipping", ...(debugEnabled ? { debug } : {}) },
         { status: 500 },
       );
     }
@@ -506,10 +418,7 @@ export async function POST(req: NextRequest) {
     if (!shippingJson.result || shippingJson.result.length === 0) {
       console.error("[shop/checkout] No shipping methods returned from Printful");
       return NextResponse.json(
-        {
-          error: "No shipping methods available",
-          ...(debugEnabled ? { debug } : {}),
-        },
+        { error: "No shipping methods available", ...(debugEnabled ? { debug } : {}) },
         { status: 400 },
       );
     }
@@ -519,10 +428,7 @@ export async function POST(req: NextRequest) {
     if (!Number.isFinite(printfulRate)) {
       console.error("[shop/checkout] Invalid Printful rate value", best.rate);
       return NextResponse.json(
-        {
-          error: "Invalid shipping rate received",
-          ...(debugEnabled ? { debug } : {}),
-        },
+        { error: "Invalid shipping rate received", ...(debugEnabled ? { debug } : {}) },
         { status: 500 },
       );
     }
@@ -539,11 +445,10 @@ export async function POST(req: NextRequest) {
       totalShippingCents,
       currency: best.currency,
     };
-    debug.computed.totalCards = totalCards;
 
-    // Optional discount code handling
     const rawDiscountInput = String(body.discountCode ?? "").trim();
-    let discountsParam: Stripe.Checkout.SessionCreateParams["discounts"] | undefined = undefined;
+    let discountsParam: Stripe.Checkout.SessionCreateParams["discounts"] | undefined =
+      undefined;
 
     const discountMetadata: Record<string, string> = {};
 
@@ -626,7 +531,6 @@ export async function POST(req: NextRequest) {
       let couponId = row.stripe_coupon_id ?? null;
 
       if (!couponId) {
-        // Create a Stripe coupon once and store it back onto the row
         const created = await stripe.coupons.create(
           row.discount_type === "percent"
             ? {
@@ -644,12 +548,8 @@ export async function POST(req: NextRequest) {
 
         couponId = created.id;
 
-        // Best effort update, no hard failure if it cannot update
         try {
-          await supabase
-            .from("discount_codes")
-            .update({ stripe_coupon_id: couponId })
-            .eq("id", row.id);
+          await supabase.from("discount_codes").update({ stripe_coupon_id: couponId }).eq("id", row.id);
         } catch (e) {
           console.warn("[shop/checkout] Failed to persist stripe_coupon_id", e);
         }
@@ -689,10 +589,8 @@ export async function POST(req: NextRequest) {
 
         ...itemsMetadata,
 
-        // Discount metadata (if present)
         ...discountMetadata,
 
-        // Additional shipping metadata for webhook and admin use
         shipping_printful_method_id: best.id,
         shipping_printful_method_name: best.name,
         shipping_printful_rate_cents: String(printfulRateCents),

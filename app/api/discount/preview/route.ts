@@ -1,10 +1,8 @@
+// app/api/discount/preview/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
-
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 type CartItemPayload = {
   templateId: string;
@@ -47,72 +45,10 @@ function isWithinWindow(row: DiscountRow, now: Date) {
   return true;
 }
 
-async function buildLineItemsFromCart(
-  cartItems: CartItemPayload[],
-): Promise<Array<{ priceId: string; quantity: number }>> {
-  const out: Array<{ priceId: string; quantity: number }> = [];
-
-  for (const item of cartItems) {
-    const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
-    if (!template) {
-      throw new Error("Unknown product in cart");
-    }
-
-    const rawQuantity = Number(item.quantity);
-    if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) {
-      throw new Error("Invalid quantity in cart");
-    }
-
-    const stripePrices = (template as any).stripePrices as
-      | Record<number, string>
-      | undefined;
-
-    if (!stripePrices) {
-      throw new Error("Pricing not configured for this product");
-    }
-
-    let remaining = rawQuantity;
-    const packSizes = [5, 3, 1];
-
-    for (const packSize of packSizes) {
-      const priceId = stripePrices[packSize];
-      if (!priceId) continue;
-
-      while (remaining >= packSize) {
-        out.push({ priceId, quantity: 1 });
-        remaining -= packSize;
-      }
-    }
-
-    if (remaining > 0) {
-      throw new Error("Unsupported quantity in cart");
-    }
-  }
-
-  return out;
-}
-
-async function computeProductSubtotalCents(
-  stripeClient: Stripe,
-  lineItems: Array<{ priceId: string; quantity: number }>,
-) {
-  const counts = new Map<string, number>();
-  for (const li of lineItems) {
-    counts.set(li.priceId, (counts.get(li.priceId) ?? 0) + li.quantity);
-  }
-
-  let subtotal = 0;
-
-  for (const [priceId, qty] of counts.entries()) {
-    const price = await stripeClient.prices.retrieve(priceId);
-    const unit = price.unit_amount ?? null;
-    if (unit === null) {
-      throw new Error("One or more prices are missing unit_amount");
-    }
-    subtotal += unit * qty;
-  }
-
-  return subtotal;
+function getCartUnitPriceCents(totalQty: number) {
+  if (totalQty >= 5) return 499;
+  if (totalQty >= 3) return 549;
+  return 599;
 }
 
 function computeDiscountAmountCents(args: {
@@ -127,40 +63,51 @@ function computeDiscountAmountCents(args: {
     return Math.max(0, Math.min(productSubtotalCents, amt));
   }
 
-  // fixed
-  // Assumption: discount_value is stored in cents for fixed discounts
   const fixed = Number(row.discount_value);
   return Math.max(0, Math.min(productSubtotalCents, fixed));
 }
 
 export async function POST(req: NextRequest) {
   try {
-    if (!stripe) {
-      return NextResponse.json({ ok: false, error: "Stripe is not configured" }, { status: 500 });
-    }
-
-    const supabase = getSupabaseAdmin();
-    if (!supabase) {
-      return NextResponse.json({ ok: false, error: "Supabase admin is not configured" }, { status: 500 });
-    }
-
     const body = (await req.json().catch(() => null)) as
-      | { items?: CartItemPayload[]; code?: string }
+      | { code?: string; items?: CartItemPayload[] }
       | null;
 
-    if (!body || !Array.isArray(body.items) || body.items.length === 0) {
+    const rawCode = String(body?.code ?? "").trim();
+    if (!rawCode) {
+      return NextResponse.json({ ok: false, error: "Missing discount code" }, { status: 400 });
+    }
+
+    const items = body?.items;
+    if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ ok: false, error: "Your cart is empty" }, { status: 400 });
     }
 
-    const rawCode = String(body.code ?? "").trim();
-    if (!rawCode) {
-      return NextResponse.json({ ok: false, error: "Discount code is required" }, { status: 400 });
+    let totalQty = 0;
+
+    for (const item of items) {
+      const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
+      if (!template) {
+        return NextResponse.json({ ok: false, error: "Unknown product in cart" }, { status: 400 });
+      }
+
+      const qty = Number(item.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        return NextResponse.json({ ok: false, error: "Invalid quantity in cart" }, { status: 400 });
+      }
+
+      totalQty += qty;
+    }
+
+    const unitPriceCents = getCartUnitPriceCents(totalQty);
+    const productSubtotalCents = unitPriceCents * totalQty;
+
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ ok: false, error: "Discounts are not configured" }, { status: 500 });
     }
 
     const code = normalizeCode(rawCode);
-
-    const lineItems = await buildLineItemsFromCart(body.items);
-    const productSubtotalCents = await computeProductSubtotalCents(stripe, lineItems);
 
     const { data, error } = await supabase
       .from("discount_codes")
@@ -190,17 +137,35 @@ export async function POST(req: NextRequest) {
     }
 
     if (row.max_redemptions !== null && row.redemption_count >= row.max_redemptions) {
-      return NextResponse.json({ ok: false, error: "This discount code has reached its redemption limit" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "This discount code has reached its redemption limit" },
+        { status: 400 },
+      );
     }
 
     if (row.min_subtotal_cents !== null && productSubtotalCents < row.min_subtotal_cents) {
-      return NextResponse.json({ ok: false, error: "Cart subtotal does not meet the minimum for this discount" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "Cart subtotal does not meet the minimum for this discount" },
+        { status: 400 },
+      );
     }
 
-    const discountAmountCents = computeDiscountAmountCents({ row, productSubtotalCents });
+    const discountAmountCents = computeDiscountAmountCents({
+      row,
+      productSubtotalCents,
+    });
+
     if (discountAmountCents <= 0) {
-      return NextResponse.json({ ok: false, error: "This discount code does not apply to this cart" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "This discount code does not apply to this cart" },
+        { status: 400 },
+      );
     }
+
+    const productSubtotalAfterDiscountCents = Math.max(
+      0,
+      productSubtotalCents - discountAmountCents,
+    );
 
     return NextResponse.json(
       {
@@ -210,15 +175,12 @@ export async function POST(req: NextRequest) {
         discountValue: row.discount_value,
         discountAmountCents,
         productSubtotalCents,
-        productSubtotalAfterDiscountCents: Math.max(0, productSubtotalCents - discountAmountCents),
+        productSubtotalAfterDiscountCents,
       },
       { status: 200 },
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("[discount/preview] Error", err);
-    return NextResponse.json(
-      { ok: false, error: "Failed to validate discount code" },
-      { status: 500 },
-    );
+    return NextResponse.json({ ok: false, error: "Failed to validate discount code" }, { status: 500 });
   }
 }
