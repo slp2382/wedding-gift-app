@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import ShopPageClient from "./ShopPageClient";
 import { useCart } from "../providers/CartProvider";
+import QuantityDiscountModal from "../components/QuantityDiscountModal";
 
 export default function ShopPage() {
   return (
@@ -22,11 +23,12 @@ function ShopPageContent() {
   const searchParams = useSearchParams();
   const isSuccess = searchParams.get("status") === "success";
 
-  // Pull itemCount directly from provider
   const { itemCount } = useCart();
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-10 dark:bg-zinc-950">
+      <QuantityDiscountModal />
+
       {/* Top bar with home and cart links */}
       <div className="mx-auto mb-6 flex max-w-5xl items-center justify-between gap-4">
         <div>
