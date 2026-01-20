@@ -329,22 +329,24 @@ export default function CardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-emerald-50 to-emerald-100 px-4 py-6 text-emerald-950">
+    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 px-4 py-6 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
       <div className="mx-auto flex min-h-[90vh] max-w-3xl flex-col">
         {/* Top nav / wordmark */}
         <header className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-500 shadow-md shadow-emerald-400/40">
-              <span className="text-lg font-semibold text-emerald-50">G</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-700 via-sky-600 to-sky-500 shadow-md shadow-sky-400/40">
+              <span className="text-lg font-semibold text-white">G</span>
             </div>
             <div className="leading-tight">
               <p className="text-lg font-semibold tracking-tight">GiftLink</p>
-              <p className="text-xs text-emerald-700/80">Wedding gift QR cards</p>
+              <p className="text-xs text-sky-700/80 dark:text-sky-200">
+                Wedding gift QR cards
+              </p>
             </div>
           </div>
 
-          <div className="hidden text-xs font-medium text-emerald-800/80 md:block">
-            <span className="rounded-full border border-emerald-200/80 bg-emerald-50/80 px-3 py-1 shadow-sm backdrop-blur">
+          <div className="hidden text-xs font-medium text-slate-800/80 md:block dark:text-slate-200/80">
+            <span className="rounded-full border border-sky-200/80 bg-sky-50/80 px-3 py-1 shadow-sm backdrop-blur dark:border-sky-700/70 dark:bg-sky-950/60">
               Guest view · Card scan
             </span>
           </div>
@@ -353,33 +355,35 @@ export default function CardPage() {
         <main className="flex-1 space-y-6">
           {/* Hero / heading */}
           <section className="space-y-3 text-center">
-            <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+            <p className="text-xs font-medium uppercase tracking-wide text-sky-700 dark:text-sky-300">
               Wedding Gift Card
             </p>
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
               Your GiftLink funds are ready!
             </h1>
-            <p className="text-xs text-emerald-800/80">
+            <p className="text-xs text-slate-900/70 dark:text-slate-200/80">
               Card ID{" "}
-              <span className="font-mono text-[11px] text-emerald-900">
+              <span className="font-mono text-[11px] text-slate-900 dark:text-slate-50">
                 {cardId || "(missing)"}
               </span>
             </p>
 
             {/* Decorative line */}
             <div className="mt-3 flex items-center justify-center gap-3">
-              <div className="h-px w-16 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600" />
-              <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-700/90">
+              <div className="h-px w-16 bg-gradient-to-r from-sky-400 via-sky-500 to-sky-600" />
+              <p className="text-[11px] uppercase tracking-[0.18em] text-sky-700/90 dark:text-sky-300/90">
                 recipient view
               </p>
-              <div className="h-px w-16 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />
+              <div className="h-px w-16 bg-gradient-to-r from-sky-600 via-sky-500 to-sky-400" />
             </div>
           </section>
 
           {/* Loading state */}
           {loading && (
-            <section className="mt-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-6 text-center shadow-lg shadow-emerald-100/80 backdrop-blur-sm">
-              <p className="text-sm text-emerald-900/90">Loading card details…</p>
+            <section className="mt-4 rounded-2xl border border-sky-200/80 bg-sky-50/80 p-6 text-center shadow-lg shadow-sky-100/70 backdrop-blur-sm dark:border-sky-700/70 dark:bg-sky-950/60 dark:shadow-none">
+              <p className="text-sm text-slate-900/90 dark:text-slate-100/90">
+                Loading card details…
+              </p>
             </section>
           )}
 
@@ -398,10 +402,10 @@ export default function CardPage() {
             <section
               className={`mt-4 rounded-2xl border p-6 shadow-lg backdrop-blur-sm ${
                 isClaimed
-                  ? "border-emerald-300/80 bg-emerald-50/90 shadow-emerald-100/80"
+                  ? "border-sky-200/80 bg-slate-50/95 shadow-sky-100/70 dark:border-sky-700/70 dark:bg-slate-950/90 dark:shadow-none"
                   : isFunded
-                  ? "border-emerald-300/80 bg-emerald-50/90 shadow-emerald-100/80"
-                  : "border-amber-200/80 bg-amber-50/90 shadow-amber-100/80"
+                  ? "border-sky-200/80 bg-slate-50/95 shadow-sky-100/70 dark:border-sky-700/70 dark:bg-slate-950/90 dark:shadow-none"
+                  : "border-slate-200/80 bg-slate-50/95 shadow-slate-100/70 dark:border-slate-800/70 dark:bg-slate-950/90 dark:shadow-none"
               }`}
             >
               <div className="space-y-4">
@@ -410,22 +414,22 @@ export default function CardPage() {
                   <div className="inline-flex items-center gap-2 rounded-full px-3 py-1">
                     {isClaimed ? (
                       <>
-                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
-                        <span className="font-medium text-emerald-900">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-sky-500 shadow-[0_0_0_4px_rgba(14,165,233,0.25)]" />
+                        <span className="font-medium text-slate-900 dark:text-slate-50">
                           Gift claimed
                         </span>
                       </>
                     ) : isFunded ? (
                       <>
-                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
-                        <span className="font-medium text-emerald-900">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-sky-500 shadow-[0_0_0_4px_rgba(14,165,233,0.25)]" />
+                        <span className="font-medium text-slate-900 dark:text-slate-50">
                           Gift ready to claim
                         </span>
                       </>
                     ) : (
                       <>
-                        <span className="inline-flex h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.3)]" />
-                        <span className="font-medium text-amber-900">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_0_4px_rgba(148,163,184,0.25)]" />
+                        <span className="font-medium text-slate-900 dark:text-slate-50">
                           {isBlankStoreCard
                             ? "Store card ready for a gift"
                             : "Not funded yet"}
@@ -435,7 +439,7 @@ export default function CardPage() {
                   </div>
 
                   {!isFunded && !isClaimed && (
-                    <p className="text-[11px] text-amber-900/80">
+                    <p className="text-[11px] text-slate-900/70 dark:text-slate-200/80">
                       {isBlankStoreCard
                         ? "This card has been printed and activated, but no gift has been loaded yet."
                         : "Once a guest loads this card, it will appear here."}
@@ -443,13 +447,13 @@ export default function CardPage() {
                   )}
 
                   {isFunded && !isClaimed && (
-                    <p className="text-[11px] text-emerald-900/80">
+                    <p className="text-[11px] text-slate-900/70 dark:text-slate-200/80">
                       This gift has been funded and is waiting to be claimed.
                     </p>
                   )}
 
                   {isClaimed && (
-                    <p className="text-[11px] text-emerald-900/80">
+                    <p className="text-[11px] text-slate-900/70 dark:text-slate-200/80">
                       Claim received. Venmo payouts are typically sent the next business
                       day. Bank transfers typically take 3 to 5 business days to
                       complete.
@@ -460,14 +464,18 @@ export default function CardPage() {
                 {/* Giver and amount */}
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm text-emerald-800/80">From</p>
+                    <p className="text-sm text-slate-900/70 dark:text-slate-200/80">
+                      From
+                    </p>
                     <p className="text-lg font-semibold">
                       {card.giver_name ||
                         (isFunded ? "A generous guest" : "Waiting for a guest to load")}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-emerald-800/80">Amount</p>
+                    <p className="text-sm text-slate-900/70 dark:text-slate-200/80">
+                      Amount
+                    </p>
                     <p className="text-2xl font-bold tracking-tight">
                       {card.amount != null && Number(card.amount) > 0
                         ? Number(card.amount).toLocaleString("en-US", {
@@ -481,50 +489,52 @@ export default function CardPage() {
 
                 {/* Note */}
                 {card.note && (
-                  <div className="mt-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 shadow-sm shadow-emerald-100/80">
+                  <div className="mt-2 rounded-xl bg-sky-50 p-3 text-sm text-slate-900 shadow-sm shadow-sky-100/70 dark:bg-slate-950/70 dark:text-slate-50">
                     “{card.note}”
                   </div>
                 )}
 
                 {/* Status + actions */}
-                <div className="space-y-3 border-t border-emerald-100 pt-4">
+                <div className="space-y-3 border-t border-sky-100/80 pt-4 dark:border-sky-800/70">
                   {isClaimed ? (
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
-                          <span className="font-medium text-emerald-900">
+                          <span className="inline-flex h-2 w-2 rounded-full bg-sky-500 shadow-[0_0_0_4px_rgba(14,165,233,0.25)]" />
+                          <span className="font-medium text-slate-900 dark:text-slate-50">
                             Gift claimed
                           </span>
                         </div>
-                        <p className="text-xs text-emerald-900/80">
+                        <p className="text-xs text-slate-900/70 dark:text-slate-200/80">
                           Saved to this card — you&apos;re all set.
                         </p>
                       </div>
 
-                      <p className="text-xs text-emerald-900/80">
+                      <p className="text-xs text-slate-900/70 dark:text-slate-200/80">
                         Venmo payouts are typically sent the next business day. Bank
                         transfers typically take 3 to 5 business days to complete.
                       </p>
                     </div>
                   ) : isFunded ? (
                     <>
-                      <p className="text-sm text-emerald-900/90">
+                      <p className="text-sm text-slate-900/90 dark:text-slate-100/90">
                         Choose how you would like to receive this gift, then enter
                         your details to claim it.
                       </p>
 
                       {/* Payout method toggle */}
                       <div className="mt-2 flex flex-col gap-2 text-xs">
-                        <p className="font-medium text-emerald-900/90">Payout method</p>
+                        <p className="font-medium text-slate-900/90 dark:text-slate-100/90">
+                          Payout method
+                        </p>
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
                             onClick={() => setPayoutMethod("venmo")}
                             className={`rounded-full border px-3 py-1 text-xs font-medium ${
                               payoutMethod === "venmo"
-                                ? "border-emerald-600 bg-emerald-600 text-emerald-50"
-                                : "border-emerald-200 bg-emerald-50 text-emerald-900"
+                                ? "border-sky-700 bg-sky-700 dark:border-sky-400 dark:bg-sky-500 text-white"
+                                : "border-sky-200 bg-sky-50 text-slate-950 dark:border-sky-700 dark:bg-sky-950/70 dark:text-slate-50"
                             }`}
                           >
                             Venmo
@@ -534,8 +544,8 @@ export default function CardPage() {
                             onClick={() => setPayoutMethod("stripe_connect")}
                             className={`rounded-full border px-3 py-1 text-xs font-medium ${
                               payoutMethod === "stripe_connect"
-                                ? "border-emerald-600 bg-emerald-600 text-emerald-50"
-                                : "border-emerald-200 bg-emerald-50 text-emerald-900"
+                                ? "border-sky-700 bg-sky-700 dark:border-sky-400 dark:bg-sky-500 text-white"
+                                : "border-sky-200 bg-sky-50 text-slate-950 dark:border-sky-700 dark:bg-sky-950/70 dark:text-slate-50"
                             }`}
                           >
                             Bank payout
@@ -546,7 +556,7 @@ export default function CardPage() {
                       <button
                         type="button"
                         onClick={() => setShowClaimForm((v) => !v)}
-                        className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
+                        className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         {showClaimForm
                           ? "Hide claim form"
@@ -556,20 +566,20 @@ export default function CardPage() {
                       </button>
 
                       {payoutSuccess && (
-                        <p className="mt-2 text-xs text-emerald-900/90">
+                        <p className="mt-2 text-xs text-slate-900/90 dark:text-slate-100/90">
                           {payoutSuccess}
                         </p>
                       )}
 
                       {showClaimForm && (
-                        <div className="mt-3 rounded-xl bg-emerald-50/80 p-3 text-xs text-emerald-900 shadow-sm">
+                        <div className="mt-3 rounded-xl bg-sky-50/80 p-3 text-xs text-slate-900 shadow-sm dark:bg-slate-950/70 dark:text-slate-50">
                           <p className="mb-2 text-sm font-medium">
                             Where should we send this gift?
                           </p>
 
                           {payoutMethod === "venmo" ? (
                             <>
-                              <p className="mb-3 text-xs text-emerald-800/90">
+                              <p className="mb-3 text-xs text-slate-900/80 dark:text-slate-200/80">
                                 Enter your name, email, and Venmo handle and we&apos;ll
                                 review and send your gift there shortly. Venmo is fast
                                 and free and payouts are typically sent the next business
@@ -582,43 +592,43 @@ export default function CardPage() {
                               >
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
-                                    <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                    <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
                                       Your name
                                     </label>
                                     <input
                                       type="text"
                                       value={payoutName}
                                       onChange={(e) => setPayoutName(e.target.value)}
-                                      className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                      className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
                                       placeholder="Name for payout"
                                     />
                                   </div>
                                   <div>
-                                    <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                    <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
                                       Email for payout confirmation
                                     </label>
                                     <input
                                       type="email"
                                       value={payoutEmail}
                                       onChange={(e) => setPayoutEmail(e.target.value)}
-                                      className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                      className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
                                       placeholder="you@example.com"
                                     />
                                   </div>
                                 </div>
 
                                 <div>
-                                  <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                  <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
                                     Venmo handle
                                   </label>
                                   <input
                                     type="text"
                                     value={payoutDetails}
                                     onChange={(e) => setPayoutDetails(e.target.value)}
-                                    className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                    className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
                                     placeholder="@your-venmo-handle"
                                   />
-                                  <p className="mt-1 text-[11px] text-emerald-800/90">
+                                  <p className="mt-1 text-[11px] text-slate-900/80 dark:text-slate-200/80">
                                     We’ll use this Venmo handle to send your gift.
                                     Make sure it matches your Venmo profile exactly.
                                   </p>
@@ -633,7 +643,7 @@ export default function CardPage() {
                                 <button
                                   type="submit"
                                   disabled={payoutLoading}
-                                  className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
+                                  className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
                                   {payoutLoading ? "Sending claim…" : "Submit Venmo details"}
                                 </button>
@@ -641,7 +651,7 @@ export default function CardPage() {
                             </>
                           ) : (
                             <>
-                              <p className="mb-3 text-xs text-emerald-800/90">
+                              <p className="mb-3 text-xs text-slate-900/80 dark:text-slate-200/80">
                                 We&apos;ll connect to Stripe to securely set up a bank
                                 payout. Enter your name and email, then we&apos;ll take
                                 you to Stripe to add your bank details. Bank payouts
@@ -653,26 +663,26 @@ export default function CardPage() {
                               <form onSubmit={handleStripePayout} className="space-y-3">
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
-                                    <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                    <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
                                       Your name
                                     </label>
                                     <input
                                       type="text"
                                       value={payoutName}
                                       onChange={(e) => setPayoutName(e.target.value)}
-                                      className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                      className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
                                       placeholder="Name for payout"
                                     />
                                   </div>
                                   <div>
-                                    <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                    <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
                                       Email for payout updates
                                     </label>
                                     <input
                                       type="email"
                                       value={payoutEmail}
                                       onChange={(e) => setPayoutEmail(e.target.value)}
-                                      className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                      className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
                                       placeholder="you@example.com"
                                     />
                                   </div>
@@ -685,7 +695,7 @@ export default function CardPage() {
                                 <button
                                   type="submit"
                                   disabled={payoutLoading}
-                                  className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
+                                  className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
                                   {payoutLoading
                                     ? "Starting secure bank setup…"
@@ -701,7 +711,7 @@ export default function CardPage() {
                     <>
                       {isBlankStoreCard ? (
                         <>
-                          <p className="text-sm text-amber-900">
+                          <p className="text-sm text-slate-900/80 dark:text-slate-200/80">
                             This GiftLink card is ready for a guest to load. When
                             someone uses this QR link to send a gift, the amount and
                             their name will appear here for the recipient to claim.
@@ -710,23 +720,23 @@ export default function CardPage() {
                           <form onSubmit={handleGuestLoad} className="mt-3 space-y-3">
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
                                   Your name
                                 </label>
                                 <input
                                   type="text"
                                   value={guestName}
                                   onChange={(e) => setGuestName(e.target.value)}
-                                  className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                  className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
                                   placeholder="Jane Guest"
                                 />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                                <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
                                   Amount
                                 </label>
                                 <div className="relative">
-                                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-emerald-700/70">
+                                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-700/70 dark:text-slate-300/70">
                                     $
                                   </span>
                                   <input
@@ -735,7 +745,7 @@ export default function CardPage() {
                                     step="1"
                                     value={guestAmount}
                                     onChange={(e) => setGuestAmount(e.target.value)}
-                                    className="w-full rounded-xl border border-emerald-200 bg-emerald-50 pl-6 pr-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                    className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 pl-6 pr-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
                                     placeholder="100"
                                   />
                                 </div>
@@ -743,14 +753,14 @@ export default function CardPage() {
                             </div>
 
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-emerald-900/90">
+                              <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
                                 Optional note
                               </label>
                               <textarea
                                 rows={2}
                                 value={guestNote}
                                 onChange={(e) => setGuestNote(e.target.value)}
-                                className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
                                 placeholder="Add a short message for the recipient"
                               />
                             </div>
@@ -758,7 +768,7 @@ export default function CardPage() {
                             <button
                               type="submit"
                               disabled={loadingCheckout}
-                              className="inline-flex w-full items-center justify-center rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-70"
+                              className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                             >
                               {loadingCheckout
                                 ? "Opening secure checkout…"
@@ -772,7 +782,7 @@ export default function CardPage() {
                         </>
                       ) : (
                         <>
-                          <p className="text-sm text-amber-900">
+                          <p className="text-sm text-slate-900/80 dark:text-slate-200/80">
                             This GiftLink hasn&apos;t been loaded yet. Once a guest
                             uses the QR code to send a wedding gift, the amount and
                             their name will show up here and you&apos;ll be able to
@@ -780,7 +790,7 @@ export default function CardPage() {
                           </p>
                           <button
                             disabled
-                            className="inline-flex w-full items-center justify-center rounded-full bg-amber-300/80 px-4 py-2.5 text-sm font-medium text-amber-900 shadow-sm disabled:cursor-not-allowed"
+                            className="inline-flex w-full items-center justify-center rounded-full bg-slate-200/80 dark:bg-slate-800/70 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-50 shadow-sm disabled:cursor-not-allowed"
                           >
                             Waiting for gift to be loaded
                           </button>
@@ -797,13 +807,13 @@ export default function CardPage() {
           <div className="mt-6 flex justify-center">
             <Link
               href="/"
-              className="text-sm font-medium text-emerald-800 underline-offset-4 hover:text-emerald-700 hover:underline"
+              className="text-sm font-medium text-sky-900 underline-offset-4 hover:text-sky-700 hover:underline dark:text-sky-200"
             >
               Back to GiftLink Home
             </Link>
           </div>
 
-          <div className="mt-3 text-center text-xs text-emerald-800/80">
+          <div className="mt-3 text-center text-xs text-slate-800/80 dark:text-slate-200/80">
             Need help? Contact{" "}
             <a
               href="mailto:admin@giftlink.cards"
