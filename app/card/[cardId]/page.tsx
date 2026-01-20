@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 
@@ -33,7 +34,6 @@ export default function CardPage() {
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [payoutName, setPayoutName] = useState("");
   const [payoutEmail, setPayoutEmail] = useState("");
-  // Now support Venmo or Stripe Connect
   const [payoutMethod, setPayoutMethod] = useState<"venmo" | "stripe_connect">(
     "venmo",
   );
@@ -80,6 +80,14 @@ export default function CardPage() {
   const isBlankStoreCard = !!card && amount <= 0 && !card.claimed;
   const isFunded = !!card && amount > 0 && !card.claimed;
   const isClaimed = !!card && card.claimed;
+
+  const heroTitle = loading
+    ? "Loading card details..."
+    : isFunded
+    ? "Your GiftLink funds are ready!"
+    : isClaimed
+    ? "This GiftLink has been claimed"
+    : "This card is ready to be loaded with a gift";
 
   // Guest load handler for blank store cards (Stripe Checkout)
   async function handleGuestLoad(e: FormEvent<HTMLFormElement>) {
@@ -144,7 +152,7 @@ export default function CardPage() {
     }
   }
 
-  // Venmo payout handler (existing behavior)
+  // Venmo payout handler
   async function handleSubmitVenmoPayout(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!card || !cardId) return;
@@ -174,7 +182,6 @@ export default function CardPage() {
     setPayoutLoading(true);
 
     try {
-      // 1) Save payout request
       const res = await fetch("/api/request-payout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -197,7 +204,6 @@ export default function CardPage() {
         return;
       }
 
-      // 2) Mark card as claimed immediately for Venmo
       const claimRes = await fetch("/api/claim-gift", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -231,7 +237,7 @@ export default function CardPage() {
     setPayoutLoading(false);
   }
 
-  // Stripe Connect payout handler (new behavior)
+  // Stripe Connect payout handler
   async function handleStripePayout(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!card || !cardId) return;
@@ -255,7 +261,6 @@ export default function CardPage() {
     setPayoutLoading(true);
 
     try {
-      // 1) Create payout_requests row for Stripe Connect
       const res = await fetch("/api/request-payout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -285,7 +290,6 @@ export default function CardPage() {
         return;
       }
 
-      // 2) Ensure a Connect account exists
       const createAccountRes = await fetch("/api/stripe/connect/createAccount", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -302,7 +306,6 @@ export default function CardPage() {
         return;
       }
 
-      // 3) Get onboarding link
       const onboardingRes = await fetch("/api/stripe/connect/onboardingLink", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -319,7 +322,6 @@ export default function CardPage() {
         return;
       }
 
-      // 4) Redirect to Stripe hosted onboarding
       window.location.href = onboardingData.url;
     } catch (err) {
       console.error("Error starting Stripe payout:", err);
@@ -331,14 +333,19 @@ export default function CardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 px-4 py-6 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
       <div className="mx-auto flex min-h-[90vh] max-w-3xl flex-col">
-        {/* Top nav / wordmark */}
         <header className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-700 via-sky-600 to-sky-500 shadow-md shadow-sky-400/40">
-              <span className="text-lg font-semibold text-white">G</span>
+          <div className="flex items-center gap-3">
+            <div className="relative h-9 w-40">
+              <Image
+                src="/giftlink_logo.svg"
+                alt="GiftLink"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
+
             <div className="leading-tight">
-              <p className="text-lg font-semibold tracking-tight">GiftLink</p>
               <p className="text-xs text-sky-700/80 dark:text-sky-200">
                 Wedding gift QR cards
               </p>
@@ -353,13 +360,12 @@ export default function CardPage() {
         </header>
 
         <main className="flex-1 space-y-6">
-          {/* Hero / heading */}
           <section className="space-y-3 text-center">
             <p className="text-xs font-medium uppercase tracking-wide text-sky-700 dark:text-sky-300">
               Wedding Gift Card
             </p>
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-              Your GiftLink funds are ready!
+              {heroTitle}
             </h1>
             <p className="text-xs text-slate-900/70 dark:text-slate-200/80">
               Card ID{" "}
@@ -368,7 +374,6 @@ export default function CardPage() {
               </span>
             </p>
 
-            {/* Decorative line */}
             <div className="mt-3 flex items-center justify-center gap-3">
               <div className="h-px w-16 bg-gradient-to-r from-sky-400 via-sky-500 to-sky-600" />
               <p className="text-[11px] uppercase tracking-[0.18em] text-sky-700/90 dark:text-sky-300/90">
@@ -378,7 +383,6 @@ export default function CardPage() {
             </div>
           </section>
 
-          {/* Loading state */}
           {loading && (
             <section className="mt-4 rounded-2xl border border-sky-200/80 bg-sky-50/80 p-6 text-center shadow-lg shadow-sky-100/70 backdrop-blur-sm dark:border-sky-700/70 dark:bg-sky-950/60 dark:shadow-none">
               <p className="text-sm text-slate-900/90 dark:text-slate-100/90">
@@ -387,7 +391,6 @@ export default function CardPage() {
             </section>
           )}
 
-          {/* Error / not found */}
           {!loading && errorMessage && !card && (
             <section className="mt-4 rounded-2xl border border-rose-200/80 bg-rose-50/80 p-6 text-center shadow-md shadow-rose-100/60 backdrop-blur-sm">
               <p className="text-sm font-medium text-rose-700">{errorMessage}</p>
@@ -397,7 +400,6 @@ export default function CardPage() {
             </section>
           )}
 
-          {/* Card content */}
           {!loading && card && (
             <section
               className={`mt-4 rounded-2xl border p-6 shadow-lg backdrop-blur-sm ${
@@ -409,7 +411,6 @@ export default function CardPage() {
               }`}
             >
               <div className="space-y-4">
-                {/* Status pill */}
                 <div className="flex items-center justify-between gap-3 text-xs">
                   <div className="inline-flex items-center gap-2 rounded-full px-3 py-1">
                     {isClaimed ? (
@@ -461,7 +462,6 @@ export default function CardPage() {
                   )}
                 </div>
 
-                {/* Giver and amount */}
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm text-slate-900/70 dark:text-slate-200/80">
@@ -487,14 +487,12 @@ export default function CardPage() {
                   </div>
                 </div>
 
-                {/* Note */}
                 {card.note && (
                   <div className="mt-2 rounded-xl bg-sky-50 p-3 text-sm text-slate-900 shadow-sm shadow-sky-100/70 dark:bg-slate-950/70 dark:text-slate-50">
                     “{card.note}”
                   </div>
                 )}
 
-                {/* Status + actions */}
                 <div className="space-y-3 border-t border-sky-100/80 pt-4 dark:border-sky-800/70">
                   {isClaimed ? (
                     <div className="space-y-2 text-sm">
@@ -522,7 +520,6 @@ export default function CardPage() {
                         your details to claim it.
                       </p>
 
-                      {/* Payout method toggle */}
                       <div className="mt-2 flex flex-col gap-2 text-xs">
                         <p className="font-medium text-slate-900/90 dark:text-slate-100/90">
                           Payout method
@@ -728,7 +725,7 @@ export default function CardPage() {
                                   value={guestName}
                                   onChange={(e) => setGuestName(e.target.value)}
                                   className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
-                                  placeholder="Jane Guest"
+                                  placeholder="Guest Name"
                                 />
                               </div>
                               <div>
@@ -803,7 +800,6 @@ export default function CardPage() {
             </section>
           )}
 
-          {/* Back link */}
           <div className="mt-6 flex justify-center">
             <Link
               href="/"
