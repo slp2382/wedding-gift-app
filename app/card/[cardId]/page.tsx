@@ -347,7 +347,7 @@ export default function CardPage() {
 
             <div className="leading-tight">
               <p className="text-xs text-sky-700/80 dark:text-sky-200">
-                //Wedding gift QR cards
+                Wedding gift QR cards
               </p>
             </div>
           </div>
