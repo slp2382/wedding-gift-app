@@ -89,6 +89,8 @@ export default function CardPage() {
     ? "This GiftLink has been claimed"
     : "This card is ready to be loaded with a gift";
 
+  const showRecipientViewDecor = !loading && (isFunded || isClaimed);
+
   // Guest load handler for blank store cards (Stripe Checkout)
   async function handleGuestLoad(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -333,9 +335,9 @@ export default function CardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 px-4 py-6 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
       <div className="mx-auto flex min-h-[90vh] max-w-3xl flex-col">
-        <header className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative h-10 w-48 sm:h-11 sm:w-56 md:h-12 md:w-64">
+        <header className="mb-8 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <div className="relative h-14 w-72 sm:h-12 sm:w-64 md:h-12 md:w-72">
               <Image
                 src="/giftlink_logo.svg"
                 alt="GiftLink"
@@ -343,12 +345,6 @@ export default function CardPage() {
                 className="object-contain"
                 priority
               />
-            </div>
-
-            <div className="leading-tight">
-              <p className="text-xs text-sky-700/80 dark:text-sky-200">
-                Wedding gift QR cards
-              </p>
             </div>
           </div>
 
@@ -374,13 +370,15 @@ export default function CardPage() {
               </span>
             </p>
 
-            <div className="mt-3 flex items-center justify-center gap-3">
-              <div className="h-px w-16 bg-gradient-to-r from-sky-400 via-sky-500 to-sky-600" />
-              <p className="text-[11px] uppercase tracking-[0.18em] text-sky-700/90 dark:text-sky-300/90">
-                recipient view
-              </p>
-              <div className="h-px w-16 bg-gradient-to-r from-sky-600 via-sky-500 to-sky-400" />
-            </div>
+            {showRecipientViewDecor && (
+              <div className="mt-3 flex items-center justify-center gap-3">
+                <div className="h-px w-16 bg-gradient-to-r from-sky-400 via-sky-500 to-sky-600" />
+                <p className="text-[11px] uppercase tracking-[0.18em] text-sky-700/90 dark:text-sky-300/90">
+                  recipient view
+                </p>
+                <div className="h-px w-16 bg-gradient-to-r from-sky-600 via-sky-500 to-sky-400" />
+              </div>
+            )}
           </section>
 
           {loading && (
@@ -632,9 +630,7 @@ export default function CardPage() {
                                 </div>
 
                                 {payoutError && (
-                                  <p className="text-xs text-rose-600">
-                                    {payoutError}
-                                  </p>
+                                  <p className="text-xs text-rose-600">{payoutError}</p>
                                 )}
 
                                 <button
@@ -642,7 +638,9 @@ export default function CardPage() {
                                   disabled={payoutLoading}
                                   className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
-                                  {payoutLoading ? "Sending claim…" : "Submit Venmo details"}
+                                  {payoutLoading
+                                    ? "Sending claim…"
+                                    : "Submit Venmo details"}
                                 </button>
                               </form>
                             </>
