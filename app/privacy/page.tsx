@@ -62,11 +62,6 @@ export default function PrivacyPage() {
           </Link>
         </header>
 
-        <div className="mb-6 rounded-2xl border border-sky-200/80 bg-white/70 p-4 text-sm text-slate-900/80 shadow-sm backdrop-blur dark:border-sky-700/70 dark:bg-slate-950/60 dark:text-slate-200/80">
-          This page is a starting template and does not replace legal advice.
-          Please review with your attorney before you rely on it.
-        </div>
-
         <Card>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             This Privacy Policy explains how GiftLink collects, uses, and shares

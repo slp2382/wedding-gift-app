@@ -43,7 +43,6 @@ export default function TermsPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 px-4 py-10 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
       <div className="mx-auto w-full max-w-3xl">
-        {/* Header */}
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
@@ -62,13 +61,6 @@ export default function TermsPage() {
           </Link>
         </header>
 
-        {/* Disclaimer */}
-        <div className="mb-6 rounded-2xl border border-sky-200/80 bg-white/70 p-4 text-sm text-slate-900/80 shadow-sm backdrop-blur dark:border-sky-700/70 dark:bg-slate-950/60 dark:text-slate-200/80">
-          This page is a starting template and does not replace legal advice.
-          Please review with your attorney before you rely on it.
-        </div>
-
-        {/* Intro and Contents */}
         <Card>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             These Terms of Use govern your access to and use of GiftLink. By
@@ -99,7 +91,6 @@ export default function TermsPage() {
           </div>
         </Card>
 
-        {/* Sections */}
         <section id="about">
           <SectionTitle id="about">1. About GiftLink</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
@@ -274,7 +265,6 @@ export default function TermsPage() {
           </p>
         </section>
 
-        {/* Footer actions */}
         <div className="mt-8 flex flex-col items-center gap-3 pb-6 text-center">
           <Link
             href="/"
