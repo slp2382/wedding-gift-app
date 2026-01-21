@@ -1,58 +1,37 @@
+import Link from "next/link";
+import React from "react";
+
 export const metadata = {
   title: "Privacy Policy | GiftLink",
   description:
     "GiftLink Privacy Policy describing what information we collect, how we use it, and how to contact us.",
 };
 
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 22,
-  fontWeight: 700,
-  marginTop: 28,
-  marginBottom: 10,
-  letterSpacing: -0.2,
-};
-
-const paragraphStyle: React.CSSProperties = {
-  fontSize: 15.5,
-  lineHeight: 1.7,
-  color: "rgba(0,0,0,0.78)",
-  marginTop: 10,
-  marginBottom: 10,
-};
-
-const smallStyle: React.CSSProperties = {
-  fontSize: 13.5,
-  lineHeight: 1.6,
-  color: "rgba(0,0,0,0.6)",
-};
-
-function AnchorLink(props: { href: string; children: React.ReactNode }) {
+function TocLink(props: { href: string; children: React.ReactNode }) {
   return (
     <a
       href={props.href}
-      style={{
-        color: "rgba(0,0,0,0.82)",
-        textDecoration: "none",
-        borderBottom: "1px solid rgba(0,0,0,0.18)",
-        paddingBottom: 1,
-      }}
+      className="text-sm text-slate-900/80 underline-offset-4 hover:text-sky-800 hover:underline dark:text-slate-200/80 dark:hover:text-sky-200"
     >
       {props.children}
     </a>
   );
 }
 
+function SectionTitle(props: { id?: string; children: React.ReactNode }) {
+  return (
+    <h2
+      id={props.id}
+      className="mt-8 mb-3 text-xl font-semibold tracking-tight text-slate-950 dark:text-slate-50"
+    >
+      {props.children}
+    </h2>
+  );
+}
+
 function Card(props: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        background: "rgba(255,255,255,0.9)",
-        border: "1px solid rgba(0,0,0,0.08)",
-        borderRadius: 16,
-        boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
-        padding: 18,
-      }}
-    >
+    <div className="rounded-2xl border border-sky-200/80 bg-sky-50/80 p-5 shadow-lg shadow-sky-100/70 backdrop-blur-sm dark:border-sky-700/70 dark:bg-sky-950/60 dark:shadow-none">
       {props.children}
     </div>
   );
@@ -63,74 +42,66 @@ export default function PrivacyPage() {
   const supportEmail = "admin@giftlink.cards";
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(900px 420px at 18% 8%, rgba(56,189,248,0.10), rgba(255,255,255,0)) , radial-gradient(850px 420px at 78% 18%, rgba(59,130,246,0.10), rgba(255,255,255,0)) , #ffffff",
-        padding: "56px 16px",
-      }}
-    >
-      <div style={{ maxWidth: 920, margin: "0 auto" }}>
-        <div style={{ marginBottom: 18 }}>
-          <h1
-            style={{
-              fontSize: 38,
-              lineHeight: 1.15,
-              margin: 0,
-              letterSpacing: -0.6,
-              color: "rgba(0,0,0,0.92)",
-            }}
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 px-4 py-10 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
+      <div className="mx-auto w-full max-w-3xl">
+        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+              Privacy Policy
+            </h1>
+            <p className="text-xs text-slate-900/70 dark:text-slate-200/80">
+              Last updated {lastUpdated}
+            </p>
+          </div>
+
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-full border border-sky-200/80 bg-sky-50/80 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm backdrop-blur hover:bg-white dark:border-sky-700/70 dark:bg-sky-950/60 dark:text-slate-50 dark:hover:bg-slate-950"
           >
-            Privacy Policy
-          </h1>
-          <p style={{ ...smallStyle, marginTop: 10, marginBottom: 0 }}>
-            Last updated {lastUpdated}
-          </p>
-          <p style={{ ...smallStyle, marginTop: 8 }}>
-            This page is a starting template and does not replace legal advice.
-            Please review with your attorney before you rely on it.
-          </p>
+            Return Home
+          </Link>
+        </header>
+
+        <div className="mb-6 rounded-2xl border border-sky-200/80 bg-white/70 p-4 text-sm text-slate-900/80 shadow-sm backdrop-blur dark:border-sky-700/70 dark:bg-slate-950/60 dark:text-slate-200/80">
+          This page is a starting template and does not replace legal advice.
+          Please review with your attorney before you rely on it.
         </div>
 
         <Card>
-          <p style={{ ...paragraphStyle, marginTop: 0 }}>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             This Privacy Policy explains how GiftLink collects, uses, and shares
             information when you visit our website, purchase GiftLink cards, fund
             gifts, or request a payout.
           </p>
 
-          <div style={{ marginTop: 14 }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Contents</div>
-            <div style={{ display: "grid", gap: 8 }}>
-              <AnchorLink href="#who">1. Who we are</AnchorLink>
-              <AnchorLink href="#info">2. Information we collect</AnchorLink>
-              <AnchorLink href="#use">3. How we use information</AnchorLink>
-              <AnchorLink href="#share">4. How we share information</AnchorLink>
-              <AnchorLink href="#cookies">5. Cookies and tracking</AnchorLink>
-              <AnchorLink href="#retention">6. Data retention</AnchorLink>
-              <AnchorLink href="#security">7. Security</AnchorLink>
-              <AnchorLink href="#rights">8. Your choices and rights</AnchorLink>
-              <AnchorLink href="#children">9. Children</AnchorLink>
-              <AnchorLink href="#changes">10. Changes to this policy</AnchorLink>
-              <AnchorLink href="#contact">11. Contact</AnchorLink>
+          <div className="mt-4">
+            <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+              Contents
+            </div>
+            <div className="mt-3 grid gap-2">
+              <TocLink href="#who">1. Who we are</TocLink>
+              <TocLink href="#info">2. Information we collect</TocLink>
+              <TocLink href="#use">3. How we use information</TocLink>
+              <TocLink href="#share">4. How we share information</TocLink>
+              <TocLink href="#cookies">5. Cookies and tracking</TocLink>
+              <TocLink href="#retention">6. Data retention</TocLink>
+              <TocLink href="#security">7. Security</TocLink>
+              <TocLink href="#rights">8. Your choices and rights</TocLink>
+              <TocLink href="#children">9. Children</TocLink>
+              <TocLink href="#changes">10. Changes to this policy</TocLink>
+              <TocLink href="#contact">11. Contact</TocLink>
             </div>
           </div>
         </Card>
 
-        <section id="who" style={{ marginTop: 26 }}>
-          <h2 style={sectionTitleStyle}>1. Who we are</h2>
-          <p style={paragraphStyle}>
+        <section id="who">
+          <SectionTitle id="who">1. Who we are</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             GiftLink is a service operated by GiftLink, LLC. If you have
             questions about this policy, contact us at{" "}
             <a
               href={`mailto:${supportEmail}`}
-              style={{
-                color: "rgba(0,0,0,0.82)",
-                textDecoration: "none",
-                borderBottom: "1px solid rgba(0,0,0,0.18)",
-                paddingBottom: 1,
-              }}
+              className="font-medium text-slate-950 underline-offset-4 hover:text-sky-800 hover:underline dark:text-slate-50 dark:hover:text-sky-200"
             >
               {supportEmail}
             </a>
@@ -139,17 +110,18 @@ export default function PrivacyPage() {
         </section>
 
         <section id="info">
-          <h2 style={sectionTitleStyle}>2. Information we collect</h2>
+          <SectionTitle id="info">2. Information we collect</SectionTitle>
 
-          <p style={paragraphStyle}>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We collect information you provide directly and information that is
             collected automatically when you use our website.
           </p>
 
-          <p style={paragraphStyle}>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             Information you provide may include:
           </p>
-          <ul style={{ ...paragraphStyle, paddingLeft: 20 }}>
+
+          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             <li>
               <strong>Purchases:</strong> name, email, shipping address, and
               order details when you buy card packs.
@@ -169,28 +141,29 @@ export default function PrivacyPage() {
             </li>
           </ul>
 
-          <p style={paragraphStyle}>
+          <p className="mt-3 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             Information collected automatically may include:
           </p>
-          <ul style={{ ...paragraphStyle, paddingLeft: 20 }}>
+
+          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             <li>IP address and approximate location derived from IP</li>
             <li>Device and browser information</li>
             <li>Pages viewed and actions taken on the site</li>
             <li>Log and diagnostic data used to keep the service running</li>
           </ul>
 
-          <p style={paragraphStyle}>
+          <p className="mt-3 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             Payment card information is handled by our payment processors and is
             not stored by GiftLink.
           </p>
         </section>
 
         <section id="use">
-          <h2 style={sectionTitleStyle}>3. How we use information</h2>
-          <p style={paragraphStyle}>
+          <SectionTitle id="use">3. How we use information</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We use information to:
           </p>
-          <ul style={{ ...paragraphStyle, paddingLeft: 20 }}>
+          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             <li>Provide and operate the GiftLink service</li>
             <li>Process purchases and fulfill physical card orders</li>
             <li>Process gift funding and payout requests</li>
@@ -202,14 +175,14 @@ export default function PrivacyPage() {
         </section>
 
         <section id="share">
-          <h2 style={sectionTitleStyle}>4. How we share information</h2>
-          <p style={paragraphStyle}>
+          <SectionTitle id="share">4. How we share information</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We share information with service providers who help us run GiftLink.
             These providers process information on our behalf and only as needed
             to provide their services.
           </p>
 
-          <ul style={{ ...paragraphStyle, paddingLeft: 20 }}>
+          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             <li>
               <strong>Payment processing:</strong> Stripe and related payment
               partners to process transactions.
@@ -228,33 +201,33 @@ export default function PrivacyPage() {
             </li>
           </ul>
 
-          <p style={paragraphStyle}>
+          <p className="mt-3 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We may also share information if required by law, to respond to legal
             requests, to protect GiftLink or users, or in connection with a
             business transaction such as a merger, acquisition, or asset sale.
           </p>
 
-          <p style={paragraphStyle}>
+          <p className="mt-3 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We do not sell your personal information to data brokers.
           </p>
         </section>
 
         <section id="cookies">
-          <h2 style={sectionTitleStyle}>5. Cookies and tracking</h2>
-          <p style={paragraphStyle}>
+          <SectionTitle id="cookies">5. Cookies and tracking</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We may use cookies and similar technologies to operate the website,
             remember preferences, and understand how the site is used. Some
             cookies are necessary for the site to function.
           </p>
-          <p style={paragraphStyle}>
+          <p className="mt-3 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             If we add analytics or marketing cookies in the future, we will
             update this policy to reflect those changes.
           </p>
         </section>
 
         <section id="retention">
-          <h2 style={sectionTitleStyle}>6. Data retention</h2>
-          <p style={paragraphStyle}>
+          <SectionTitle id="retention">6. Data retention</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We retain personal information for as long as necessary to provide
             the service and for legitimate business purposes, such as maintaining
             transaction records, resolving disputes, enforcing agreements, and
@@ -263,8 +236,8 @@ export default function PrivacyPage() {
         </section>
 
         <section id="security">
-          <h2 style={sectionTitleStyle}>7. Security</h2>
-          <p style={paragraphStyle}>
+          <SectionTitle id="security">7. Security</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We use reasonable administrative, technical, and organizational
             measures to protect information. However, no method of transmission
             over the internet or method of storage is completely secure.
@@ -272,30 +245,30 @@ export default function PrivacyPage() {
         </section>
 
         <section id="rights">
-          <h2 style={sectionTitleStyle}>8. Your choices and rights</h2>
-          <p style={paragraphStyle}>
+          <SectionTitle id="rights">8. Your choices and rights</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             You may contact us to request access to, correction of, or deletion
             of certain personal information, subject to legal and operational
             limitations. You may also opt out of marketing emails by using the
             unsubscribe link in those messages.
           </p>
-          <p style={paragraphStyle}>
+          <p className="mt-3 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             Depending on where you live, you may have additional privacy rights.
             We will respond to requests as required by applicable law.
           </p>
         </section>
 
         <section id="children">
-          <h2 style={sectionTitleStyle}>9. Children</h2>
-          <p style={paragraphStyle}>
+          <SectionTitle id="children">9. Children</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             GiftLink is not intended for children under 13 and we do not knowingly
             collect personal information from children.
           </p>
         </section>
 
         <section id="changes">
-          <h2 style={sectionTitleStyle}>10. Changes to this policy</h2>
-          <p style={paragraphStyle}>
+          <SectionTitle id="changes">10. Changes to this policy</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We may update this Privacy Policy from time to time. The updated date
             at the top of this page indicates when changes were made. Continued
             use of GiftLink after changes become effective means you accept the
@@ -303,18 +276,13 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section id="contact" style={{ marginBottom: 40 }}>
-          <h2 style={sectionTitleStyle}>11. Contact</h2>
-          <p style={paragraphStyle}>
+        <section id="contact" className="mb-10">
+          <SectionTitle id="contact">11. Contact</SectionTitle>
+          <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             Questions about this Privacy Policy can be sent to{" "}
             <a
               href={`mailto:${supportEmail}`}
-              style={{
-                color: "rgba(0,0,0,0.82)",
-                textDecoration: "none",
-                borderBottom: "1px solid rgba(0,0,0,0.18)",
-                paddingBottom: 1,
-              }}
+              className="font-medium text-slate-950 underline-offset-4 hover:text-sky-800 hover:underline dark:text-slate-50 dark:hover:text-sky-200"
             >
               {supportEmail}
             </a>
@@ -322,8 +290,17 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <div style={{ ...smallStyle, marginTop: 10 }}>
-          Tip: your footer Privacy link should point to /privacy.
+        <div className="mt-8 flex flex-col items-center gap-3 pb-6 text-center">
+          <Link
+            href="/"
+            className="inline-flex w-full max-w-xs items-center justify-center rounded-full bg-sky-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
+          >
+            Return Home
+          </Link>
+
+          <p className="text-xs text-slate-900/70 dark:text-slate-200/80">
+            Tip: your footer Privacy link should point to /privacy.
+          </p>
         </div>
       </div>
     </main>
