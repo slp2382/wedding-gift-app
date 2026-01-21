@@ -335,7 +335,7 @@ export default function CardPage() {
       <div className="mx-auto flex min-h-[90vh] max-w-3xl flex-col">
         <header className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative h-9 w-40">
+            <div className="relative h-10 w-48 sm:h-11 sm:w-56 md:h-12 md:w-64">
               <Image
                 src="/giftlink_logo.svg"
                 alt="GiftLink"
@@ -347,7 +347,7 @@ export default function CardPage() {
 
             <div className="leading-tight">
               <p className="text-xs text-sky-700/80 dark:text-sky-200">
-                Wedding gift QR cards
+                //Wedding gift QR cards
               </p>
             </div>
           </div>
@@ -362,7 +362,7 @@ export default function CardPage() {
         <main className="flex-1 space-y-6">
           <section className="space-y-3 text-center">
             <p className="text-xs font-medium uppercase tracking-wide text-sky-700 dark:text-sky-300">
-              Wedding Gift Card
+              QR Powered Gifting
             </p>
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
               {heroTitle}
