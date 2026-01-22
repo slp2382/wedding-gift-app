@@ -184,6 +184,29 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   },
 
   {
+    id: "Mazel_Tov_4x6",
+    name: "Mazel Tov",
+    size: "4x6",
+    sku: "MAZEL_TOV_4x6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5079444047,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 932621178,
+    printfulBackFileId:  927635985,
+    images: [
+      "/MazelTovImages/MozelTovMockup1.png",
+      "/MazelTovImages/MozelTovMockup2.png",
+      "/MazelTovImages/MozelTovMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
+
+  {
     id: "fizzy_bubbly_4x6",
     name: "Fizzy Bubbly",
     size: "4x6",
