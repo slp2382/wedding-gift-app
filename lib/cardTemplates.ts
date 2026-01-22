@@ -43,22 +43,21 @@ export const CARD_TEMPLATES: CardTemplate[] = [
       5: "price_1SWJX90btTMST7LgosTE6QSI",
     },
   },  
-
- {
-    id: "floral_wedding_4x6",
-    name: "Floral Wedding",
+{
+    id: "fizzy_bubbly_4x6",
+    name: "Fizzy Bubbly",
     size: "4x6",
-    sku: "FLORAL_WEDDING_4X6",
+    sku: "FIZZYBUBBLY_4X6",
     occasion: "wedding",
     stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
-    printfulSyncVariantId: 5079482998,
+    printfulSyncVariantId: 5071152160,
     printfulShippingVariantId: 14457,
-    printfulCoverFileId: 909328917,
-    printfulBackFileId:  927622597,
+    printfulCoverFileId: 929726697,
+    printfulBackFileId:  927630617,
     images: [
-      "/FloralWeddingImages/FloralWeddingMockup1.png",
-      "/FloralWeddingImages/FloralWeddingMockup2.png",
-      "/FloralWeddingImages/FloralWeddingMockup3.png",
+      "/FizzyBubblyImages/FizzyMockup1.png",
+      "/FizzyBubblyImages/FizzyMockup2.png",
+      "/FizzyBubblyImages/FizzyMockup3.png",
     ],
     stripePrices: {
       1: "price_1SWJVN0btTMST7LgTBriW2Am",
@@ -113,6 +112,28 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },
 
+  {
+    id: "Just Hitched",
+    name: "Just Hitched",
+    size: "4x6",
+    sku: "JUST_HITCHED_4X6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5064628437,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 932626998,
+    printfulBackFileId:  927656679,
+    images: [
+      "/JustHitchedImages/JustHitchedMockup1.png",
+      "/JustHitchedImages/JustHitchedMockup2.png",
+      "/JustHitchedImages/JustHitchedMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
 
   {
     id: "wedding_poem_4x6",
@@ -129,6 +150,29 @@ export const CARD_TEMPLATES: CardTemplate[] = [
       "/WeddingPoemImages/WeddingPoemMockup1.png",
       "/WeddingPoemImages/WeddingPoemMockup2.png",
       "/WeddingPoemImages/WeddingPoemMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
+
+ {
+    id: "floral_wedding_4x6",
+    name: "Floral Wedding",
+    size: "4x6",
+    sku: "FLORAL_WEDDING_4X6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5079482998,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 909328917,
+    printfulBackFileId:  927622597,
+    images: [
+      "/FloralWeddingImages/FloralWeddingMockup1.png",
+      "/FloralWeddingImages/FloralWeddingMockup2.png",
+      "/FloralWeddingImages/FloralWeddingMockup3.png",
     ],
     stripePrices: {
       1: "price_1SWJVN0btTMST7LgTBriW2Am",
@@ -206,28 +250,6 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },
 
-  {
-    id: "fizzy_bubbly_4x6",
-    name: "Fizzy Bubbly",
-    size: "4x6",
-    sku: "FIZZYBUBBLY_4X6",
-    occasion: "wedding",
-    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
-    printfulSyncVariantId: 5071152160,
-    printfulShippingVariantId: 14457,
-    printfulCoverFileId: 929726697,
-    printfulBackFileId:  927630617,
-    images: [
-      "/FizzyBubblyImages/FizzyMockup1.png",
-      "/FizzyBubblyImages/FizzyMockup2.png",
-      "/FizzyBubblyImages/FizzyMockup3.png",
-    ],
-    stripePrices: {
-      1: "price_1SWJVN0btTMST7LgTBriW2Am",
-      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
-      5: "price_1SWJX90btTMST7LgosTE6QSI",
-    },
-  },
 
   {
     id: "confetti_birthday_4x6",
