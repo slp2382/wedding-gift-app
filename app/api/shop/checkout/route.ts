@@ -26,18 +26,28 @@ type RecipientPayload = {
   zip: string;
 };
 
+type DiscountType = "percent" | "fixed" | "partner_tiered_unit_price";
+
+type PartnerTier = {
+  min_qty: number;
+  max_qty: number | null;
+  unit_price_cents: number;
+};
+
 type DiscountRow = {
   id: string;
   code: string;
   active: boolean;
-  discount_type: "percent" | "fixed";
-  discount_value: number;
+  discount_type: DiscountType;
+  discount_value: number | null;
   valid_from: string | null;
   valid_to: string | null;
   max_redemptions: number | null;
   redemption_count: number;
   min_subtotal_cents: number | null;
   stripe_coupon_id: string | null;
+  partner_moq: number | null;
+  partner_tiers: unknown | null;
 };
 
 function getSupabaseAdmin(): SupabaseClient | null {
@@ -129,20 +139,87 @@ function getCartUnitPriceCents(totalQty: number) {
   return 599;
 }
 
-function computeDiscountAmountCents(args: {
+function computeStandardDiscountAmountCents(args: {
   row: DiscountRow;
   productSubtotalCents: number;
 }) {
   const { row, productSubtotalCents } = args;
 
   if (row.discount_type === "percent") {
-    const pct = Number(row.discount_value);
+    const pct = Number(row.discount_value ?? 0);
     const amt = Math.round((productSubtotalCents * pct) / 100);
     return Math.max(0, Math.min(productSubtotalCents, amt));
   }
 
-  const fixed = Number(row.discount_value);
+  const fixed = Number(row.discount_value ?? 0);
   return Math.max(0, Math.min(productSubtotalCents, fixed));
+}
+
+function parsePartnerTiers(value: unknown): PartnerTier[] {
+  if (!Array.isArray(value)) return [];
+  const tiers: PartnerTier[] = [];
+
+  for (const t of value) {
+    if (!t || typeof t !== "object") continue;
+    const anyT = t as Record<string, unknown>;
+
+    const minQty = Number(anyT.min_qty);
+    const maxQtyRaw = anyT.max_qty;
+    const maxQty =
+      maxQtyRaw === null || maxQtyRaw === undefined ? null : Number(maxQtyRaw);
+    const unit = Number(anyT.unit_price_cents);
+
+    if (!Number.isFinite(minQty) || minQty <= 0) continue;
+    if (maxQty !== null && (!Number.isFinite(maxQty) || maxQty < minQty)) continue;
+    if (!Number.isFinite(unit) || unit <= 0) continue;
+
+    tiers.push({ min_qty: minQty, max_qty: maxQty, unit_price_cents: unit });
+  }
+
+  tiers.sort((a, b) => a.min_qty - b.min_qty);
+  return tiers;
+}
+
+function findPartnerUnitPriceCents(totalQty: number, tiers: PartnerTier[]): number | null {
+  for (const tier of tiers) {
+    const withinMin = totalQty >= tier.min_qty;
+    const withinMax = tier.max_qty === null ? true : totalQty <= tier.max_qty;
+    if (withinMin && withinMax) return tier.unit_price_cents;
+  }
+  return null;
+}
+
+function computePartnerTierDiscountCents(args: {
+  row: DiscountRow;
+  productSubtotalCents: number;
+  totalCards: number;
+}) {
+  const { row, productSubtotalCents, totalCards } = args;
+
+  const moq = Number(row.partner_moq ?? 25);
+  if (!Number.isFinite(moq) || moq <= 0) {
+    return { discountAmountCents: 0 };
+  }
+
+  if (totalCards < moq) {
+    return { discountAmountCents: 0, moq };
+  }
+
+  const tiers = parsePartnerTiers(row.partner_tiers);
+  const unit = findPartnerUnitPriceCents(totalCards, tiers);
+  if (!unit) {
+    return { discountAmountCents: 0, moq };
+  }
+
+  const partnerSubtotalCents = unit * totalCards;
+  const discount = productSubtotalCents - partnerSubtotalCents;
+
+  return {
+    discountAmountCents: Math.max(0, Math.min(productSubtotalCents, discount)),
+    moq,
+    partnerUnitPriceCents: unit,
+    partnerSubtotalCents,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -260,9 +337,15 @@ export async function POST(req: NextRequest) {
       const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
 
       if (!template) {
-        console.error("[shop/checkout] Unknown templateId in cart", item.templateId);
+        console.error(
+          "[shop/checkout] Unknown templateId in cart",
+          item.templateId,
+        );
         return NextResponse.json(
-          { error: "Unknown product in cart", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "Unknown product in cart",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
@@ -271,7 +354,10 @@ export async function POST(req: NextRequest) {
       if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) {
         console.error("[shop/checkout] Invalid quantity in cart", item.quantity);
         return NextResponse.json(
-          { error: "Invalid quantity in cart", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "Invalid quantity in cart",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
@@ -288,7 +374,10 @@ export async function POST(req: NextRequest) {
     if (totalCards <= 0) {
       console.error("[shop/checkout] Computed totalCards is zero");
       return NextResponse.json(
-        { error: "No valid items in cart", ...(debugEnabled ? { debug } : {}) },
+        {
+          error: "No valid items in cart",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 400 },
       );
     }
@@ -302,8 +391,8 @@ export async function POST(req: NextRequest) {
 
     const itemsMetadata = buildItemsMetadata(metadataItems);
 
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cartItems.map(
-      (item) => {
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
+      cartItems.map((item) => {
         const template = CARD_TEMPLATES.find((t) => t.id === item.templateId)!;
 
         return {
@@ -316,8 +405,7 @@ export async function POST(req: NextRequest) {
             },
           },
         };
-      },
-    );
+      });
 
     debug.computed.lineItems = lineItems.map((li) => ({
       quantity: (li as any).quantity ?? null,
@@ -330,7 +418,10 @@ export async function POST(req: NextRequest) {
     for (const item of cartItems) {
       const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
       if (!template) {
-        console.error("[shop/checkout] Unknown template when mapping shipping", item.templateId);
+        console.error(
+          "[shop/checkout] Unknown template when mapping shipping",
+          item.templateId,
+        );
         continue;
       }
 
@@ -339,13 +430,20 @@ export async function POST(req: NextRequest) {
         (template as any).printfulCatalogVariantId;
 
       if (!shippingVariant) {
-        console.error("[shop/checkout] Missing Printful shipping variant for template", item.templateId);
+        console.error(
+          "[shop/checkout] Missing Printful shipping variant for template",
+          item.templateId,
+        );
         continue;
       }
 
       const variantId = Number(shippingVariant);
       if (!Number.isFinite(variantId)) {
-        console.error("[shop/checkout] Invalid Printful shipping variant id for template", item.templateId, shippingVariant);
+        console.error(
+          "[shop/checkout] Invalid Printful shipping variant id for template",
+          item.templateId,
+          shippingVariant,
+        );
         continue;
       }
 
@@ -354,9 +452,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (!variantQuantity.size) {
-      console.error("[shop/checkout] Could not map any items to Printful variants for shipping");
+      console.error(
+        "[shop/checkout] Could not map any items to Printful variants for shipping",
+      );
       return NextResponse.json(
-        { error: "Could not calculate shipping for this cart", ...(debugEnabled ? { debug } : {}) },
+        {
+          error: "Could not calculate shipping for this cart",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 400 },
       );
     }
@@ -394,13 +497,20 @@ export async function POST(req: NextRequest) {
 
     if (!shippingRes.ok) {
       const text = await shippingRes.text().catch(() => "");
-      console.error("[shop/checkout] Printful shipping error", shippingRes.status, text);
+      console.error(
+        "[shop/checkout] Printful shipping error",
+        shippingRes.status,
+        text,
+      );
       debug.computed.printfulShippingError = {
         status: shippingRes.status,
         body: text.slice(0, 2000),
       };
       return NextResponse.json(
-        { error: "Failed to calculate shipping", ...(debugEnabled ? { debug } : {}) },
+        {
+          error: "Failed to calculate shipping",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 500 },
       );
     }
@@ -418,7 +528,10 @@ export async function POST(req: NextRequest) {
     if (!shippingJson.result || shippingJson.result.length === 0) {
       console.error("[shop/checkout] No shipping methods returned from Printful");
       return NextResponse.json(
-        { error: "No shipping methods available", ...(debugEnabled ? { debug } : {}) },
+        {
+          error: "No shipping methods available",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 400 },
       );
     }
@@ -428,7 +541,10 @@ export async function POST(req: NextRequest) {
     if (!Number.isFinite(printfulRate)) {
       console.error("[shop/checkout] Invalid Printful rate value", best.rate);
       return NextResponse.json(
-        { error: "Invalid shipping rate received", ...(debugEnabled ? { debug } : {}) },
+        {
+          error: "Invalid shipping rate received",
+          ...(debugEnabled ? { debug } : {}),
+        },
         { status: 500 },
       );
     }
@@ -447,8 +563,9 @@ export async function POST(req: NextRequest) {
     };
 
     const rawDiscountInput = String(body.discountCode ?? "").trim();
-    let discountsParam: Stripe.Checkout.SessionCreateParams["discounts"] | undefined =
-      undefined;
+    let discountsParam:
+      | Stripe.Checkout.SessionCreateParams["discounts"]
+      | undefined = undefined;
 
     const discountMetadata: Record<string, string> = {};
 
@@ -456,7 +573,10 @@ export async function POST(req: NextRequest) {
       const supabase = getSupabaseAdmin();
       if (!supabase) {
         return NextResponse.json(
-          { error: "Discounts are not configured", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "Discounts are not configured",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 500 },
         );
       }
@@ -466,7 +586,7 @@ export async function POST(req: NextRequest) {
       const { data, error } = await supabase
         .from("discount_codes")
         .select(
-          "id, code, active, discount_type, discount_value, valid_from, valid_to, max_redemptions, redemption_count, min_subtotal_cents, stripe_coupon_id",
+          "id, code, active, discount_type, discount_value, valid_from, valid_to, max_redemptions, redemption_count, min_subtotal_cents, stripe_coupon_id, partner_moq, partner_tiers",
         )
         .ilike("code", code)
         .limit(1)
@@ -474,7 +594,10 @@ export async function POST(req: NextRequest) {
 
       if (error) {
         return NextResponse.json(
-          { error: "Failed to look up discount code", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "Failed to look up discount code",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 500 },
         );
       }
@@ -482,14 +605,20 @@ export async function POST(req: NextRequest) {
       const row = data as DiscountRow | null;
       if (!row) {
         return NextResponse.json(
-          { error: "Invalid discount code", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "Invalid discount code",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
 
       if (!row.active) {
         return NextResponse.json(
-          { error: "This discount code is not active", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "This discount code is not active",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
@@ -497,75 +626,147 @@ export async function POST(req: NextRequest) {
       const now = new Date();
       if (!isWithinWindow(row, now)) {
         return NextResponse.json(
-          { error: "This discount code is not currently valid", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "This discount code is not currently valid",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
 
-      if (row.max_redemptions !== null && row.redemption_count >= row.max_redemptions) {
+      if (
+        row.max_redemptions !== null &&
+        row.redemption_count >= row.max_redemptions
+      ) {
         return NextResponse.json(
-          { error: "This discount code has reached its redemption limit", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "This discount code has reached its redemption limit",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
 
-      if (row.min_subtotal_cents !== null && productSubtotalCents < row.min_subtotal_cents) {
+      if (
+        row.min_subtotal_cents !== null &&
+        productSubtotalCents < row.min_subtotal_cents
+      ) {
         return NextResponse.json(
-          { error: "Cart subtotal does not meet the minimum for this discount", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "Cart subtotal does not meet the minimum for this discount",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
 
-      const discountAmountCents = computeDiscountAmountCents({
-        row,
-        productSubtotalCents,
-      });
+      let discountAmountCents = 0;
+      let partnerUnitPriceCents: number | null = null;
+      let partnerSubtotalCents: number | null = null;
+      let partnerMoq: number | null = null;
+
+      if (row.discount_type === "partner_tiered_unit_price") {
+        const computed = computePartnerTierDiscountCents({
+          row,
+          productSubtotalCents,
+          totalCards,
+        });
+
+        discountAmountCents = computed.discountAmountCents;
+        partnerMoq = (computed as any).moq ?? null;
+        partnerUnitPriceCents = (computed as any).partnerUnitPriceCents ?? null;
+        partnerSubtotalCents = (computed as any).partnerSubtotalCents ?? null;
+
+        if (partnerMoq !== null && totalCards < partnerMoq) {
+          return NextResponse.json(
+            {
+              error: `This discount code requires at least ${partnerMoq} cards`,
+              ...(debugEnabled ? { debug } : {}),
+            },
+            { status: 400 },
+          );
+        }
+      } else {
+        discountAmountCents = computeStandardDiscountAmountCents({
+          row,
+          productSubtotalCents,
+        });
+      }
 
       if (discountAmountCents <= 0) {
         return NextResponse.json(
-          { error: "This discount code does not apply to this cart", ...(debugEnabled ? { debug } : {}) },
+          {
+            error: "This discount code does not apply to this cart",
+            ...(debugEnabled ? { debug } : {}),
+          },
           { status: 400 },
         );
       }
 
       let couponId = row.stripe_coupon_id ?? null;
 
-      if (!couponId) {
-        const created = await stripe.coupons.create(
-          row.discount_type === "percent"
-            ? {
-                duration: "once",
-                percent_off: row.discount_value,
-                name: `GiftLink ${code}`,
-              }
-            : {
-                duration: "once",
-                amount_off: row.discount_value,
-                currency: "usd",
-                name: `GiftLink ${code}`,
-              },
-        );
-
+      if (row.discount_type === "partner_tiered_unit_price") {
+        const created = await stripe.coupons.create({
+          duration: "once",
+          amount_off: discountAmountCents,
+          currency: "usd",
+          name: `GiftLink Partner ${code}`,
+        });
         couponId = created.id;
+      } else {
+        if (!couponId) {
+          const created = await stripe.coupons.create(
+            row.discount_type === "percent"
+              ? {
+                  duration: "once",
+                  percent_off: Number(row.discount_value ?? 0),
+                  name: `GiftLink ${code}`,
+                }
+              : {
+                  duration: "once",
+                  amount_off: Number(row.discount_value ?? 0),
+                  currency: "usd",
+                  name: `GiftLink ${code}`,
+                },
+          );
 
-        try {
-          await supabase.from("discount_codes").update({ stripe_coupon_id: couponId }).eq("id", row.id);
-        } catch (e) {
-          console.warn("[shop/checkout] Failed to persist stripe_coupon_id", e);
+          couponId = created.id;
+
+          try {
+            await supabase
+              .from("discount_codes")
+              .update({ stripe_coupon_id: couponId })
+              .eq("id", row.id);
+          } catch (e) {
+            console.warn("[shop/checkout] Failed to persist stripe_coupon_id", e);
+          }
         }
       }
 
-      discountsParam = [{ coupon: couponId }];
+      discountsParam = couponId ? [{ coupon: couponId }] : undefined;
 
       discountMetadata.discount_code = code;
       discountMetadata.discount_code_id = row.id;
       discountMetadata.discount_type = row.discount_type;
-      discountMetadata.discount_value = String(row.discount_value);
+      discountMetadata.discount_value =
+        row.discount_value === null ? "" : String(row.discount_value);
       discountMetadata.discount_amount_cents = String(discountAmountCents);
       discountMetadata.product_subtotal_cents = String(productSubtotalCents);
       discountMetadata.product_subtotal_after_discount_cents = String(
         Math.max(0, productSubtotalCents - discountAmountCents),
       );
+
+      if (row.discount_type === "partner_tiered_unit_price") {
+        if (partnerMoq !== null) {
+          discountMetadata.partner_moq = String(partnerMoq);
+        }
+        if (partnerUnitPriceCents !== null) {
+          discountMetadata.partner_unit_price_cents = String(partnerUnitPriceCents);
+        }
+        if (partnerSubtotalCents !== null) {
+          discountMetadata.partner_subtotal_cents = String(partnerSubtotalCents);
+        }
+      }
 
       debug.computed.discount = {
         code,
@@ -574,6 +775,9 @@ export async function POST(req: NextRequest) {
         value: row.discount_value,
         discountAmountCents,
         couponId,
+        partnerMoq,
+        partnerUnitPriceCents,
+        partnerSubtotalCents,
       };
     }
 
