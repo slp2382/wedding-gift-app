@@ -90,29 +90,6 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   },
 
   {
-    id: "card1_4x6",
-    name: "Wedding Cake",
-    size: "4x6",
-    sku: "CARD1_4X6",
-    occasion: "wedding",
-    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
-    printfulSyncVariantId: 5064628437,
-    printfulShippingVariantId: 14457,
-    printfulCoverFileId: 929752160,
-    printfulBackFileId:  927656679,
-    images: [
-      "/Card1Images/Card1Mockup1.png",
-      "/Card1Images/Card1Mockup2.png",
-      "/Card1Images/Card1Mockup3.png",
-    ],
-    stripePrices: {
-      1: "price_1SWJVN0btTMST7LgTBriW2Am",
-      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
-      5: "price_1SWJX90btTMST7LgosTE6QSI",
-    },
-  },
-
-  {
     id: "Just Hitched",
     name: "Just Hitched",
     size: "4x6",
@@ -173,6 +150,29 @@ export const CARD_TEMPLATES: CardTemplate[] = [
       "/FloralWeddingImages/FloralWeddingMockup1.png",
       "/FloralWeddingImages/FloralWeddingMockup2.png",
       "/FloralWeddingImages/FloralWeddingMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
+
+{
+    id: "card1_4x6",
+    name: "Wedding Cake",
+    size: "4x6",
+    sku: "CARD1_4X6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5064628437,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 929752160,
+    printfulBackFileId:  927656679,
+    images: [
+      "/Card1Images/Card1Mockup1.png",
+      "/Card1Images/Card1Mockup2.png",
+      "/Card1Images/Card1Mockup3.png",
     ],
     stripePrices: {
       1: "price_1SWJVN0btTMST7LgTBriW2Am",
