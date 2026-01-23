@@ -1,39 +1,104 @@
 // app/page.tsx
 
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import EmailCaptureModal from "./components/EmailCaptureModal";
 
 export default function HomePage() {
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollYRef = useRef(0);
+
+  useEffect(() => {
+    const threshold = 8;
+
+    const onScroll = () => {
+      const currentY = window.scrollY;
+
+      // Always show when at (or very near) the top
+      if (currentY <= 2) {
+        setShowHeader(true);
+        lastScrollYRef.current = currentY;
+        return;
+      }
+
+      const delta = currentY - lastScrollYRef.current;
+
+      // Ignore tiny scroll changes to prevent flicker
+      if (Math.abs(delta) < threshold) return;
+
+      // Scrolling down -> hide, scrolling up -> show
+      if (delta > 0) {
+        setShowHeader(false);
+      } else {
+        setShowHeader(true);
+      }
+
+      lastScrollYRef.current = currentY;
+    };
+
+    lastScrollYRef.current = window.scrollY;
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
-     <EmailCaptureModal />
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        {/* Top nav */}
-        <header className="mb-10 flex items-center justify-between">
-          {/* Wordmark + tagline */}
-<div className="flex items-center">
-  <Image
-    src="/giftlink_logo.svg"
-    alt="GiftLink"
-    width={200}
-    height={200}
-    className="h-40 w-auto sm:h-48"
-    priority
-  />
-</div>
+      <EmailCaptureModal />
 
+      {/* Header: visible initially, hides on scroll down, shows on scroll up */}
+      <header
+        className={[
+          "fixed left-0 right-0 top-0 z-50",
+          "border-b border-sky-100/80 bg-sky-50/70 backdrop-blur",
+          "dark:border-sky-800/70 dark:bg-slate-950/60",
+          "transition-transform duration-200",
+          showHeader ? "translate-y-0" : "-translate-y-full",
+        ].join(" ")}
+      >
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-2.5">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/giftlink_logo.svg"
+              alt="GiftLink"
+              width={200}
+              height={200}
+              className="h-9 w-auto sm:h-10"
+              priority
+            />
+          </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <nav className="hidden items-center gap-6 md:flex">
+              <a
+                href="#how-it-works"
+                className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
+              >
+                How it works
+              </a>
+              <a
+                href="#faq"
+                className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
+              >
+                FAQ
+              </a>
+            </nav>
+
             <Link
               href="/shop"
-              className="hidden rounded-full border border-sky-500/70 px-3 py-1.5 text-xs font-medium text-sky-900 underline-offset-4 hover:bg-sky-50 hover:text-sky-950 dark:border-sky-300/80 dark:text-sky-50 dark:hover:bg-sky-950/50 md:inline-flex"
+              className="inline-flex items-center justify-center rounded-full bg-sky-700 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
             >
-              Order Cards
+              Shop
             </Link>
           </div>
-        </header>
+        </div>
+      </header>
 
+      {/* Increased top padding to account for fixed header */}
+      <div className="mx-auto max-w-5xl px-4 pb-8 pt-16">
         {/* Hero */}
         <main className="space-y-24 pb-16">
           <section className="grid gap-10 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-center">
@@ -51,10 +116,9 @@ export default function HomePage() {
               </h1>
 
               <p className="max-w-xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                GiftLink turns a simple card into a QR powered gift. Guests scan
-                a card, load a monetary gift through Stripe, and the recipient
-                scans the same card to claim their funds later. No ATM, no
-                loose cash.
+                GiftLink turns a simple card into a QR powered gift. Guests scan a
+                card, load a monetary gift through Stripe, and the recipient scans
+                the same card to claim their funds later. No ATM, no loose cash.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -69,7 +133,7 @@ export default function HomePage() {
                   href="/shop"
                   className="inline-flex items-center justify-center rounded-full border border-sky-200/80 bg-sky-50/80 px-4 py-2.5 text-sm font-medium text-slate-950 shadow-sm hover:bg-sky-100 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/40 dark:border-sky-700 dark:bg-sky-950/70 dark:text-slate-50 dark:hover:bg-sky-950"
                 >
-                  Order Cards
+                  Shop
                 </Link>
               </div>
 
@@ -99,15 +163,15 @@ export default function HomePage() {
                 </div>
 
                 <p className="mt-2 text-[11px] text-slate-900/80 dark:text-slate-100/80">
-                  Each card has its own unique QR code that guests can scan to
-                  send a gift, and the recipient can later scan to claim it.
+                  Each card has its own unique QR code that guests can scan to send
+                  a gift, and the recipient can later scan to claim it.
                 </p>
               </div>
             </div>
           </section>
 
           {/* How it works */}
-          <section id="how-it-works" className="space-y-6">
+          <section id="how-it-works" className="scroll-mt-24 space-y-6">
             <div className="space-y-2 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                 How it works
@@ -116,8 +180,8 @@ export default function HomePage() {
                 Three simple steps — one QR code
               </h2>
               <p className="mx-auto max-w-2xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                Every GiftLink card carries a single QR code. Givers use it to
-                load cash gifts, and recipients use the same code to claim them
+                Every GiftLink card carries a single QR code. Givers use it to load
+                cash gifts, and recipients use the same code to claim them
                 instantly.
               </p>
             </div>
@@ -143,8 +207,8 @@ export default function HomePage() {
                   Scan the QR to load your gift
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Givers scan the card&apos;s QR code, enter their name, note,
-                  and amount, and complete payment securely through Stripe.
+                  Givers scan the card&apos;s QR code, enter their name, note, and
+                  amount, and complete payment securely through Stripe.
                 </p>
               </div>
 
@@ -174,8 +238,8 @@ export default function HomePage() {
                   Ready to put GiftLink in the real world?
                 </h2>
                 <p className="text-sm text-slate-900/80 dark:text-slate-100/80">
-                  We are rolling out physical GiftLink cards with select shops.
-                  You can order cards directly online today.
+                  We are rolling out physical GiftLink cards with select shops. You
+                  can order cards directly online today.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -198,7 +262,7 @@ export default function HomePage() {
           {/* FAQ */}
           <section
             id="faq"
-            className="space-y-6 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-6 shadow-sm dark:border-sky-800 dark:bg-slate-950/85"
+            className="scroll-mt-24 space-y-6 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-6 shadow-sm dark:border-sky-800 dark:bg-slate-950/85"
           >
             <div className="space-y-2 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
@@ -219,9 +283,9 @@ export default function HomePage() {
                   Is GiftLink safe to use
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Payments are processed by Stripe. Card details never pass
-                  through or live on GiftLink servers. We only store the info
-                  needed to link each card to its gift and payout.
+                  Payments are processed by Stripe. Card details never pass through
+                  or live on GiftLink servers. We only store the info needed to
+                  link each card to its gift and payout.
                 </p>
               </div>
 
@@ -230,9 +294,9 @@ export default function HomePage() {
                   What fees apply and who pays them
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Guests pay for the physical card and a small service fee when
-                  they send a gift. Recipients keep the full gift amount if using a 
-                  free transfer method.
+                  Guests pay for the physical card and a small service fee when they
+                  send a gift. Recipients keep the full gift amount if using a free
+                  transfer method.
                 </p>
               </div>
 
@@ -252,9 +316,8 @@ export default function HomePage() {
                   How long can gifts remain unclaimed
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Funds stay linked to the card until a payout request is made
-		  or a year after the card is loaded. 
-                  submitted and processed.
+                  Funds stay linked to the card until a payout request is made or a
+                  year after the card is loaded. submitted and processed.
                 </p>
               </div>
 
@@ -263,9 +326,8 @@ export default function HomePage() {
                   Do recipients need an app or account
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  No app is required. Recipients scan the QR code printed inside
-                  the card and submit a payout request through a mobile friendly
-                  page.
+                  No app is required. Recipients scan the QR code printed inside the
+                  card and submit a payout request through a mobile friendly page.
                 </p>
               </div>
 
@@ -274,10 +336,10 @@ export default function HomePage() {
                   Which payout methods are supported
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  GiftLink is expanding payout options over time. Currently we 
-                  support Venmo payouts and bank transfers. Our goal is to
-                  give recipients familiar ways to move gift money where they want
-                  it easily.
+                  GiftLink is expanding payout options over time. Currently we
+                  support Venmo payouts and bank transfers. Our goal is to give
+                  recipients familiar ways to move gift money where they want it
+                  easily.
                 </p>
               </div>
             </div>
