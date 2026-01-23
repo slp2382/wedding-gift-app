@@ -98,7 +98,7 @@ export default function HomePage() {
       </header>
 
       {/* Increased top padding to account for fixed header */}
-      <div className="mx-auto max-w-5xl px-4 pb-8 pt-16">
+      <div className="mx-auto max-w-5xl px-4 pb-8 pt-20 sm:pt-16">
         {/* Hero */}
         <main className="space-y-24 pb-16">
           <section className="grid gap-10 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-center">
