@@ -171,7 +171,7 @@ export default function HomePage() {
           </section>
 
           {/* How it works */}
-          <section id="how-it-works" className="scroll-mt-24 space-y-6">
+          <section id="how-it-works" className="scroll-mt-28 space-y-6">
             <div className="space-y-2 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                 How it works
