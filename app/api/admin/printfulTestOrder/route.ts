@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createPrintfulOrderForCards } from "@/lib/printful";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
+import { absoluteUrl } from "@/lib/siteUrl";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -48,11 +49,7 @@ async function generateGiftlinkInsidePng(cardId: string) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  const baseUrl = (process.env.GIFTLINK_BASE_URL || "https://www.giftlink.cards").replace(
-    /\/$/,
-    "",
-  );
-  const cardUrl = `${baseUrl}/card/${cardId}`;
+  const cardUrl = absoluteUrl(`/card/${cardId}`);
 
   const qrBuffer = await QRCode.toBuffer(cardUrl, { width: 300, margin: 0 });
   const qrImage = await loadImage(qrBuffer);

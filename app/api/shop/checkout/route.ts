@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
+import { absoluteUrl } from "@/lib/siteUrl";
+
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
@@ -785,8 +787,9 @@ export async function POST(req: NextRequest) {
       mode: "payment",
       line_items: lineItems,
       discounts: discountsParam,
-      success_url: `${origin}/shop?status=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/shop?status=cancelled`,
+	success_url: absoluteUrl(`/shop?status=success&session_id={CHECKOUT_SESSION_ID}`),
+	cancel_url: absoluteUrl(`/shop?status=cancelled`),
+
       metadata: {
         type: "card_pack_order",
         packQuantity: String(totalCards),

@@ -2,12 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "../../../../../lib/supabaseServer";
 import { stripe } from "../../../../../lib/stripe";
+import { absoluteUrl } from "@/lib/siteUrl";
 
 export const runtime = "nodejs";
 
 const DEFAULT_BUSINESS_PROFILE = {
-  url: "https://giftlink.cards",
-  product_description: "One time gift recipient receiving a payout from GiftLink.",
+  url: "https://www.giviocards.com",
+  product_description: "One time gift recipient receiving a payout from Givio Cards.",
 };
 
 function expectedLivemode(): boolean {
@@ -117,17 +118,12 @@ export async function POST(req: NextRequest) {
       await ensureBusinessProfilePrefill(accountId);
     }
 
-    const baseUrl =
-      process.env.GIFTLINK_BASE_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://www.giftlink.cards";
-
-    const refreshUrl = `${baseUrl}/claim/stripe/refresh?payout_request_id=${encodeURIComponent(
-      payoutRequestId,
-    )}`;
-    const returnUrl = `${baseUrl}/claim/stripe/return?payout_request_id=${encodeURIComponent(
-      payoutRequestId,
-    )}`;
+    const refreshUrl = absoluteUrl(
+      `/claim/stripe/refresh?payout_request_id=${encodeURIComponent(payoutRequestId)}`,
+    );
+    const returnUrl = absoluteUrl(
+      `/claim/stripe/return?payout_request_id=${encodeURIComponent(payoutRequestId)}`,
+    );
 
     // Create link, retry once if Stripe says the account is not connected (stale acct id)
     try {

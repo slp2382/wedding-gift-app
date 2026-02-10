@@ -8,6 +8,7 @@ import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 import QRCode from "qrcode";
 import sharp from "sharp";
 import path from "path";
+import { absoluteUrl } from "@/lib/siteUrl";
 
 function getSupabaseAdmin(): SupabaseClient | null {
   const supabaseUrl =
@@ -557,7 +558,10 @@ async function generateGiftlinkInsidePng(cardId: string) {
   const WIDTH = 1245;
   const HEIGHT = 1845;
 
-  const cardUrl = `https://www.giftlink.cards/card/${cardId}`;
+
+
+  const cardUrl = absoluteUrl(`/card/${cardId}`);
+
 
   const templatePath = path.join(
     process.cwd(),
