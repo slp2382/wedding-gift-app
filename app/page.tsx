@@ -60,9 +60,9 @@ export default function HomePage() {
       <Image
         src="/giftlink_logo.svg"
         alt="Givio Cards"
-        width={480}
-        height={480}
-        className="h-20 w-auto max-w-[320px] sm:h-24 sm:max-w-none"
+        width={7000}
+        height={7000}
+        className="h-28 w-auto sm:h-32"
         priority
       />
     </Link>
