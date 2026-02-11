@@ -18,349 +18,296 @@ export default function HomePage() {
       const currentY = window.scrollY;
 
       // Always show when at (or very near) the top
-      if (currentY <= 2) {
+      if (currentY < 16) {
         setShowHeader(true);
         lastScrollYRef.current = currentY;
         return;
       }
 
-      const delta = currentY - lastScrollYRef.current;
+      // If user scrolls up, show header. If user scrolls down, hide header.
+      const lastY = lastScrollYRef.current;
+      const delta = currentY - lastY;
 
-      // Ignore tiny scroll changes to prevent flicker
       if (Math.abs(delta) < threshold) return;
 
-      // Scrolling down -> hide, scrolling up -> show
-      if (delta > 0) {
-        setShowHeader(false);
-      } else {
-        setShowHeader(true);
-      }
+      if (delta > 0) setShowHeader(false);
+      else setShowHeader(true);
 
       lastScrollYRef.current = currentY;
     };
 
-    lastScrollYRef.current = window.scrollY;
     window.addEventListener("scroll", onScroll, { passive: true });
-
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
+    <main className="min-h-screen bg-slate-950 text-slate-50">
       <EmailCaptureModal />
 
-      {/* Header: visible initially, hides on scroll down, shows on scroll up */}
+      {/* Header */}
       <header
         className={[
-          "fixed left-0 right-0 top-0 z-50",
-          "border-b border-sky-100/80 bg-sky-50/70 backdrop-blur",
-          "dark:border-sky-800/70 dark:bg-slate-950/60",
-          "transition-transform duration-200",
+          "fixed inset-x-0 top-0 z-50 transition-transform duration-300",
           showHeader ? "translate-y-0" : "-translate-y-full",
+          "bg-slate-950/70 backdrop-blur border-b border-white/10",
         ].join(" ")}
       >
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-2.5">
-          <Link href="/" className="flex items-center">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <Link href="/" className="flex items-center gap-3">
             <Image
               src="/giftlink_logo.svg"
-              alt="GiftLink"
+              alt="Givio Cards"
               width={200}
-              height={200}
-              className="h-12 w-auto max-w-[180px] sm:h-10 sm:max-w-none"
+              height={40}
               priority
             />
           </Link>
 
-          <div className="flex items-center gap-4">
-            <nav className="hidden items-center gap-6 md:flex">
-              <a
-                href="#how-it-works"
-                className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
-              >
-                How it works
-              </a>
-              <a
-                href="#faq"
-                className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
-              >
-                FAQ
-              </a>
-            </nav>
-
+          <nav className="flex items-center gap-4">
             <Link
               href="/shop"
-              className="inline-flex items-center justify-center rounded-full bg-sky-700 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
+              className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15 transition"
             >
               Shop
             </Link>
-          </div>
+
+            <Link
+              href="/faq"
+              className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15 transition"
+            >
+              FAQ
+            </Link>
+
+            <Link
+              href="/login"
+              className="rounded-xl bg-sky-500/20 px-4 py-2 text-sm font-semibold text-sky-200 hover:bg-sky-500/25 transition"
+            >
+              Sign in
+            </Link>
+          </nav>
         </div>
       </header>
 
-      {/* Increased top padding to account for fixed header */}
-      <div className="mx-auto max-w-5xl px-4 pb-8 pt-20 sm:pt-16">
-        {/* Hero */}
-        <main className="space-y-24 pb-16">
-          <section className="grid gap-10 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-center">
-            <div className="space-y-5">
-              <p className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/80 px-3 py-1 text-xs font-medium text-sky-700 shadow-sm backdrop-blur dark:border-sky-500/50 dark:bg-sky-950/60 dark:text-sky-200">
-                New · Cashless wedding and birthday gifts
+      {/* Hero */}
+      <section className="pt-24">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <p className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                Physical card, one QR, simple payout
               </p>
 
-              <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-                Physical event cards with{" "}
-                <span className="bg-gradient-to-r from-sky-700 via-sky-500 to-sky-300 bg-clip-text text-transparent">
-                  scannable gift links
-                </span>
-                .
+              <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
+                A modern way to gift
               </h1>
 
-              <p className="max-w-xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                GiftLink turns a simple card into a QR powered gift. Guests scan a
-                card, load a monetary gift through Stripe, and the recipient scans
-                the same card to claim their funds later. No ATM, no loose cash.
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-100/80">
+                A Givio card turns a simple card into a QR powered gift. Guests scan a
+                single code to claim, and you choose how to send the money.
               </p>
 
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href="#how-it-works"
-                  className="inline-flex items-center justify-center rounded-full bg-sky-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
-                >
-                  How GiftLink works
-                </a>
-
+              <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/shop"
-                  className="inline-flex items-center justify-center rounded-full border border-sky-200/80 bg-sky-50/80 px-4 py-2.5 text-sm font-medium text-slate-950 shadow-sm hover:bg-sky-100 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/40 dark:border-sky-700 dark:bg-sky-950/70 dark:text-slate-50 dark:hover:bg-sky-950"
+                  className="rounded-2xl bg-sky-500 px-6 py-3 text-sm font-semibold text-slate-950 hover:bg-sky-400 transition"
                 >
-                  Shop
+                  Shop cards
                 </Link>
+
+                <a
+                  href="#how-it-works"
+                  className="rounded-2xl bg-white/10 px-6 py-3 text-sm font-semibold hover:bg-white/15 transition"
+                >
+                  How Givio Cards work
+                </a>
               </div>
 
-              <p className="text-[11px] text-slate-900/70 dark:text-slate-200/80">
-                Recipients keep the gift amount. Guests cover a small service fee.
-                Payments are handled securely by Stripe.
-              </p>
+              <div className="mt-8 flex items-center gap-6 text-sm text-slate-200/80">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+                  Secure payouts
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block h-2 w-2 rounded-full bg-sky-300" />
+                  Works with physical cards
+                </div>
+              </div>
             </div>
 
-            {/* Hero image */}
             <div className="relative">
-              <div className="pointer-events-none absolute -inset-6 rounded-3xl bg-gradient-to-br from-sky-500/10 via-sky-400/10 to-sky-300/10 blur-2xl dark:from-sky-500/15 dark:via-sky-400/15 dark:to-sky-300/15" />
-              <div className="relative rounded-3xl border border-sky-200/80 bg-slate-50/95 p-5 shadow-xl shadow-sky-100/70 backdrop-blur-sm dark:border-sky-700/70 dark:bg-slate-950/90 dark:shadow-none">
-                <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                  A real GiftLink card
+              <div className="absolute -inset-6 rounded-[2rem] bg-sky-500/10 blur-2xl" />
+              <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <p className="text-sm font-semibold text-sky-300">
+                  A real Givio card
                 </p>
 
-                <div className="overflow-hidden rounded-2xl border border-sky-100 bg-slate-50 dark:border-sky-800 dark:bg-slate-950">
+                <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40">
                   <Image
-                    src="/Example_Card.png"
-                    alt="Inside view of a GiftLink card showing a QR code and Congratulations message"
-                    width={768}
-                    height={768}
-                    className="h-full w-full object-cover"
+                    src="/images/inside-right-base.png"
+                    alt="Inside view of a Givio card showing a QR code and Congratulations message"
+                    width={900}
+                    height={600}
+                    className="h-auto w-full"
                     priority
                   />
                 </div>
 
-                <p className="mt-2 text-[11px] text-slate-900/80 dark:text-slate-100/80">
-                  Each card has its own unique QR code that guests can scan to send
-                  a gift, and the recipient can later scan to claim it.
+                <p className="mt-4 text-sm leading-relaxed text-slate-100/80">
+                  Every Givio card carries a single QR code. Givers use it to load
+                  funds. Recipients scan the same code to claim and choose payout.
                 </p>
               </div>
             </div>
-          </section>
+          </div>
+        </div>
+      </section>
 
-          {/* How it works */}
-          <section id="how-it-works" className="scroll-mt-28 space-y-6">
-            <div className="space-y-2 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                How it works
+      {/* How it works */}
+      <section id="how-it-works" className="border-t border-white/10 bg-slate-950">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <h2 className="text-3xl font-bold tracking-tight">How it works</h2>
+          <p className="mt-3 max-w-2xl text-slate-100/80">
+            A simple flow designed for weddings, birthdays, graduations, and group
+            gifts.
+          </p>
+
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <p className="text-sm font-semibold text-sky-300/80">1 · Gift</p>
+              <h3 className="mt-2 text-sm font-semibold">Buy a Givio card</h3>
+              <p className="mt-3 text-sm leading-relaxed text-slate-100/80">
+                Pick up a Givio card from a partner shop or order a pack
+                online.
               </p>
-              <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
-                Three simple steps — one QR code
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <p className="text-sm font-semibold text-sky-300/80">2 · Load</p>
+              <h3 className="mt-2 text-sm font-semibold">Scan and load funds</h3>
+              <p className="mt-3 text-sm leading-relaxed text-slate-100/80">
+                Scan the QR code and choose how much you want to give. Payments
+                are secure and tracked.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <p className="text-sm font-semibold text-sky-300/80">3 · Claim</p>
+              <h3 className="mt-2 text-sm font-semibold">Recipient chooses payout</h3>
+              <p className="mt-3 text-sm leading-relaxed text-slate-100/80">
+                The recipient scans the same QR code to claim and chooses a
+                payout option.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Retail CTA */}
+      <section className="border-t border-white/10 bg-slate-950">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <div className="grid gap-10 rounded-[2rem] border border-white/10 bg-white/5 p-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">
+                Ready to put Givio Cards in the real world?
               </h2>
-              <p className="mx-auto max-w-2xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                Every GiftLink card carries a single QR code. Givers use it to load
-                cash gifts, and recipients use the same code to claim them
-                instantly.
+              <p className="mt-4 text-slate-100/80">
+                We are rolling out physical Givio Cards with select shops. You
+                can also order card packs online for events and gifting.
               </p>
-            </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-sky-100/80 bg-slate-50/90 p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/80 dark:text-sky-300/80">
-                  1 · Gift
-                </p>
-                <h3 className="text-sm font-semibold">Buy a GiftLink card</h3>
-                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Pick up a GiftLink card from a partner shop or order a pack
-                  online. Each one comes with its own unique QR code, ready to
-                  personalize.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-sky-100/80 bg-slate-50/90 p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/80 dark:text-sky-300/80">
-                  2 · Link
-                </p>
-                <h3 className="text-sm font-semibold">
-                  Scan the QR to load your gift
-                </h3>
-                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Givers scan the card&apos;s QR code, enter their name, note, and
-                  amount, and complete payment securely through Stripe.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-sky-100/80 bg-slate-50/90 p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/80 dark:text-sky-300/80">
-                  3 · Give
-                </p>
-                <h3 className="text-sm font-semibold">
-                  The recipient scans to claim
-                </h3>
-                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  The recipient scans that same QR code to instantly claim and
-                  deposit their gift through our secure payment system.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* CTA */}
-          <section className="space-y-4 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-6 shadow-lg shadow-sky-100/70 dark:border-sky-800 dark:bg-slate-950/85 dark:shadow-none">
-            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                  For recipients and shops
-                </p>
-                <h2 className="text-lg font-semibold tracking-tight">
-                  Ready to put GiftLink in the real world?
-                </h2>
-                <p className="text-sm text-slate-900/80 dark:text-slate-100/80">
-                  We are rolling out physical GiftLink cards with select shops. You
-                  can order cards directly online today.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="mt-7 flex flex-wrap gap-3">
                 <Link
                   href="/shop"
-                  className="inline-flex items-center justify-center rounded-full bg-sky-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
+                  className="rounded-2xl bg-sky-500 px-6 py-3 text-sm font-semibold text-slate-950 hover:bg-sky-400 transition"
                 >
-                  Order GiftLink card packs
+                  Order Givio card packs
                 </Link>
+
                 <Link
-                  href="/locations"
-                  className="inline-flex items-center justify-center rounded-full border border-sky-200/80 bg-sky-50/80 px-4 py-2.5 text-sm font-medium text-slate-950 shadow-sm hover:bg-sky-100 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/40 dark:border-sky-700 dark:bg-sky-950/70 dark:text-slate-50 dark:hover:bg-sky-950"
+                  href="/retail"
+                  className="rounded-2xl bg-white/10 px-6 py-3 text-sm font-semibold hover:bg-white/15 transition"
                 >
-                  Find retail locations
+                  Become a retail partner
                 </Link>
               </div>
             </div>
-          </section>
 
-          {/* FAQ */}
-          <section
-            id="faq"
-            className="scroll-mt-24 space-y-6 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-6 shadow-sm dark:border-sky-800 dark:bg-slate-950/85"
-          >
-            <div className="space-y-2 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                Frequently asked questions
-              </p>
-              <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
-                Answers for recipients and gifters
-              </h2>
-              <p className="mx-auto max-w-2xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                GiftLink is a new way to give and receive event gifts. Here are
-                clear answers to the most common questions we hear.
+            <div className="rounded-[2rem] border border-white/10 bg-slate-950/40 p-8">
+              <h3 className="text-base font-semibold">Why shops like it</h3>
+              <ul className="mt-4 space-y-3 text-sm text-slate-100/80">
+                <li>Physical product customers can grab at checkout</li>
+                <li>Perfect for last minute gifting</li>
+                <li>Simple inventory and easy replenishment</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ preview */}
+      <section className="border-t border-white/10 bg-slate-950">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <h2 className="text-3xl font-bold tracking-tight">FAQ</h2>
+          <p className="mt-3 max-w-2xl text-slate-100/80">
+            Givio Cards are a new way to give and receive event gifts. Here are
+            a few common questions.
+          </p>
+
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <h3 className="text-base font-semibold text-slate-50">
+                Are Givio Cards safe to use
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-slate-100/80">
+                We use trusted payment providers and follow standard security
+                practices. Card funds do not sit in your email inbox or live on
+                Givio servers. We only store the info needed to complete a claim
+                and payout.
               </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  Is GiftLink safe to use
-                </h3>
-                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Payments are processed by Stripe. Card details never pass through
-                  or live on GiftLink servers. We only store the info needed to
-                  link each card to its gift and payout.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  What fees apply and who pays them
-                </h3>
-                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Guests pay for the physical card and a small service fee when they
-                  send a gift. Recipients keep the full gift amount if using a free
-                  transfer method.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  What if someone loses the card
-                </h3>
-                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  The QR code on the physical card is the key to the gift. We
-                  recommend recipients keep cards in a safe place once they are
-                  opened. If a card is lost before a payout, contact us.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  How long can gifts remain unclaimed
-                </h3>
-                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Funds stay linked to the card until a payout request is made or a
-                  year after the card is loaded. submitted and processed.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  Do recipients need an app or account
-                </h3>
-                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  No app is required. Recipients scan the QR code printed inside the
-                  card and submit a payout request through a mobile friendly page.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  Which payout methods are supported
-                </h3>
-                <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  GiftLink is expanding payout options over time. Currently we
-                  support Venmo payouts and bank transfers. Our goal is to give
-                  recipients familiar ways to move gift money where they want it
-                  easily.
-                </p>
-              </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <h3 className="text-base font-semibold text-slate-50">
+                What payout options are available
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-slate-100/80">
+                Givio Cards are expanding payout options over time. Currently we
+                support common payout methods and will continue to add more based
+                on demand.
+              </p>
             </div>
-          </section>
-        </main>
+          </div>
 
-        {/* Footer */}
-        <footer className="mt-6 border-t border-sky-100/80 pt-4 text-[11px] text-slate-800/80 dark:border-sky-800 dark:text-slate-200/80">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p>© {new Date().getFullYear()} GiftLink. All rights reserved.</p>
+          <div className="mt-8">
+            <Link
+              href="/faq"
+              className="inline-flex rounded-2xl bg-white/10 px-6 py-3 text-sm font-semibold hover:bg-white/15 transition"
+            >
+              View all FAQs
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-white/10 bg-slate-950">
+        <div className="mx-auto max-w-6xl px-4 py-10 text-sm text-slate-100/60">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p>© {new Date().getFullYear()} Givio Cards. All rights reserved.</p>
             <div className="flex gap-4">
-              <Link href="/terms" className="hover:underline">
+              <Link href="/terms" className="hover:text-slate-100">
                 Terms
               </Link>
-              <Link href="/privacy" className="hover:underline">
+              <Link href="/privacy" className="hover:text-slate-100">
                 Privacy
+              </Link>
+              <Link href="/contact" className="hover:text-slate-100">
+                Contact
               </Link>
             </div>
           </div>
-        </footer>
-      </div>
-    </div>
+        </div>
+      </footer>
+    </main>
   );
 }
