@@ -17,7 +17,6 @@ export default function HomePage() {
     const onScroll = () => {
       const currentY = window.scrollY;
 
-      // Always show when at (or very near) the top
       if (currentY <= 2) {
         setShowHeader(true);
         lastScrollYRef.current = currentY;
@@ -26,10 +25,8 @@ export default function HomePage() {
 
       const delta = currentY - lastScrollYRef.current;
 
-      // Ignore tiny scroll changes to prevent flicker
       if (Math.abs(delta) < threshold) return;
 
-      // Scrolling down -> hide, scrolling up -> show
       if (delta > 0) {
         setShowHeader(false);
       } else {
@@ -49,7 +46,6 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
       <EmailCaptureModal />
 
-      {/* Header: visible initially, hides on scroll down, shows on scroll up */}
       <header
         className={[
           "fixed left-0 right-0 top-0 z-50",
@@ -59,14 +55,14 @@ export default function HomePage() {
           showHeader ? "translate-y-0" : "-translate-y-full",
         ].join(" ")}
       >
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-2.5">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:py-5">
           <Link href="/" className="flex items-center">
             <Image
               src="/giftlink_logo.svg"
               alt="Givio Cards"
-              width={200}
-              height={200}
-              className="h-12 w-auto max-w-[180px] sm:h-10 sm:max-w-none"
+              width={360}
+              height={360}
+              className="h-16 w-auto max-w-[260px] sm:h-20 sm:max-w-none"
               priority
             />
           </Link>
@@ -89,7 +85,7 @@ export default function HomePage() {
 
             <Link
               href="/shop"
-              className="inline-flex items-center justify-center rounded-full bg-sky-700 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
+              className="inline-flex items-center justify-center rounded-full bg-sky-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
             >
               Shop
             </Link>
@@ -97,9 +93,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Increased top padding to account for fixed header */}
-      <div className="mx-auto max-w-5xl px-4 pb-8 pt-20 sm:pt-16">
-        {/* Hero */}
+      <div className="mx-auto max-w-5xl px-4 pb-8 pt-32 sm:pt-36">
         <main className="space-y-24 pb-16">
           <section className="grid gap-10 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-center">
             <div className="space-y-5">
@@ -143,7 +137,6 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Hero image */}
             <div className="relative">
               <div className="pointer-events-none absolute -inset-6 rounded-3xl bg-gradient-to-br from-sky-500/10 via-sky-400/10 to-sky-300/10 blur-2xl dark:from-sky-500/15 dark:via-sky-400/15 dark:to-sky-300/15" />
               <div className="relative rounded-3xl border border-sky-200/80 bg-slate-50/95 p-5 shadow-xl shadow-sky-100/70 backdrop-blur-sm dark:border-sky-700/70 dark:bg-slate-950/90 dark:shadow-none">
@@ -170,8 +163,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* How it works */}
-          <section id="how-it-works" className="scroll-mt-28 space-y-6">
+          <section id="how-it-works" className="scroll-mt-36 space-y-6">
             <div className="space-y-2 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                 How it works
@@ -227,7 +219,6 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* CTA */}
           <section className="space-y-4 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-6 shadow-lg shadow-sky-100/70 dark:border-sky-800 dark:bg-slate-950/85 dark:shadow-none">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div className="space-y-1">
@@ -259,10 +250,9 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* FAQ */}
           <section
             id="faq"
-            className="scroll-mt-24 space-y-6 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-6 shadow-sm dark:border-sky-800 dark:bg-slate-950/85"
+            className="scroll-mt-32 space-y-6 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-6 shadow-sm dark:border-sky-800 dark:bg-slate-950/85"
           >
             <div className="space-y-2 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
@@ -346,7 +336,6 @@ export default function HomePage() {
           </section>
         </main>
 
-        {/* Footer */}
         <footer className="mt-6 border-t border-sky-100/80 pt-4 text-[11px] text-slate-800/80 dark:border-sky-800 dark:text-slate-200/80">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p>© {new Date().getFullYear()} Givio Cards. All rights reserved.</p>
