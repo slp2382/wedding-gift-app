@@ -63,7 +63,7 @@ export default function HomePage() {
           <Link href="/" className="flex items-center">
             <Image
               src="/giftlink_logo.svg"
-              alt="GiftLink"
+              alt="Givio Cards"
               width={200}
               height={200}
               className="h-12 w-auto max-w-[180px] sm:h-10 sm:max-w-none"
@@ -116,7 +116,7 @@ export default function HomePage() {
               </h1>
 
               <p className="max-w-xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                GiftLink turns a simple card into a QR powered gift. Guests scan a
+                Givio Cards turn a simple card into a QR powered gift. Guests scan a
                 card, load a monetary gift through Stripe, and the recipient scans
                 the same card to claim their funds later. No ATM, no loose cash.
               </p>
@@ -126,7 +126,7 @@ export default function HomePage() {
                   href="#how-it-works"
                   className="inline-flex items-center justify-center rounded-full bg-sky-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
                 >
-                  How GiftLink works
+                  How Givio Cards work
                 </a>
 
                 <Link
@@ -148,13 +148,13 @@ export default function HomePage() {
               <div className="pointer-events-none absolute -inset-6 rounded-3xl bg-gradient-to-br from-sky-500/10 via-sky-400/10 to-sky-300/10 blur-2xl dark:from-sky-500/15 dark:via-sky-400/15 dark:to-sky-300/15" />
               <div className="relative rounded-3xl border border-sky-200/80 bg-slate-50/95 p-5 shadow-xl shadow-sky-100/70 backdrop-blur-sm dark:border-sky-700/70 dark:bg-slate-950/90 dark:shadow-none">
                 <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                  A real GiftLink card
+                  A real Givio card
                 </p>
 
                 <div className="overflow-hidden rounded-2xl border border-sky-100 bg-slate-50 dark:border-sky-800 dark:bg-slate-950">
                   <Image
                     src="/Example_Card.png"
-                    alt="Inside view of a GiftLink card showing a QR code and Congratulations message"
+                    alt="Inside view of a Givio card showing a QR code and Congratulations message"
                     width={768}
                     height={768}
                     className="h-full w-full object-cover"
@@ -180,7 +180,7 @@ export default function HomePage() {
                 Three simple steps — one QR code
               </h2>
               <p className="mx-auto max-w-2xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                Every GiftLink card carries a single QR code. Givers use it to load
+                Every Givio card carries a single QR code. Givers use it to load
                 cash gifts, and recipients use the same code to claim them
                 instantly.
               </p>
@@ -191,9 +191,9 @@ export default function HomePage() {
                 <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/80 dark:text-sky-300/80">
                   1 · Gift
                 </p>
-                <h3 className="text-sm font-semibold">Buy a GiftLink card</h3>
+                <h3 className="text-sm font-semibold">Buy a Givio card</h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  Pick up a GiftLink card from a partner shop or order a pack
+                  Pick up a Givio card from a partner shop or order a pack
                   online. Each one comes with its own unique QR code, ready to
                   personalize.
                 </p>
@@ -235,10 +235,10 @@ export default function HomePage() {
                   For recipients and shops
                 </p>
                 <h2 className="text-lg font-semibold tracking-tight">
-                  Ready to put GiftLink in the real world?
+                  Ready to put Givio Cards in the real world?
                 </h2>
                 <p className="text-sm text-slate-900/80 dark:text-slate-100/80">
-                  We are rolling out physical GiftLink cards with select shops. You
+                  We are rolling out physical Givio Cards with select shops. You
                   can order cards directly online today.
                 </p>
               </div>
@@ -247,7 +247,7 @@ export default function HomePage() {
                   href="/shop"
                   className="inline-flex items-center justify-center rounded-full bg-sky-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
                 >
-                  Order GiftLink card packs
+                  Order Givio Card packs
                 </Link>
                 <Link
                   href="/locations"
@@ -272,7 +272,7 @@ export default function HomePage() {
                 Answers for recipients and gifters
               </h2>
               <p className="mx-auto max-w-2xl text-sm text-slate-900/80 dark:text-slate-100/80">
-                GiftLink is a new way to give and receive event gifts. Here are
+                Givio Cards are a new way to give and receive event gifts. Here are
                 clear answers to the most common questions we hear.
               </p>
             </div>
@@ -280,11 +280,11 @@ export default function HomePage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-sky-100/80 bg-white p-4 text-sm shadow-sm dark:border-sky-800/70 dark:bg-slate-950/80">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  Is GiftLink safe to use
+                  Are Givio Cards safe to use
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
                   Payments are processed by Stripe. Card details never pass through
-                  or live on GiftLink servers. We only store the info needed to
+                  or live on Givio servers. We only store the info needed to
                   link each card to its gift and payout.
                 </p>
               </div>
@@ -336,7 +336,7 @@ export default function HomePage() {
                   Which payout methods are supported
                 </h3>
                 <p className="mt-2 text-xs text-slate-900/80 dark:text-slate-100/80">
-                  GiftLink is expanding payout options over time. Currently we
+                  Givio Cards are expanding payout options over time. Currently we
                   support Venmo payouts and bank transfers. Our goal is to give
                   recipients familiar ways to move gift money where they want it
                   easily.
@@ -349,7 +349,7 @@ export default function HomePage() {
         {/* Footer */}
         <footer className="mt-6 border-t border-sky-100/80 pt-4 text-[11px] text-slate-800/80 dark:border-sky-800 dark:text-slate-200/80">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p>© {new Date().getFullYear()} GiftLink. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Givio Cards. All rights reserved.</p>
             <div className="flex gap-4">
               <Link href="/terms" className="hover:underline">
                 Terms
