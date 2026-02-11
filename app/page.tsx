@@ -101,7 +101,7 @@ export default function HomePage() {
   </div>
 </header>
 
-      <div className="mx-auto max-w-5xl px-4 pb-8 pt-32 sm:pt-36">
+      <div className="mx-auto max-w-5xl px-4 pb-8 pt-40 sm:pt-44">
         <main className="space-y-24 pb-16">
           <section className="grid gap-10 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-center">
             <div className="space-y-5">
@@ -171,7 +171,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section id="how-it-works" className="scroll-mt-36 space-y-6">
+          <section id="how-it-works" className="scroll-mt-44 space-y-6">
             <div className="space-y-2 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                 How it works
