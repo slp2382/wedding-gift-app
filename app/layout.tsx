@@ -6,7 +6,7 @@ import { CartProvider } from "./providers/CartProvider";
 import { GoogleAnalytics } from "@next/third-parties/google";
 
 export const metadata: Metadata = {
-  title: "GiftLink",
+  title: "Givio Cards",
   description: "Wedding gift QR cards",
 };
 
