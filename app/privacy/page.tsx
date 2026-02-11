@@ -2,9 +2,9 @@ import Link from "next/link";
 import React from "react";
 
 export const metadata = {
-  title: "Privacy Policy | GiftLink",
+  title: "Privacy Policy | Givio Cards",
   description:
-    "GiftLink Privacy Policy describing what information we collect, how we use it, and how to contact us.",
+    "Givio Cards Privacy Policy describing what information we collect, how we use it, and how to contact us.",
 };
 
 function TocLink(props: { href: string; children: React.ReactNode }) {
@@ -64,8 +64,8 @@ export default function PrivacyPage() {
 
         <Card>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            This Privacy Policy explains how GiftLink collects, uses, and shares
-            information when you visit our website, purchase GiftLink cards, fund
+            This Privacy Policy explains how Givio Cards collect, uses, and shares
+            information when you visit our website, purchase Givio Cards, fund
             gifts, or request a payout.
           </p>
 
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
         <section id="who">
           <SectionTitle id="who">1. Who we are</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            GiftLink is a service operated by GiftLink, LLC. If you have
+            Givio Cards is a service operated by Givio Cards, LLC. If you have
             questions about this policy, contact us at{" "}
             <a
               href={`mailto:${supportEmail}`}
@@ -149,7 +149,7 @@ export default function PrivacyPage() {
 
           <p className="mt-3 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             Payment card information is handled by our payment processors and is
-            not stored by GiftLink.
+            not stored by Givio Cards.
           </p>
         </section>
 
@@ -159,7 +159,7 @@ export default function PrivacyPage() {
             We use information to:
           </p>
           <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            <li>Provide and operate the GiftLink service</li>
+            <li>Provide and operate the Givio Cards service</li>
             <li>Process purchases and fulfill physical card orders</li>
             <li>Process gift funding and payout requests</li>
             <li>Send transactional emails and service related communications</li>
@@ -172,7 +172,7 @@ export default function PrivacyPage() {
         <section id="share">
           <SectionTitle id="share">4. How we share information</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            We share information with service providers who help us run GiftLink.
+            We share information with service providers who help us run Givio Cards.
             These providers process information on our behalf and only as needed
             to provide their services.
           </p>
@@ -198,7 +198,7 @@ export default function PrivacyPage() {
 
           <p className="mt-3 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We may also share information if required by law, to respond to legal
-            requests, to protect GiftLink or users, or in connection with a
+            requests, to protect Givio Cards or users, or in connection with a
             business transaction such as a merger, acquisition, or asset sale.
           </p>
 
@@ -256,7 +256,7 @@ export default function PrivacyPage() {
         <section id="children">
           <SectionTitle id="children">9. Children</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            GiftLink is not intended for children under 13 and we do not knowingly
+            Givio Cards is not intended for children under 13 and we do not knowingly
             collect personal information from children.
           </p>
         </section>
@@ -266,7 +266,7 @@ export default function PrivacyPage() {
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We may update this Privacy Policy from time to time. The updated date
             at the top of this page indicates when changes were made. Continued
-            use of GiftLink after changes become effective means you accept the
+            use of Givio Cards after changes become effective means you accept the
             updated policy.
           </p>
         </section>

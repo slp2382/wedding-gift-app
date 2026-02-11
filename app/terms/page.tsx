@@ -2,9 +2,9 @@ import Link from "next/link";
 import React from "react";
 
 export const metadata = {
-  title: "Terms of Use | GiftLink",
+  title: "Terms of Use | Givio Cards",
   description:
-    "GiftLink Terms of Use covering purchases, gifting, claiming, payouts, and service rules.",
+    "Givio Cards Terms of Use covering purchases, gifting, claiming, payouts, and service rules.",
 };
 
 function TocLink(props: { href: string; children: React.ReactNode }) {
@@ -63,8 +63,8 @@ export default function TermsPage() {
 
         <Card>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            These Terms of Use govern your access to and use of GiftLink. By
-            using our website or services, purchasing GiftLink cards, funding a
+            These Terms of Use govern your access to and use of Givio Cards. By
+            using our website or services, purchasing Givio Cards, funding a
             gift, or requesting a payout, you agree to these Terms.
           </p>
 
@@ -73,9 +73,9 @@ export default function TermsPage() {
               Contents
             </div>
             <div className="mt-3 grid gap-2">
-              <TocLink href="#about">1. About GiftLink</TocLink>
+              <TocLink href="#about">1. About Givio Cards</TocLink>
               <TocLink href="#eligibility">2. Eligibility</TocLink>
-              <TocLink href="#howitworks">3. How GiftLink Works</TocLink>
+              <TocLink href="#howitworks">3. How Givio Cards Work</TocLink>
               <TocLink href="#purchases">4. Purchases, Pricing, Shipping</TocLink>
               <TocLink href="#funding">5. Funding a Gift</TocLink>
               <TocLink href="#claiming">6. Claiming and Payout Requests</TocLink>
@@ -92,11 +92,11 @@ export default function TermsPage() {
         </Card>
 
         <section id="about">
-          <SectionTitle id="about">1. About GiftLink</SectionTitle>
+          <SectionTitle id="about">1. About Givio Cards</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            GiftLink provides physical greeting cards that include a unique QR
+            Givio Cards provide physical greeting cards that include a unique QR
             code. The QR code links to a webpage where a gift can be funded by a
-            gifter and later claimed by a recipient. GiftLink, LLC is a company
+            gifter and later claimed by a recipient. Givio Cards, LLC is a company
             organized in North Carolina, United States.
           </p>
         </section>
@@ -105,16 +105,16 @@ export default function TermsPage() {
           <SectionTitle id="eligibility">2. Eligibility</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             You must be able to form a binding contract in your jurisdiction to
-            use GiftLink. You represent that the information you provide is
+            use Givio Cards. You represent that the information you provide is
             accurate and that you will comply with these Terms and applicable
             laws.
           </p>
         </section>
 
         <section id="howitworks">
-          <SectionTitle id="howitworks">3. How GiftLink Works</SectionTitle>
+          <SectionTitle id="howitworks">3. How Givio Cards Work</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            GiftLink is designed to support two phases using the same QR code:
+            Givio Cards are designed to support two phases using the same QR code:
           </p>
           <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             <li>
@@ -127,7 +127,7 @@ export default function TermsPage() {
             </li>
           </ol>
           <p className="mt-3 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            GiftLink uses internal status tracking to help prevent duplicate
+            Givio Cards use internal status tracking to help prevent duplicate
             claims and to support reconciliation, support, and fraud prevention.
           </p>
         </section>
@@ -135,7 +135,7 @@ export default function TermsPage() {
         <section id="purchases">
           <SectionTitle id="purchases">4. Purchases, Pricing, Shipping</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            If you purchase physical GiftLink cards or packs, pricing, shipping,
+            If you purchase physical Givio Cards or packs, pricing, shipping,
             taxes, and availability will be shown at checkout. Delivery times
             may vary. If a product is unavailable or a fulfillment issue occurs,
             we may contact you to resolve it.
@@ -179,12 +179,12 @@ export default function TermsPage() {
         <section id="prohibited">
           <SectionTitle id="prohibited">7. Prohibited Use</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            You agree not to misuse GiftLink. Prohibited conduct includes:
+            You agree not to misuse Givio Cards. Prohibited conduct includes:
           </p>
           <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             <li>Attempting to claim gifts you are not entitled to claim.</li>
             <li>Fraud, deception, or impersonation.</li>
-            <li>Using GiftLink for illegal activity or prohibited transactions.</li>
+            <li>Using Givio Cards for illegal activity or prohibited transactions.</li>
             <li>Interfering with the security or operation of the service.</li>
           </ol>
         </section>
@@ -192,7 +192,7 @@ export default function TermsPage() {
         <section id="thirdparties">
           <SectionTitle id="thirdparties">8. Third Party Services</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            GiftLink may rely on third party services for payments, hosting,
+            Givio Cards may rely on third party services for payments, hosting,
             fulfillment, messaging, and analytics. Those providers may have
             their own terms and policies. We do not control third party services
             and are not responsible for their performance.
@@ -202,7 +202,7 @@ export default function TermsPage() {
         <section id="content">
           <SectionTitle id="content">9. User Content and Messages</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            GiftLink may allow gifters to include names and messages with a gift.
+            Givio Cards may allow gifters to include names and messages with a gift.
             You are responsible for the content you submit. You agree not to
             submit content that is unlawful, abusive, or infringes the rights of
             others.
@@ -212,7 +212,7 @@ export default function TermsPage() {
         <section id="disclaimer">
           <SectionTitle id="disclaimer">10. Disclaimers</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            GiftLink is provided on an as is and as available basis. We make no
+            Givio Cards are provided on an as is and as available basis. We make no
             warranties of any kind, express or implied, including warranties of
             merchantability, fitness for a particular purpose, and
             noninfringement, to the extent permitted by law.
@@ -222,12 +222,12 @@ export default function TermsPage() {
         <section id="liability">
           <SectionTitle id="liability">11. Limitation of Liability</SectionTitle>
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
-            To the extent permitted by law, GiftLink and its affiliates will not
+            To the extent permitted by law, Givio Cards and its affiliates will not
             be liable for indirect, incidental, special, consequential, or
             punitive damages, or any loss of profits, data, or goodwill, arising
             from your use of the service. Our total liability for claims
             relating to the service will not exceed the amount you paid to
-            GiftLink for the product or service giving rise to the claim during
+            Givio Cards for the product or service giving rise to the claim during
             the twelve months before the event.
           </p>
         </section>
@@ -237,7 +237,7 @@ export default function TermsPage() {
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We may suspend or terminate access to the service if we reasonably
             believe you have violated these Terms or if doing so is necessary to
-            protect GiftLink, users, or third parties.
+            protect Givio Cards, users, or third parties.
           </p>
         </section>
 
@@ -246,7 +246,7 @@ export default function TermsPage() {
           <p className="text-sm leading-7 text-slate-900/80 dark:text-slate-200/80">
             We may update these Terms from time to time. The updated date at the
             top of this page indicates when changes were made. Continued use of
-            GiftLink after changes become effective means you accept the updated
+            Givio Cards after changes become effective means you accept the updated
             Terms.
           </p>
         </section>

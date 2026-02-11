@@ -33,7 +33,7 @@ function ShopPageContent() {
       <div className="mx-auto mb-6 flex max-w-5xl items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            GiftLink card shop
+            Givio Cards shop
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Choose your card size and quantity, then add them to your cart.
@@ -72,7 +72,7 @@ function ShopPageContent() {
                 </h2>
 
                 <p className="mt-1 text-sm text-emerald-900/80 dark:text-emerald-100/80">
-                  Your GiftLink card order is on its way to printing. You will
+                  Your Givio Cards order is on its way to printing. You will
                   receive updates as it moves through printing and shipping.
                 </p>
 
