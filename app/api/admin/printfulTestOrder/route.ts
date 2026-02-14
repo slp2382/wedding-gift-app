@@ -41,32 +41,55 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
 
-function argMaxInRange(arr: number[], start: number, end: number) {
-  let bestIdx: number | null = null;
-  let bestVal = -Infinity;
+function findTwoEdgeClusters(scores: Int32Array) {
+  let max = 0;
+  for (let i = 0; i < scores.length; i++) max = Math.max(max, scores[i] ?? 0);
+  if (max <= 0) {
+    return { leftEdge: null as number | null, rightEdge: null as number | null };
+  }
 
-  const s = Math.max(0, Math.floor(start));
-  const e = Math.min(arr.length - 1, Math.floor(end));
+  const thr = Math.floor(max * 0.7);
 
-  for (let i = s; i <= e; i++) {
-    if (arr[i] > bestVal) {
-      bestVal = arr[i];
-      bestIdx = i;
+  const hits: number[] = [];
+  for (let i = 0; i < scores.length; i++) {
+    if ((scores[i] ?? 0) >= thr) hits.push(i);
+  }
+
+  if (hits.length < 2) return { leftEdge: null, rightEdge: null };
+
+  const clusters: Array<{ start: number; end: number }> = [];
+  let s = hits[0];
+  let p = hits[0];
+  for (let k = 1; k < hits.length; k++) {
+    const x = hits[k];
+    if (x === p + 1) {
+      p = x;
+    } else {
+      clusters.push({ start: s, end: p });
+      s = p = x;
     }
   }
-  return bestIdx;
+  clusters.push({ start: s, end: p });
+
+  if (clusters.length < 2) return { leftEdge: null, rightEdge: null };
+
+  const left = clusters[0];
+  const right = clusters[clusters.length - 1];
+
+  return {
+    leftEdge: left.start,
+    rightEdge: right.end,
+  };
 }
 
+// Exact gift box detection used by your Stripe webhook route
 async function detectGiftBoxWindow(
   templatePath: string,
-  targetW: number,
-  targetH: number,
+  width: number,
+  height: number,
 ): Promise<{ cx: number; cy: number; size: number }> {
-  const scanW = 400;
-  const scanH = Math.round((targetH / targetW) * scanW);
-
   const { data, info } = await sharp(templatePath)
-    .resize(scanW, scanH)
+    .resize(width, height)
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
@@ -74,20 +97,48 @@ async function detectGiftBoxWindow(
   const w = info.width;
   const h = info.height;
 
-  const x0 = Math.floor(w * 0.52);
-  const x1 = Math.floor(w * 0.92);
+  // Target color for the gift box stroke in inside right base
+  const tr = 186;
+  const tg = 230;
+  const tb = 253;
 
-  const yBandTop = Math.floor(h * 0.55);
-  const yBandMid = Math.floor(h * 0.72);
-  const yBandBot = Math.floor(h * 0.88);
+  const yBandTop = Math.floor(h * 0.65);
+  const yBandMid = Math.floor(h * 0.78);
+  const yBandBot = Math.floor(h * 0.92);
 
-  const tr = 245;
-  const tg = 245;
-  const tb = 245;
+  // First pass: find the two vertical stroke edges via column scores
+  const colScores = new Int32Array(w);
+  for (let y = yBandMid; y < Math.floor(h * 0.83); y++) {
+    const rowOff = y * w * 4;
+    for (let x = 0; x < w; x++) {
+      const i = rowOff + x * 4;
+      const a = data[i + 3];
+      if (a < 10) continue;
 
-  const rowScores = new Array(h).fill(0);
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
 
-  for (let y = yBandTop; y <= yBandBot; y++) {
+      const dr = r - tr;
+      const dg = g - tg;
+      const db = b - tb;
+
+      const d2 = dr * dr + dg * dg + db * db;
+      if (d2 < 60 * 60) colScores[x] += 1;
+    }
+  }
+
+  const { leftEdge, rightEdge } = findTwoEdgeClusters(colScores);
+  if (leftEdge == null || rightEdge == null || rightEdge - leftEdge < 120) {
+    return { cx: w / 2, cy: h * 0.78, size: 240 };
+  }
+
+  const x0 = Math.max(0, leftEdge);
+  const x1 = Math.min(w - 1, rightEdge);
+
+  // Second pass: within those edges, find top and bottom stroke via row scores
+  const rowScores = new Int32Array(h);
+  for (let y = yBandTop; y < yBandBot; y++) {
     const rowOff = y * w * 4;
     for (let x = x0; x <= x1; x++) {
       const i = rowOff + x * 4;
@@ -107,32 +158,44 @@ async function detectGiftBoxWindow(
     }
   }
 
-  const topEdge = argMaxInRange(rowScores, yBandTop, yBandMid);
-  const bottomEdge = argMaxInRange(rowScores, yBandMid, yBandBot);
-
-  if (topEdge == null || bottomEdge == null || bottomEdge - topEdge < 120) {
-    return { cx: targetW * 0.72, cy: targetH * 0.78, size: 240 };
+  // Find strongest top edge between yBandTop and yBandMid
+  let topEdge: number | null = null;
+  let bestTop = -1;
+  for (let y = yBandTop; y < yBandMid; y++) {
+    const v = rowScores[y] ?? 0;
+    if (v > bestTop) {
+      bestTop = v;
+      topEdge = y;
+    }
   }
 
-  const scaleX = targetW / w;
-  const scaleY = targetH / h;
+  // Find strongest bottom edge between yBandMid and yBandBot
+  let bottomEdge: number | null = null;
+  let bestBot = -1;
+  for (let y = yBandMid; y < yBandBot; y++) {
+    const v = rowScores[y] ?? 0;
+    if (v > bestBot) {
+      bestBot = v;
+      bottomEdge = y;
+    }
+  }
+
+  if (topEdge == null || bottomEdge == null || bottomEdge - topEdge < 120) {
+    return { cx: (x0 + x1) / 2, cy: h * 0.78, size: 240 };
+  }
 
   const inset = 14;
   const innerW = Math.max(80, x1 - x0 - inset * 2);
   const innerH = Math.max(80, bottomEdge - topEdge - inset * 2);
   const innerSize = Math.min(innerW, innerH);
 
-  const cxScan = (x0 + x1) / 2;
-  const cyScan = (topEdge + bottomEdge) / 2;
-
   return {
-    cx: cxScan * scaleX,
-    cy: cyScan * scaleY,
-    size: innerSize * Math.min(scaleX, scaleY),
+    cx: (x0 + x1) / 2,
+    cy: (topEdge + bottomEdge) / 2,
+    size: innerSize,
   };
 }
 
-// Matches the Stripe webhook path: template based inside file with QR placed in the gift box window
 async function generateGiftlinkInsidePng(cardId: string) {
   const WIDTH = 1245;
   const HEIGHT = 1845;
@@ -147,6 +210,7 @@ async function generateGiftlinkInsidePng(cardId: string) {
   );
 
   const box = await detectGiftBoxWindow(templatePath, WIDTH, HEIGHT);
+
   const qrSize = clamp(Math.floor(box.size * 0.9), 180, 360);
 
   const qrBuffer = await QRCode.toBuffer(cardUrl, {
@@ -208,7 +272,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unknown templateId" }, { status: 400 });
     }
 
-    // Quantity is supported as "quantity unique cards" (unique QR per card)
     if (quantity > 25) {
       return NextResponse.json(
         { error: "Quantity too large for a test order (max 25)" },
@@ -250,7 +313,6 @@ export async function POST(req: NextRequest) {
 
     const adminSessionId = makeAdminTestSessionId();
 
-    // Create an orders row so lib/printful can read shipping fields by orderId
     const { data: insertedOrder, error: orderInsertError } = await supabaseAdmin
       .from("orders")
       .insert({
@@ -337,7 +399,7 @@ export async function POST(req: NextRequest) {
           })
           .eq("card_id", cardId);
 
-        const { error: jobError } = await supabaseAdmin.from("card_print_jobs").insert({
+        await supabaseAdmin.from("card_print_jobs").insert({
           card_id: cardId,
           order_id: orderId,
           pdf_path: pngPath,
@@ -345,11 +407,6 @@ export async function POST(req: NextRequest) {
           error_message: uploadError ? uploadError.message : null,
           fulfillment_status: "pending",
         });
-
-        if (jobError) {
-          console.error("[admin print] Error inserting card_print_jobs", jobError);
-          continue;
-        }
 
         if (!uploadError) {
           cardsForPrintful.push({
