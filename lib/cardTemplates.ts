@@ -31,7 +31,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5064628437,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 932626998,
-    printfulBackFileId:  927656679,
+    printfulBackFileId:  942987156,
     images: [
       "/JustHitchedImages/JustHitchedMockup1.png",
       "/JustHitchedImages/JustHitchedMockup2.png",
@@ -54,7 +54,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5078065456,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 908804108,
-    printfulBackFileId: 927435293,
+    printfulBackFileId: 942993410,
     images: [
       "/LoveBirdsImages/LoveBirdsMockup1.png",
       "/LoveBirdsImages/LoveBirdsMockup2.png",
@@ -78,7 +78,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5071152160,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 929726697,
-    printfulBackFileId:  927630617,
+    printfulBackFileId:  942991406,
     images: [
       "/FizzyBubblyImages/FizzyMockup1.png",
       "/FizzyBubblyImages/FizzyMockup2.png",
@@ -101,7 +101,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079220284,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 929720683,
-    printfulBackFileId:  927653597,
+    printfulBackFileId:  942988081,
     images: [
       "/LoveandHappinessImages/LoveandHappinessMockup1.png",
       "/LoveandHappinessImages/LoveandHappinessMockup2.png",
@@ -126,7 +126,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079297309,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 918080160,
-    printfulBackFileId:  927626037,
+    printfulBackFileId:  942991971,
     images: [
       "/WeddingPoemImages/WeddingPoemMockup1.png",
       "/WeddingPoemImages/WeddingPoemMockup2.png",
@@ -149,7 +149,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079482998,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 909328917,
-    printfulBackFileId:  927622597,
+    printfulBackFileId:  942992745,
     images: [
       "/FloralWeddingImages/FloralWeddingMockup1.png",
       "/FloralWeddingImages/FloralWeddingMockup2.png",
@@ -195,7 +195,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079282339,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 918047142,
-    printfulBackFileId:  927643558,
+    printfulBackFileId:  942990293,
     images: [
       "/WatercolorWeddingImages/WatercolorWeddingMockup1.png",
       "/WatercolorWeddingImages/WatercolorWeddingMockup2.png",
@@ -218,7 +218,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079444047,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 909319453,
-    printfulBackFileId:  927635985,
+    printfulBackFileId:  942990872,
     images: [
       "/ColorfulWeddingImages/ColorfulWeddingMockup1.png",
       "/ColorfulWeddingImages/ColorfulWeddingMockup2.png",
@@ -265,7 +265,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5078093148,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 908816971,
-    printfulBackFileId:  927646701,
+    printfulBackFileId:  942989691,
     images: [
       "/ConfettiBirthdayImages/ConfettiBirthdayMockup1.png",
       "/ConfettiBirthdayImages/ConfettiBirthdayMockup2.png",
@@ -288,7 +288,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079262069,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 918071119,
-    printfulBackFileId:  927651412,
+    printfulBackFileId:  942988767,
     images: [
       "/PinkBirthdayImages/PinkBirthdayMockup1.png",
       "/PinkBirthdayImages/PinkBirthdayMockup2.png",
