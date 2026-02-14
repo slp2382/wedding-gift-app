@@ -1,48 +1,61 @@
+// app/api/admin/printfulTestOrder/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { createPrintfulOrderForCards } from "@/lib/printful";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
+import { absoluteUrl } from "@/lib/siteUrl";
 import QRCode from "qrcode";
 import sharp from "sharp";
-import path from "path";
+import path from "node:path";
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error(
+    "Admin Printful test order route is not configured, missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
+  );
+}
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false },
+});
 
 export const runtime = "nodejs";
 
-function getSupabaseAdmin(): SupabaseClient | null {
-  const supabaseUrl =
-    process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+type CartItem = {
+  templateId: string;
+  quantity: number;
+};
 
-  if (!supabaseUrl || !supabaseServiceKey) return null;
+type Body = {
+  // Backward compatible single item mode
+  templateId?: string;
+  quantity?: number;
 
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { persistSession: false },
-  });
-}
+  // New cart mode
+  cartItems?: CartItem[];
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
+  shippingName?: string;
+  shippingLine1?: string;
+  shippingLine2?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingPostalCode?: string;
+  shippingCountry?: string;
+};
 
-function argMaxInRange(arr: Int32Array, start: number, end: number) {
-  let bestIdx: number | null = null;
-  let bestVal = -1;
-  for (let i = start; i < end; i++) {
-    const v = arr[i] ?? 0;
-    if (v > bestVal) {
-      bestVal = v;
-      bestIdx = i;
-    }
-  }
-  return bestIdx;
+function clamp(n: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, n));
 }
 
 function findTwoEdgeClusters(scores: Int32Array) {
   let max = 0;
   for (let i = 0; i < scores.length; i++) max = Math.max(max, scores[i] ?? 0);
-  if (max <= 0)
+  if (max <= 0) {
     return { leftEdge: null as number | null, rightEdge: null as number | null };
+  }
 
   const thr = Math.floor(max * 0.7);
 
@@ -78,6 +91,7 @@ function findTwoEdgeClusters(scores: Int32Array) {
   };
 }
 
+// Gift box detection matching production behavior
 async function detectGiftBoxWindow(
   templatePath: string,
   width: number,
@@ -92,6 +106,7 @@ async function detectGiftBoxWindow(
   const w = info.width;
   const h = info.height;
 
+  // Gift box stroke color
   const tr = 186;
   const tg = 230;
   const tb = 253;
@@ -150,8 +165,25 @@ async function detectGiftBoxWindow(
     }
   }
 
-  const topEdge = argMaxInRange(rowScores, yBandTop, yBandMid);
-  const bottomEdge = argMaxInRange(rowScores, yBandMid, yBandBot);
+  let topEdge: number | null = null;
+  let bestTop = -1;
+  for (let y = yBandTop; y < yBandMid; y++) {
+    const v = rowScores[y] ?? 0;
+    if (v > bestTop) {
+      bestTop = v;
+      topEdge = y;
+    }
+  }
+
+  let bottomEdge: number | null = null;
+  let bestBot = -1;
+  for (let y = yBandMid; y < yBandBot; y++) {
+    const v = rowScores[y] ?? 0;
+    if (v > bestBot) {
+      bestBot = v;
+      bottomEdge = y;
+    }
+  }
 
   if (topEdge == null || bottomEdge == null || bottomEdge - topEdge < 120) {
     return { cx: (x0 + x1) / 2, cy: h * 0.78, size: 240 };
@@ -169,21 +201,17 @@ async function detectGiftBoxWindow(
   };
 }
 
-async function generateInsidePng(cardId: string) {
+async function generateGiftlinkInsidePng(cardId: string) {
   const WIDTH = 1245;
   const HEIGHT = 1845;
 
-  const cardUrl = `https://www.giftlink.cards/card/${cardId}`;
-
-  const dash = String.fromCharCode(45);
-  const printTemplatesDir = "print" + dash + "templates";
-  const insideRightBaseName = "inside" + dash + "right" + dash + "base.png";
+  const cardUrl = absoluteUrl(`/card/${cardId}`);
 
   const templatePath = path.join(
     process.cwd(),
     "public",
-    printTemplatesDir,
-    insideRightBaseName,
+    "print-templates",
+    "inside-right-base.png",
   );
 
   const box = await detectGiftBoxWindow(templatePath, WIDTH, HEIGHT);
@@ -210,7 +238,7 @@ async function generateInsidePng(cardId: string) {
     .png()
     .toBuffer();
 
-  const resultBuffer = await sharp(templatePath)
+  return await sharp(templatePath)
     .resize(WIDTH, HEIGHT)
     .composite([
       { input: whitePlate, left: qrLeft, top: qrTop },
@@ -218,161 +246,251 @@ async function generateInsidePng(cardId: string) {
     ])
     .png()
     .toBuffer();
-
-  return resultBuffer;
 }
 
-type Body = {
-  orderId: string;
-  templateId?: string;
-  quantity?: number;
-  cardIds?: string[];
-};
+function asPositiveInt(n: unknown, fallback: number) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return fallback;
+  const rounded = Math.floor(x);
+  return rounded > 0 ? rounded : fallback;
+}
+
+function makeAdminTestSessionId() {
+  const rand = Math.random().toString(36).slice(2, 10);
+  return `admin_test_${Date.now()}_${rand}`;
+}
+
+function normalizeCart(body: Body): CartItem[] {
+  if (Array.isArray(body.cartItems) && body.cartItems.length > 0) {
+    return body.cartItems
+      .map((i) => ({
+        templateId: String(i.templateId || "").trim(),
+        quantity: asPositiveInt(i.quantity, 1),
+      }))
+      .filter((i) => i.templateId && i.quantity > 0);
+  }
+
+  const singleTemplate = String(body.templateId || "").trim();
+  const singleQty = asPositiveInt(body.quantity, 1);
+  if (singleTemplate) return [{ templateId: singleTemplate, quantity: singleQty }];
+  return [];
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    if (!supabaseAdmin) {
+    const body = (await req.json().catch(() => null)) as Body | null;
+    if (!body) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const cart = normalizeCart(body);
+    if (cart.length === 0) {
       return NextResponse.json(
-        { error: "Supabase not configured" },
+        { error: "Provide templateId plus quantity or cartItems" },
+        { status: 400 },
+      );
+    }
+
+    // Validate templates and clamp quantities
+    const validatedCart: CartItem[] = [];
+    let totalQty = 0;
+
+    for (const item of cart) {
+      const templateId = item.templateId;
+      const template = CARD_TEMPLATES.find((t) => t.id === templateId);
+      if (!template) {
+        return NextResponse.json({ error: `Unknown templateId: ${templateId}` }, { status: 400 });
+      }
+
+      const qty = clamp(item.quantity, 1, 200);
+      validatedCart.push({ templateId, quantity: qty });
+      totalQty += qty;
+    }
+
+    // Safety cap for admin test
+    if (totalQty > 200) {
+      return NextResponse.json(
+        { error: "Total quantity too large for an admin order (max 200)" },
+        { status: 400 },
+      );
+    }
+
+    const shippingName =
+      (body.shippingName || process.env.ADMIN_TEST_SHIP_NAME || "").trim();
+    const shippingLine1 =
+      (body.shippingLine1 || process.env.ADMIN_TEST_SHIP_LINE1 || "").trim();
+    const shippingLine2 =
+      (body.shippingLine2 || process.env.ADMIN_TEST_SHIP_LINE2 || "").trim();
+    const shippingCity =
+      (body.shippingCity || process.env.ADMIN_TEST_SHIP_CITY || "").trim();
+    const shippingState =
+      (body.shippingState || process.env.ADMIN_TEST_SHIP_STATE || "").trim();
+    const shippingPostalCode =
+      (body.shippingPostalCode || process.env.ADMIN_TEST_SHIP_POSTAL || "").trim();
+    const shippingCountry =
+      (body.shippingCountry || process.env.ADMIN_TEST_SHIP_COUNTRY || "US").trim();
+
+    if (
+      !shippingName ||
+      !shippingLine1 ||
+      !shippingCity ||
+      !shippingState ||
+      !shippingPostalCode ||
+      !shippingCountry
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing shipping info. Provide it in the form or set ADMIN_TEST_SHIP_NAME, ADMIN_TEST_SHIP_LINE1, ADMIN_TEST_SHIP_CITY, ADMIN_TEST_SHIP_STATE, ADMIN_TEST_SHIP_POSTAL, ADMIN_TEST_SHIP_COUNTRY",
+        },
+        { status: 400 },
+      );
+    }
+
+    const adminSessionId = makeAdminTestSessionId();
+
+    const { data: insertedOrder, error: orderInsertError } = await supabaseAdmin
+      .from("orders")
+      .insert({
+        stripe_session_id: adminSessionId,
+        email: null,
+
+        shipping_name: shippingName,
+        shipping_address_line1: shippingLine1,
+        shipping_address_line2: shippingLine2 || null,
+        shipping_city: shippingCity,
+        shipping_state: shippingState,
+        shipping_postal_code: shippingPostalCode,
+        shipping_country: shippingCountry,
+
+        items: validatedCart.map((i) => ({
+          product: `admin_test:${i.templateId}`,
+          quantity: i.quantity,
+        })),
+        amount_total: 0,
+
+        status: "paid",
+      })
+      .select("id")
+      .single();
+
+    if (orderInsertError || !insertedOrder?.id) {
+      console.error("[admin print] Error inserting order", orderInsertError);
+      return NextResponse.json(
+        {
+          error: "Failed to create test order row",
+          details: orderInsertError?.message ?? "Unknown insert error",
+          code: (orderInsertError as any)?.code ?? null,
+        },
         { status: 500 },
       );
     }
 
-    const body = (await req.json().catch(() => null)) as Body | null;
-    if (!body?.orderId) {
-      return NextResponse.json(
-        { error: "orderId is required" },
-        { status: 400 },
-      );
-    }
-
-    const orderId = body.orderId;
-
-    const requestedQty =
-      typeof body.quantity === "number" && Number.isFinite(body.quantity)
-        ? Math.max(1, Math.floor(body.quantity))
-        : 1;
-
-    const resolvedTemplateId =
-      (typeof body.templateId === "string" && body.templateId.trim()) ||
-      (CARD_TEMPLATES[0]?.id ?? null);
-
-    if (!resolvedTemplateId) {
-      return NextResponse.json(
-        { error: "No templateId provided and no default template found" },
-        { status: 400 },
-      );
-    }
-
-    const cardIds: string[] =
-      Array.isArray(body.cardIds) && body.cardIds.length > 0
-        ? body.cardIds.filter((x) => typeof x === "string" && x.trim().length > 0)
-        : [];
-
-    while (cardIds.length < requestedQty) {
-      cardIds.push(`card_${Math.random().toString(36).slice(2, 10)}`);
-    }
+    const orderId = insertedOrder.id as string;
 
     const cardsForPrintful: {
       cardId: string;
       storagePath: string;
-      templateId: string;
+      templateId: string | null;
     }[] = [];
 
-    for (let i = 0; i < requestedQty; i++) {
-      const cardId = cardIds[i];
+    const createdCardIds: Array<{ cardId: string; templateId: string }> = [];
 
-      const { error: cardInsertError } = await supabaseAdmin.from("cards").insert({
-        card_id: cardId,
-        giver_name: "Store card",
-        amount: 0,
-        note: null,
-        claimed: false,
-      });
+    for (const line of validatedCart) {
+      for (let i = 0; i < line.quantity; i++) {
+        const cardId = `test_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`;
+        createdCardIds.push({ cardId, templateId: line.templateId });
 
-      if (cardInsertError && (cardInsertError as any).code !== "23505") {
-        console.error("[printfulTestOrder] Error inserting card", cardId, cardInsertError);
-        continue;
-      }
-
-      const pngBytes = await generateInsidePng(cardId);
-      const pngPath = `cards/${cardId}.png`;
-
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from("printfiles")
-        .upload(pngPath, pngBytes, {
-          contentType: "image/png",
-          upsert: true,
+        const { error: cardInsertError } = await supabaseAdmin.from("cards").insert({
+          card_id: cardId,
+          giver_name: "Admin test card",
+          amount: 0,
+          note: null,
+          claimed: false,
         });
 
-      const { data: publicUrlData } = supabaseAdmin.storage
-        .from("printfiles")
-        .getPublicUrl(pngPath);
+        if (cardInsertError && (cardInsertError as any).code !== "23505") {
+          console.error("[admin print] Error inserting card", cardInsertError);
+          continue;
+        }
 
-      const publicUrl = publicUrlData?.publicUrl ?? null;
+        try {
+          const pngBytes = await generateGiftlinkInsidePng(cardId);
+          const pngPath = `cards/${cardId}.png`;
 
-      console.log("[printfulTestOrder] print file url", publicUrl);
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from("printfiles")
+            .upload(pngPath, pngBytes, {
+              contentType: "image/png",
+              upsert: true,
+            });
 
-      await supabaseAdmin
-        .from("cards")
-        .update({
-          printed: uploadError ? false : true,
-          print_file_url: publicUrl,
-        })
-        .eq("card_id", cardId);
+          const { data: publicUrlData } = supabaseAdmin.storage
+            .from("printfiles")
+            .getPublicUrl(pngPath);
 
-      const { error: jobError } = await supabaseAdmin.from("card_print_jobs").insert({
-        card_id: cardId,
-        order_id: orderId,
-        pdf_path: pngPath,
-        status: uploadError ? "error" : "generated",
-        error_message: uploadError ? uploadError.message : null,
-        fulfillment_status: "pending",
-      });
+          const publicUrl = publicUrlData?.publicUrl ?? null;
 
-      if (jobError) {
-        console.error("[printfulTestOrder] Error inserting card_print_jobs", jobError);
-        continue;
-      }
+          await supabaseAdmin
+            .from("cards")
+            .update({
+              printed: uploadError ? false : true,
+              print_file_url: publicUrl,
+            })
+            .eq("card_id", cardId);
 
-      if (!uploadError) {
-        cardsForPrintful.push({
-          cardId,
-          storagePath: pngPath,
-          templateId: resolvedTemplateId,
-        });
+          await supabaseAdmin.from("card_print_jobs").insert({
+            card_id: cardId,
+            order_id: orderId,
+            pdf_path: pngPath,
+            status: uploadError ? "error" : "generated",
+            error_message: uploadError ? uploadError.message : null,
+            fulfillment_status: "pending",
+          });
+
+          if (!uploadError) {
+            cardsForPrintful.push({
+              cardId,
+              storagePath: pngPath,
+              templateId: line.templateId,
+            });
+          }
+        } catch (err) {
+          console.error("[admin print] Error generating or uploading PNG", cardId, err);
+        }
       }
     }
 
     if (cardsForPrintful.length === 0) {
       return NextResponse.json(
-        { error: "No cards generated successfully" },
+        {
+          error: "No cards were generated successfully for this admin order",
+          orderId,
+          createdCardIds,
+        },
         { status: 500 },
       );
     }
 
-    const { printfulOrderId, status } = await createPrintfulOrderForCards({
+    const printfulResult = await createPrintfulOrderForCards({
       orderId,
       cards: cardsForPrintful,
     });
 
-    return NextResponse.json(
-      {
-        ok: true,
-        orderId,
-        templateId: resolvedTemplateId,
-        quantity: requestedQty,
-        cardIds: cardsForPrintful.map((c) => c.cardId),
-        printfulOrderId,
-        status,
-      },
-      { status: 200 },
-    );
+    return NextResponse.json({
+      ok: true,
+      orderId,
+      adminSessionId,
+      cart: validatedCart,
+      totalQuantity: totalQty,
+      createdCardIds,
+      printfulOrderId: printfulResult.printfulOrderId,
+      printfulStatus: printfulResult.status,
+    });
   } catch (err) {
-    console.error("[printfulTestOrder] Error creating Printful test order", err);
+    console.error("[admin print] Unexpected error", err);
     return NextResponse.json(
-      { error: "Failed to create Printful test order" },
+      { error: "Unexpected error creating Printful admin order" },
       { status: 500 },
     );
   }

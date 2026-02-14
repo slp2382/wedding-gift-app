@@ -4,13 +4,18 @@ import { useMemo, useState } from "react";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 import Link from "next/link";
 
+type CartLine = {
+  templateId: string;
+  quantity: number;
+};
+
 type OkResult = {
   ok: true;
   orderId: string;
   adminSessionId: string;
-  templateId: string;
-  quantity: number;
-  createdCardIds: string[];
+  cart: CartLine[];
+  totalQuantity: number;
+  createdCardIds: Array<{ cardId: string; templateId: string }>;
   printfulOrderId: number;
   printfulStatus: string;
 };
@@ -21,14 +26,34 @@ type ErrResult = {
 
 type Result = OkResult | ErrResult;
 
+function clampInt(n: number, lo: number, hi: number) {
+  if (!Number.isFinite(n)) return lo;
+  const x = Math.floor(n);
+  if (x < lo) return lo;
+  if (x > hi) return hi;
+  return x;
+}
+
 export default function AdminPrintfulTestOrderPage() {
-  const options = useMemo(
+  const templateOptions = useMemo(
     () => CARD_TEMPLATES.map((t) => ({ id: t.id, name: t.name })),
     [],
   );
 
-  const [templateId, setTemplateId] = useState(options[0]?.id ?? "");
-  const [quantity, setQuantity] = useState(1);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    templateOptions[0]?.id ?? "",
+  );
+
+  // Typed quantity input
+  const [qtyText, setQtyText] = useState("1");
+
+  const parsedQty = useMemo(() => {
+    const n = Number(qtyText);
+    if (!Number.isFinite(n)) return 1;
+    return clampInt(n, 1, 200);
+  }, [qtyText]);
+
+  const [cart, setCart] = useState<CartLine[]>([]);
 
   const [shippingName, setShippingName] = useState("");
   const [shippingLine1, setShippingLine1] = useState("");
@@ -41,15 +66,43 @@ export default function AdminPrintfulTestOrderPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
 
-  function clampQty(n: number) {
-    if (!Number.isFinite(n)) return 1;
-    const x = Math.floor(n);
-    if (x < 1) return 1;
-    if (x > 25) return 25;
-    return x;
+  const totalQuantity = useMemo(
+    () => cart.reduce((sum, l) => sum + l.quantity, 0),
+    [cart],
+  );
+
+  function addToCart() {
+    setResult(null);
+
+    const templateId = selectedTemplateId.trim();
+    if (!templateId) return;
+
+    const qty = parsedQty;
+
+    setCart((prev) => {
+      const idx = prev.findIndex((p) => p.templateId === templateId);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = {
+          templateId,
+          quantity: clampInt(next[idx].quantity + qty, 1, 200),
+        };
+        return next;
+      }
+      return [...prev, { templateId, quantity: qty }];
+    });
   }
 
-  async function placeTestOrder() {
+  function removeLine(templateId: string) {
+    setCart((prev) => prev.filter((p) => p.templateId !== templateId));
+  }
+
+  function clearCart() {
+    setCart([]);
+    setResult(null);
+  }
+
+  async function submitCart() {
     setLoading(true);
     setResult(null);
 
@@ -58,9 +111,7 @@ export default function AdminPrintfulTestOrderPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          templateId,
-          quantity: clampQty(quantity),
-
+          cartItems: cart,
           shippingName,
           shippingLine1,
           shippingLine2,
@@ -77,6 +128,7 @@ export default function AdminPrintfulTestOrderPage() {
         setResult({ error: (json && json.error) || "Request failed" });
       } else {
         setResult(json as Result);
+        clearCart();
       }
     } catch (e: any) {
       setResult({ error: e?.message || "Network error" });
@@ -90,17 +142,23 @@ export default function AdminPrintfulTestOrderPage() {
       ? `https://www.printful.com/dashboard/default/orders/${result.printfulOrderId}`
       : null;
 
+  const templateNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of templateOptions) map.set(t.id, t.name);
+    return map;
+  }, [templateOptions]);
+
   return (
     <main className="mx-auto max-w-3xl p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Printful test order</h1>
+        <h1 className="text-2xl font-semibold">Admin Printful order</h1>
         <Link className="text-sm underline" href="/admin">
           Back to admin
         </Link>
       </div>
 
       <p className="mt-2 text-sm text-slate-600">
-        Creates a draft Printful order without Stripe by generating fresh card ids and inside print PNGs.
+        Build an admin cart with multiple templates and quantities, then submit one combined order directly to Printful.
       </p>
 
       <section className="mt-6 rounded-xl border bg-white p-5 shadow-sm">
@@ -109,10 +167,10 @@ export default function AdminPrintfulTestOrderPage() {
             <span className="text-sm font-medium">Card template</span>
             <select
               className="rounded-lg border px-3 py-2"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
             >
-              {options.map((o) => (
+              {templateOptions.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name} ({o.id})
                 </option>
@@ -124,18 +182,74 @@ export default function AdminPrintfulTestOrderPage() {
             <span className="text-sm font-medium">Quantity</span>
             <input
               className="rounded-lg border px-3 py-2"
-              type="number"
-              min={1}
-              max={25}
-              value={quantity}
-              onChange={(e) => setQuantity(clampQty(Number(e.target.value)))}
+              inputMode="numeric"
+              value={qtyText}
+              onChange={(e) => setQtyText(e.target.value)}
+              placeholder="Type a quantity"
             />
             <div className="text-xs text-slate-500">
-              Quantity creates unique cards, one QR per card, max 25 for test orders.
+              Typed quantity will be clamped to 1 through 200.
             </div>
           </label>
 
-          <div className="mt-2 text-sm font-semibold">Shipping for the test order</div>
+          <div className="flex gap-2">
+            <button
+              className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-60"
+              onClick={addToCart}
+              disabled={!selectedTemplateId}
+            >
+              Add to cart
+            </button>
+
+            <button
+              className="rounded-lg border px-4 py-2 disabled:opacity-60"
+              onClick={clearCart}
+              disabled={cart.length === 0}
+            >
+              Clear cart
+            </button>
+          </div>
+
+          <div className="mt-2 rounded-xl border p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Admin cart</div>
+              <div className="text-sm text-slate-600">Total qty: {totalQuantity}</div>
+            </div>
+
+            {cart.length === 0 ? (
+              <div className="mt-2 text-sm text-slate-500">
+                Cart is empty. Add one or more templates above.
+              </div>
+            ) : (
+              <div className="mt-3 grid gap-2">
+                {cart.map((line) => (
+                  <div
+                    key={line.templateId}
+                    className="flex items-center justify-between rounded-lg border px-3 py-2"
+                  >
+                    <div className="grid">
+                      <div className="text-sm font-medium">
+                        {templateNameById.get(line.templateId) || line.templateId}
+                      </div>
+                      <div className="text-xs text-slate-500">{line.templateId}</div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm">Qty: {line.quantity}</div>
+                      <button
+                        className="text-sm underline"
+                        onClick={() => removeLine(line.templateId)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-2 text-sm font-semibold">Shipping for the admin order</div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input
@@ -184,10 +298,10 @@ export default function AdminPrintfulTestOrderPage() {
 
           <button
             className="mt-3 rounded-lg bg-black px-4 py-2 text-white disabled:opacity-60"
-            onClick={placeTestOrder}
-            disabled={loading || !templateId}
+            onClick={submitCart}
+            disabled={loading || cart.length === 0}
           >
-            {loading ? "Placing draft Printful order..." : "Place draft Printful order"}
+            {loading ? "Submitting to Printful..." : "Submit admin cart to Printful"}
           </button>
 
           {result && "error" in result && (
@@ -207,14 +321,6 @@ export default function AdminPrintfulTestOrderPage() {
                 <span className="font-mono text-xs">{result.adminSessionId}</span>
               </div>
 
-              <div>
-                <strong>Template:</strong> {result.templateId}
-              </div>
-
-              <div>
-                <strong>Quantity:</strong> {result.quantity}
-              </div>
-
               <div className="mt-2">
                 <strong>Printful order id:</strong> {result.printfulOrderId} ({result.printfulStatus})
                 {printfulDashboardOrderUrl && (
@@ -232,13 +338,18 @@ export default function AdminPrintfulTestOrderPage() {
               </div>
 
               <div className="mt-3">
-                <strong>Card ids created:</strong>
+                <strong>Cards created:</strong>
                 <div className="mt-1 grid gap-1">
-                  {result.createdCardIds?.map((id) => (
-                    <div key={id} className="font-mono text-xs">
-                      {id}
+                  {result.createdCardIds?.slice(0, 50).map((x) => (
+                    <div key={x.cardId} className="font-mono text-xs">
+                      {x.cardId} ({x.templateId})
                     </div>
                   ))}
+                  {result.createdCardIds?.length > 50 && (
+                    <div className="text-xs text-slate-700">
+                      Showing first 50 of {result.createdCardIds.length}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
