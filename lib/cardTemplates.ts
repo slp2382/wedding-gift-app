@@ -22,6 +22,29 @@ export type CardTemplate = {
 
 export const CARD_TEMPLATES: CardTemplate[] = [
   {
+    id: "Just Hitched",
+    name: "Just Hitched",
+    size: "4x6",
+    sku: "JUST_HITCHED_4X6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5064628437,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 932626998,
+    printfulBackFileId:  927656679,
+    images: [
+      "/JustHitchedImages/JustHitchedMockup1.png",
+      "/JustHitchedImages/JustHitchedMockup2.png",
+      "/JustHitchedImages/JustHitchedMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  }, 
+
+ {
     id: "love_birds_4x6",
     name: "Love Birds",
     size: "4x6",
@@ -43,28 +66,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
       5: "price_1SWJX90btTMST7LgosTE6QSI",
     },
   },  
-  {
-    id: "Just Hitched",
-    name: "Just Hitched",
-    size: "4x6",
-    sku: "JUST_HITCHED_4X6",
-    occasion: "wedding",
-    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
-    printfulSyncVariantId: 5064628437,
-    printfulShippingVariantId: 14457,
-    printfulCoverFileId: 932626998,
-    printfulBackFileId:  927656679,
-    images: [
-      "/JustHitchedImages/JustHitchedMockup1.png",
-      "/JustHitchedImages/JustHitchedMockup2.png",
-      "/JustHitchedImages/JustHitchedMockup3.png",
-    ],
-    stripePrices: {
-      1: "price_1SWJVN0btTMST7LgTBriW2Am",
-      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
-      5: "price_1SWJX90btTMST7LgosTE6QSI",
-    },
-  },
+
 
 {
     id: "fizzy_bubbly_4x6",
