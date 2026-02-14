@@ -4,9 +4,22 @@ import { useMemo, useState } from "react";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 import Link from "next/link";
 
-type Result =
-  | { ok: true; orderId: string; printfulOrderId: number; printfulStatus: string; createdCardIds: string[] }
-  | { error: string };
+type OkResult = {
+  ok: true;
+  orderId: string;
+  adminSessionId: string;
+  templateId: string;
+  quantity: number;
+  createdCardIds: string[];
+  printfulOrderId: number;
+  printfulStatus: string;
+};
+
+type ErrResult = {
+  error: string;
+};
+
+type Result = OkResult | ErrResult;
 
 export default function AdminPrintfulTestOrderPage() {
   const options = useMemo(
@@ -28,6 +41,14 @@ export default function AdminPrintfulTestOrderPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
 
+  function clampQty(n: number) {
+    if (!Number.isFinite(n)) return 1;
+    const x = Math.floor(n);
+    if (x < 1) return 1;
+    if (x > 25) return 25;
+    return x;
+  }
+
   async function placeTestOrder() {
     setLoading(true);
     setResult(null);
@@ -38,7 +59,8 @@ export default function AdminPrintfulTestOrderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           templateId,
-          quantity,
+          quantity: clampQty(quantity),
+
           shippingName,
           shippingLine1,
           shippingLine2,
@@ -62,6 +84,11 @@ export default function AdminPrintfulTestOrderPage() {
 
     setLoading(false);
   }
+
+  const printfulDashboardOrderUrl =
+    result && "ok" in result && result.ok && result.printfulOrderId
+      ? `https://www.printful.com/dashboard/default/orders/${result.printfulOrderId}`
+      : null;
 
   return (
     <main className="mx-auto max-w-3xl p-6">
@@ -101,8 +128,11 @@ export default function AdminPrintfulTestOrderPage() {
               min={1}
               max={25}
               value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
+              onChange={(e) => setQuantity(clampQty(Number(e.target.value)))}
             />
+            <div className="text-xs text-slate-500">
+              Quantity creates unique cards, one QR per card, max 25 for test orders.
+            </div>
           </label>
 
           <div className="mt-2 text-sm font-semibold">Shipping for the test order</div>
@@ -171,10 +201,37 @@ export default function AdminPrintfulTestOrderPage() {
               <div>
                 <strong>Supabase order id:</strong> {result.orderId}
               </div>
+
               <div>
-                <strong>Printful order id:</strong> {result.printfulOrderId} ({result.printfulStatus})
+                <strong>Admin session id:</strong>{" "}
+                <span className="font-mono text-xs">{result.adminSessionId}</span>
               </div>
+
+              <div>
+                <strong>Template:</strong> {result.templateId}
+              </div>
+
+              <div>
+                <strong>Quantity:</strong> {result.quantity}
+              </div>
+
               <div className="mt-2">
+                <strong>Printful order id:</strong> {result.printfulOrderId} ({result.printfulStatus})
+                {printfulDashboardOrderUrl && (
+                  <span className="ml-2">
+                    <a
+                      className="underline"
+                      href={printfulDashboardOrderUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open in Printful
+                    </a>
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3">
                 <strong>Card ids created:</strong>
                 <div className="mt-1 grid gap-1">
                   {result.createdCardIds?.map((id) => (

@@ -5,6 +5,9 @@ import { createClient } from "@supabase/supabase-js";
 import { createPrintfulOrderForCards } from "@/lib/printful";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 import { absoluteUrl } from "@/lib/siteUrl";
+import QRCode from "qrcode";
+import sharp from "sharp";
+import path from "node:path";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -34,67 +37,147 @@ type Body = {
   shippingCountry?: string;
 };
 
-async function generateGiftlinkInsidePng(cardId: string) {
-  const { createCanvas, loadImage } = await import("canvas");
-  const QRCode = (await import("qrcode")).default;
-  const { readFile } = await import("node:fs/promises");
-  const path = await import("node:path");
+function clamp(n: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, n));
+}
 
+function argMaxInRange(arr: number[], start: number, end: number) {
+  let bestIdx: number | null = null;
+  let bestVal = -Infinity;
+
+  const s = Math.max(0, Math.floor(start));
+  const e = Math.min(arr.length - 1, Math.floor(end));
+
+  for (let i = s; i <= e; i++) {
+    if (arr[i] > bestVal) {
+      bestVal = arr[i];
+      bestIdx = i;
+    }
+  }
+  return bestIdx;
+}
+
+async function detectGiftBoxWindow(
+  templatePath: string,
+  targetW: number,
+  targetH: number,
+): Promise<{ cx: number; cy: number; size: number }> {
+  const scanW = 400;
+  const scanH = Math.round((targetH / targetW) * scanW);
+
+  const { data, info } = await sharp(templatePath)
+    .resize(scanW, scanH)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const w = info.width;
+  const h = info.height;
+
+  const x0 = Math.floor(w * 0.52);
+  const x1 = Math.floor(w * 0.92);
+
+  const yBandTop = Math.floor(h * 0.55);
+  const yBandMid = Math.floor(h * 0.72);
+  const yBandBot = Math.floor(h * 0.88);
+
+  const tr = 245;
+  const tg = 245;
+  const tb = 245;
+
+  const rowScores = new Array(h).fill(0);
+
+  for (let y = yBandTop; y <= yBandBot; y++) {
+    const rowOff = y * w * 4;
+    for (let x = x0; x <= x1; x++) {
+      const i = rowOff + x * 4;
+      const a = data[i + 3];
+      if (a < 10) continue;
+
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      const dr = r - tr;
+      const dg = g - tg;
+      const db = b - tb;
+
+      const d2 = dr * dr + dg * dg + db * db;
+      if (d2 < 60 * 60) rowScores[y] += 1;
+    }
+  }
+
+  const topEdge = argMaxInRange(rowScores, yBandTop, yBandMid);
+  const bottomEdge = argMaxInRange(rowScores, yBandMid, yBandBot);
+
+  if (topEdge == null || bottomEdge == null || bottomEdge - topEdge < 120) {
+    return { cx: targetW * 0.72, cy: targetH * 0.78, size: 240 };
+  }
+
+  const scaleX = targetW / w;
+  const scaleY = targetH / h;
+
+  const inset = 14;
+  const innerW = Math.max(80, x1 - x0 - inset * 2);
+  const innerH = Math.max(80, bottomEdge - topEdge - inset * 2);
+  const innerSize = Math.min(innerW, innerH);
+
+  const cxScan = (x0 + x1) / 2;
+  const cyScan = (topEdge + bottomEdge) / 2;
+
+  return {
+    cx: cxScan * scaleX,
+    cy: cyScan * scaleY,
+    size: innerSize * Math.min(scaleX, scaleY),
+  };
+}
+
+// Matches the Stripe webhook path: template based inside file with QR placed in the gift box window
+async function generateGiftlinkInsidePng(cardId: string) {
   const WIDTH = 1245;
   const HEIGHT = 1845;
 
-  const canvas = createCanvas(WIDTH, HEIGHT);
-  const ctx = canvas.getContext("2d");
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
   const cardUrl = absoluteUrl(`/card/${cardId}`);
 
-  const qrBuffer = await QRCode.toBuffer(cardUrl, { width: 300, margin: 0 });
-  const qrImage = await loadImage(qrBuffer);
+  const templatePath = path.join(
+    process.cwd(),
+    "public",
+    "print-templates",
+    "inside-right-base.png",
+  );
 
-  const centerLineY = HEIGHT;
+  const box = await detectGiftBoxWindow(templatePath, WIDTH, HEIGHT);
+  const qrSize = clamp(Math.floor(box.size * 0.9), 180, 360);
 
-  const bottomMargin = 200;
-  const sideMargin = 140;
-  const gap = 70;
+  const qrBuffer = await QRCode.toBuffer(cardUrl, {
+    width: qrSize,
+    margin: 4,
+    errorCorrectionLevel: "H",
+    color: { dark: "#000000", light: "#FFFFFF" },
+  });
 
-  const QR_SIZE = 300;
+  const qrLeft = Math.round(box.cx - qrSize / 2);
+  const qrTop = Math.round(box.cy - qrSize / 2);
 
-  let logoImg: any = null;
-  let logoWidth = 0;
-  let logoHeight = 0;
+  const whitePlate = await sharp({
+    create: {
+      width: qrSize,
+      height: qrSize,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  })
+    .png()
+    .toBuffer();
 
-  try {
-    const logoPath = path.join(process.cwd(), "public", "giftlink_logo.png");
-    const logoBytes = await readFile(logoPath);
-    logoImg = await loadImage(logoBytes);
-
-    const aspect = logoImg.height / logoImg.width;
-
-    const maxLogoWidth = WIDTH - sideMargin * 2 - QR_SIZE - gap;
-    const desiredLogoWidth = 620;
-    logoWidth = Math.max(300, Math.min(desiredLogoWidth, maxLogoWidth));
-    logoHeight = Math.round(logoWidth * aspect);
-  } catch (err) {
-    console.error("[admin print] Logo load failed, continuing with QR only", err);
-  }
-
-  const yBottom = centerLineY - bottomMargin;
-
-  const qrX = sideMargin + 80;
-  const qrY = Math.round(yBottom - QR_SIZE);
-
-  ctx.drawImage(qrImage, qrX, qrY, QR_SIZE, QR_SIZE);
-
-  if (logoImg) {
-    const logoX = Math.round(WIDTH - sideMargin - logoWidth);
-    const logoY = Math.round(yBottom - logoHeight);
-    ctx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
-  }
-
-  return canvas.toBuffer("image/png");
+  return await sharp(templatePath)
+    .resize(WIDTH, HEIGHT)
+    .composite([
+      { input: whitePlate, left: qrLeft, top: qrTop },
+      { input: qrBuffer, left: qrLeft, top: qrTop },
+    ])
+    .png()
+    .toBuffer();
 }
 
 function asPositiveInt(n: unknown, fallback: number) {
@@ -125,6 +208,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unknown templateId" }, { status: 400 });
     }
 
+    // Quantity is supported as "quantity unique cards" (unique QR per card)
     if (quantity > 25) {
       return NextResponse.json(
         { error: "Quantity too large for a test order (max 25)" },
@@ -184,7 +268,6 @@ export async function POST(req: NextRequest) {
         items: [{ product: `admin_test:${templateId}`, quantity }],
         amount_total: 0,
 
-        // Use an existing status value your table already accepts
         status: "paid",
       })
       .select("id")
