@@ -31,7 +31,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5064628437,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 932626998,
-    printfulBackFileId:  942987156,
+    printfulBackFileId:  945833683,
     images: [
       "/JustHitchedImages/JustHitchedMockup1.png",
       "/JustHitchedImages/JustHitchedMockup2.png",
@@ -172,7 +172,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5064628437,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 929752160,
-    printfulBackFileId:  927656679,
+    printfulBackFileId:  942987156,
     images: [
       "/Card1Images/Card1Mockup1.png",
       "/Card1Images/Card1Mockup2.png",
@@ -241,7 +241,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079444047,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 932621178,
-    printfulBackFileId:  927635985,
+    printfulBackFileId:  945836419,
     images: [
       "/MazelTovImages/MozelTovMockup1.png",
       "/MazelTovImages/MozelTovMockup2.png",
@@ -311,7 +311,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5079273568,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 929733444,
-    printfulBackFileId:  927651412,
+    printfulBackFileId:  945837928,
     images: [
       "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup1.png",
       "/BlackGoldBirthdayImages/BlackGoldBirthdayMockup2.png",
@@ -334,7 +334,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulSyncVariantId: 5072394027,
     printfulShippingVariantId: 14457,
     printfulCoverFileId: 927665211,
-    printfulBackFileId:  927651412,
+    printfulBackFileId:  945839283,
     images: [
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup1.png",
       "/AnotherTripAroundTheSunImages/AnotherTripAroundTheSunImagesMockup2.png",
