@@ -84,9 +84,9 @@ export default function CardPage() {
   const heroTitle = loading
     ? "Loading card details..."
     : isFunded
-    ? "Your GiftLink funds are ready!"
+    ? "Your Givio funds are ready!"
     : isClaimed
-    ? "This GiftLink has been claimed"
+    ? "This Givio Card has been claimed"
     : "This card is ready to be loaded with a gift";
 
   const showRecipientViewDecor = !loading && (isFunded || isClaimed);
@@ -199,8 +199,7 @@ export default function CardPage() {
       if (!res.ok) {
         const result = await res.json().catch(() => null);
         const message =
-          (result && result.error) ||
-          "Could not submit payout request. Please try again.";
+          (result && result.error) || "Could not submit payout request. Please try again.";
         setPayoutError(message);
         setPayoutLoading(false);
         return;
@@ -301,8 +300,7 @@ export default function CardPage() {
       if (!createAccountRes.ok) {
         const result = await createAccountRes.json().catch(() => null);
         const message =
-          (result && result.error) ||
-          "Could not create Stripe Connect account. Please try again.";
+          (result && result.error) || "Could not create Stripe Connect account. Please try again.";
         setPayoutError(message);
         setPayoutLoading(false);
         return;
@@ -339,8 +337,8 @@ export default function CardPage() {
           <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
             <div className="relative h-14 w-72 sm:h-12 sm:w-64 md:h-12 md:w-72">
               <Image
-                src="/giftlink_logo.svg"
-                alt="GiftLink"
+                src="/givio_logo.svg"
+                alt="Givio"
                 fill
                 className="object-contain"
                 priority
@@ -453,9 +451,7 @@ export default function CardPage() {
 
                   {isClaimed && (
                     <p className="text-[11px] text-slate-900/70 dark:text-slate-200/80">
-                      Claim received. Venmo payouts are typically sent the next business
-                      day. Bank transfers typically take 3 to 5 business days to
-                      complete.
+                      Claim received. Venmo payouts are typically sent the next business day. Bank transfers typically take 3 to 5 business days to complete.
                     </p>
                   )}
                 </div>
@@ -507,15 +503,13 @@ export default function CardPage() {
                       </div>
 
                       <p className="text-xs text-slate-900/70 dark:text-slate-200/80">
-                        Venmo payouts are typically sent the next business day. Bank
-                        transfers typically take 3 to 5 business days to complete.
+                        Venmo payouts are typically sent the next business day. Bank transfers typically take 3 to 5 business days to complete.
                       </p>
                     </div>
                   ) : isFunded ? (
                     <>
                       <p className="text-sm text-slate-900/90 dark:text-slate-100/90">
-                        Choose how you would like to receive this gift, then enter
-                        your details to claim it.
+                        Choose how you would like to receive this gift, then enter your details to claim it.
                       </p>
 
                       <div className="mt-2 flex flex-col gap-2 text-xs">
@@ -575,16 +569,10 @@ export default function CardPage() {
                           {payoutMethod === "venmo" ? (
                             <>
                               <p className="mb-3 text-xs text-slate-900/80 dark:text-slate-200/80">
-                                Enter your name, email, and Venmo handle and we&apos;ll
-                                review and send your gift there shortly. Venmo is fast
-                                and free and payouts are typically sent the next business
-                                day.
+                                Enter your name, email, and Venmo handle and we&apos;ll review and send your gift there shortly. Venmo is fast and free and payouts are typically sent the next business day.
                               </p>
 
-                              <form
-                                onSubmit={handleSubmitVenmoPayout}
-                                className="space-y-3"
-                              >
+                              <form onSubmit={handleSubmitVenmoPayout} className="space-y-3">
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
                                     <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
@@ -624,8 +612,7 @@ export default function CardPage() {
                                     placeholder="@your-venmo-handle"
                                   />
                                   <p className="mt-1 text-[11px] text-slate-900/80 dark:text-slate-200/80">
-                                    We’ll use this Venmo handle to send your gift.
-                                    Make sure it matches your Venmo profile exactly.
+                                    We’ll use this Venmo handle to send your gift. Make sure it matches your Venmo profile exactly.
                                   </p>
                                 </div>
 
@@ -638,21 +625,14 @@ export default function CardPage() {
                                   disabled={payoutLoading}
                                   className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
-                                  {payoutLoading
-                                    ? "Sending claim…"
-                                    : "Submit Venmo details"}
+                                  {payoutLoading ? "Sending claim…" : "Submit Venmo details"}
                                 </button>
                               </form>
                             </>
                           ) : (
                             <>
                               <p className="mb-3 text-xs text-slate-900/80 dark:text-slate-200/80">
-                                We&apos;ll connect to Stripe to securely set up a bank
-                                payout. Enter your name and email, then we&apos;ll take
-                                you to Stripe to add your bank details. Bank payouts
-                                can take 3 to 5 business days and a payout processing
-                                fee applies and will be deducted from the gift amount.
-                                (Processing fee of 3.5% of gift amount plus $0.30)
+                                We&apos;ll connect to Stripe to securely set up a bank payout. Enter your name and email, then we&apos;ll take you to Stripe to add your bank details. Bank payouts can take 3 to 5 business days and a payout processing fee applies and will be deducted from the gift amount. (Processing fee of 3.5% of gift amount plus $0.30)
                               </p>
 
                               <form onSubmit={handleStripePayout} className="space-y-3">
@@ -692,9 +672,7 @@ export default function CardPage() {
                                   disabled={payoutLoading}
                                   className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
-                                  {payoutLoading
-                                    ? "Starting secure bank setup…"
-                                    : "Continue with Stripe"}
+                                  {payoutLoading ? "Starting secure bank setup…" : "Continue with Stripe"}
                                 </button>
                               </form>
                             </>
@@ -707,9 +685,7 @@ export default function CardPage() {
                       {isBlankStoreCard ? (
                         <>
                           <p className="text-sm text-slate-900/80 dark:text-slate-200/80">
-                            This GiftLink card is ready for a guest to load. When
-                            someone uses this QR link to send a gift, the amount and
-                            their name will appear here for the recipient to claim.
+                            This Givio Card is ready for a guest to load. When someone uses this QR link to send a gift, the amount and their name will appear here for the recipient to claim.
                           </p>
 
                           <form onSubmit={handleGuestLoad} className="mt-3 space-y-3">
@@ -765,9 +741,7 @@ export default function CardPage() {
                               disabled={loadingCheckout}
                               className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                             >
-                              {loadingCheckout
-                                ? "Opening secure checkout…"
-                                : "Load gift on this card"}
+                              {loadingCheckout ? "Opening secure checkout…" : "Load gift on this card"}
                             </button>
 
                             {guestError && (
@@ -778,10 +752,7 @@ export default function CardPage() {
                       ) : (
                         <>
                           <p className="text-sm text-slate-900/80 dark:text-slate-200/80">
-                            This GiftLink hasn&apos;t been loaded yet. Once a guest
-                            uses the QR code to send a wedding gift, the amount and
-                            their name will show up here and you&apos;ll be able to
-                            claim it.
+                            This card hasn&apos;t been loaded yet. Once a guest uses the QR code to send a gift, the amount and their name will show up here and you&apos;ll be able to claim it.
                           </p>
                           <button
                             disabled
@@ -803,17 +774,17 @@ export default function CardPage() {
               href="/"
               className="text-sm font-medium text-sky-900 underline-offset-4 hover:text-sky-700 hover:underline dark:text-sky-200"
             >
-              Back to GiftLink Home
+              Back to Givio Cards Home
             </Link>
           </div>
 
           <div className="mt-3 text-center text-xs text-slate-800/80 dark:text-slate-200/80">
             Need help? Contact{" "}
             <a
-              href="mailto:admin@giftlink.cards"
+              href="mailto:admin@giviocards.com"
               className="font-medium underline-offset-4 hover:underline"
             >
-              admin@giftlink.cards
+              admin@giviocards.com
             </a>
           </div>
         </main>
