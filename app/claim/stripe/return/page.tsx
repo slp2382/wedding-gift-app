@@ -39,7 +39,7 @@ export default function StripeReturnPage() {
 
         if (!payoutRequestId) {
           setStatus("error");
-          setMessage("Missing payout request id. Please contact GiftLink support.");
+          setMessage("Missing payout request id. Please contact Givio Cards support.");
           return;
         }
 
@@ -55,7 +55,7 @@ export default function StripeReturnPage() {
           setStatus("error");
           setMessage(
             data?.error ??
-              "We could not complete your payout. Please contact GiftLink support."
+              "We could not complete your payout. Please contact Givio Cards support.",
           );
           return;
         }
@@ -87,7 +87,9 @@ export default function StripeReturnPage() {
         // based on net as a fallback. This is only an estimate because rounding
         // depends on how the server computes fees.
         if (nextNet != null && nextFee == null && nextGross == null) {
-          const approxGross = clampNonNegative((nextNet + FEE_FIXED_CENTS) / (1 - FEE_PERCENT));
+          const approxGross = clampNonNegative(
+            (nextNet + FEE_FIXED_CENTS) / (1 - FEE_PERCENT),
+          );
           const approxFee = clampNonNegative(approxGross * FEE_PERCENT + FEE_FIXED_CENTS);
           setGrossCents(approxGross);
           setFeeCents(approxFee);
@@ -117,11 +119,11 @@ export default function StripeReturnPage() {
         {/* Wordmark */}
         <div className="flex items-center gap-2 mb-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-500 shadow-md shadow-emerald-400/40">
-            <span className="text-lg font-semibold text-emerald-50">G</span>
+            <span className="text-lg font-semibold text-emerald-50">g</span>
           </div>
           <div className="leading-tight text-left">
-            <p className="text-lg font-semibold tracking-tight">GiftLink</p>
-            <p className="text-xs text-emerald-700/80">Wedding gift QR cards</p>
+            <p className="text-lg font-semibold tracking-tight">Givio Cards</p>
+            <p className="text-xs text-emerald-700/80">Wedding gifting with QR cards</p>
           </div>
         </div>
 
@@ -134,10 +136,10 @@ export default function StripeReturnPage() {
               One moment while we finish your payout
             </h1>
             <p className="text-sm text-emerald-900/85 max-w-md mx-auto">
-              We are connecting to Stripe to send your wedding gift to the bank account you just set up.
+              We are connecting to Stripe to send your gift to the bank account you just set up.
             </p>
             <p className="text-[11px] text-emerald-800/80 max-w-md mx-auto">
-              Bank transfer payouts include a GiftLink fee of 3.5% plus $0.30.
+              Bank transfer payouts include a Givio Cards fee of 3.5% plus $0.30.
             </p>
           </>
         )}
@@ -167,7 +169,7 @@ export default function StripeReturnPage() {
                 </div>
 
                 <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="text-emerald-900/80">GiftLink fee</span>
+                  <span className="text-emerald-900/80">Givio Cards fee</span>
                   <span className="font-medium text-emerald-950">
                     {formatted.fee ?? "Unavailable"}
                   </span>
@@ -183,7 +185,8 @@ export default function StripeReturnPage() {
                 </div>
 
                 <p className="mt-2 text-[11px] text-emerald-800/80">
-                  Fee is 3.5% plus $0.30. Actual amounts may vary by a few cents due to rounding.
+                  Fee is 3.5% plus $0.30. Actual amounts may vary by a few cents due to
+                  rounding.
                 </p>
               </div>
             )}
@@ -207,10 +210,10 @@ export default function StripeReturnPage() {
             href="/"
             className="inline-flex items-center justify-center rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-medium text-emerald-50 shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-emerald-500/60"
           >
-            Back to GiftLink
+            Back to Givio Cards
           </Link>
           <p className="text-[11px] text-emerald-800/80">
-            You can return to your GiftLink card at any time to see the updated status.
+            You can return to your Givio Card at any time to see the updated status.
           </p>
         </div>
       </div>

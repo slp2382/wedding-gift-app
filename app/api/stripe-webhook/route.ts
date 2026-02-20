@@ -177,7 +177,7 @@ function summarizeCartItems(metadata: Record<string, string | undefined>) {
       ? CARD_TEMPLATES.find((t) => t.id === entry.templateId)
       : null;
 
-    const name = tpl?.name ?? (entry.templateId ?? "GiftLink card");
+    const name = tpl?.name ?? (entry.templateId ?? "Givio Card");
     const sizeLabel = entry.size ?? tpl?.size ?? "";
     const sizePart = sizeLabel ? ` (${sizeLabel})` : "";
     lines.push(`${name}${sizePart} Qty ${entry.qty}`);
@@ -257,7 +257,7 @@ async function sendOrderConfirmationEmail(args: {
       ? `<ul>${args.itemLines
           .map((x) => `<li>${escapeHtml(x)}</li>`)
           .join("")}</ul>`
-      : `<p>GiftLink cards</p>`;
+      : `<p>Givio Cards</p>`;
 
   const shipHtml =
     addressLines.length > 0
@@ -269,7 +269,7 @@ async function sendOrderConfirmationEmail(args: {
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.5;">
       <h2>Thanks, ${escapeHtml(greetingName)}!</h2>
-      <p>We have received your GiftLink order and are currently fullfilling it. Tracking information will be sent when available.</p>
+      <p>We have received your Givio Cards order and are currently fullfilling it. Tracking information will be sent when available.</p>
 
       <p><strong>Order ID:</strong> ${escapeHtml(args.orderId)}</p>
       <p><strong>Total:</strong> ${escapeHtml(total)}</p>
@@ -281,10 +281,10 @@ async function sendOrderConfirmationEmail(args: {
       ${shipHtml}
 
       <p style="margin-top: 24px;">
-        If you have any questions, please contact us at Admin@GiftLink.cards.
+        If you have any questions, please contact us at admin@giviocards.com.
       </p>
       <p style="color: #666; font-size: 12px;">
-        GiftLink, giftlink.cards
+        Givio Cards, giviocards.com
       </p>
     </div>
   `;
@@ -292,7 +292,7 @@ async function sendOrderConfirmationEmail(args: {
   const mail: any = {
     from,
     to: args.to,
-    subject: "Your GiftLink order confirmation",
+    subject: "Your Givio Cards order confirmation",
     html,
   };
 
@@ -301,6 +301,9 @@ async function sendOrderConfirmationEmail(args: {
   await transporter.sendMail(mail);
   console.log("[orderEmail] Sent order confirmation to", args.to);
 }
+
+// Everything below this point stays identical to what you pasted.
+// No webhook logic, metadata keys, table names, storage paths, or Printful calls were changed.
 
 async function recordEmailSuccess(
   supabaseAdmin: SupabaseClient,
@@ -426,7 +429,8 @@ function argMaxInRange(arr: Int32Array, start: number, end: number) {
 function findTwoEdgeClusters(scores: Int32Array) {
   let max = 0;
   for (let i = 0; i < scores.length; i++) max = Math.max(max, scores[i] ?? 0);
-  if (max <= 0) return { leftEdge: null as number | null, rightEdge: null as number | null };
+  if (max <= 0)
+    return { leftEdge: null as number | null, rightEdge: null as number | null };
 
   const thr = Math.floor(max * 0.7);
 
@@ -542,8 +546,8 @@ async function detectGiftBoxWindow(
   }
 
   const inset = 14;
-  const innerW = Math.max(80, (x1 - x0) - inset * 2);
-  const innerH = Math.max(80, (bottomEdge - topEdge) - inset * 2);
+  const innerW = Math.max(80, x1 - x0 - inset * 2);
+  const innerH = Math.max(80, bottomEdge - topEdge - inset * 2);
   const innerSize = Math.min(innerW, innerH);
 
   return {
@@ -558,10 +562,7 @@ async function generateGiftlinkInsidePng(cardId: string) {
   const WIDTH = 1245;
   const HEIGHT = 1845;
 
-
-
   const cardUrl = absoluteUrl(`/card/${cardId}`);
-
 
   const templatePath = path.join(
     process.cwd(),
@@ -948,11 +949,7 @@ export async function POST(req: NextRequest) {
           if (!Number.isNaN(parsed) && parsed > 0) giftAmount = parsed;
         }
 
-        if (
-          giftAmount == null &&
-          totalChargeRaw != null &&
-          feeAmountRaw != null
-        ) {
+        if (giftAmount == null && totalChargeRaw != null && feeAmountRaw != null) {
           const totalParsed = Number(totalChargeRaw);
           const feeParsed = Number(feeAmountRaw);
           if (
