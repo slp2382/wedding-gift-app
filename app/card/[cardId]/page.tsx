@@ -603,7 +603,7 @@ export default function CardPage() {
 
                           <div className="mb-3">
                             <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
-                              Pin last 4 digits
+                              Last 4 digits of gifters phone number
                             </label>
                             <input
                               type="text"
@@ -801,7 +801,7 @@ export default function CardPage() {
 
                             <div>
                               <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
-                                Phone pin last 4 digits
+                                Last 4 digits of gifters phone number
                               </label>
                               <input
                                 type="text"
