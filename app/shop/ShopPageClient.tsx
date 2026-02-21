@@ -57,7 +57,7 @@ export default function ShopPageClient() {
         <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
           <div className="mb-6 space-y-2">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-              Choose your GiftLink card design
+              Choose your Givio card design
             </h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               Pick a card style below, choose your quantity, and add it to your

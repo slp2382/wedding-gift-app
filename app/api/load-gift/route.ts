@@ -17,16 +17,26 @@ export const POST = async (request: NextRequest) => {
 
   try {
     const body = await request.json();
-    const { cardId, giverName, amount, note } = body as {
+
+    const { cardId, giverName, amount, note, pinLast4 } = body as {
       cardId: string;
       giverName?: string;
       amount: number | string;
       note?: string | null;
+      pinLast4?: string;
     };
 
     if (!cardId || amount == null) {
       return NextResponse.json(
         { error: "Missing card id or amount" },
+        { status: 400 },
+      );
+    }
+
+    const pin = String(pinLast4 ?? "").trim();
+    if (!/^\d{4}$/.test(pin)) {
+      return NextResponse.json(
+        { error: "pinLast4 must be exactly 4 digits" },
         { status: 400 },
       );
     }
@@ -62,7 +72,7 @@ export const POST = async (request: NextRequest) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Wedding Gift",
+              name: "Gift for givio card",
               description: `Gift loaded to card ${cardId}`,
             },
             unit_amount: amountCents,
@@ -73,7 +83,7 @@ export const POST = async (request: NextRequest) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Processing & Service Fee",
+              name: "Processing and service fee",
             },
             unit_amount: feeCents,
           },
@@ -87,6 +97,9 @@ export const POST = async (request: NextRequest) => {
         cardId,
         giverName: giverName || "",
         note: note || "",
+
+        // New pin field for claim security
+        pinLast4: pin,
 
         // Keep the fields your webhook already reads
         giftAmountRaw: giftAmountDollars,

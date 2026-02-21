@@ -1,19 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "../../../lib/supabaseServer";
 import { sendPayoutRequestAlert } from "../../../lib/smsNotifications";
+import crypto from "node:crypto";
 
 export const runtime = "nodejs";
+
+const MAX_PIN_ATTEMPTS = 5;
+
+function normalizeLast4(value: unknown) {
+  const s = String(value ?? "").trim();
+  return /^\d{4}$/.test(s) ? s : null;
+}
+
+function hashPinLast4(pinLast4: string): string {
+  const salt = process.env.CLAIM_PIN_SALT ?? "";
+  if (!salt) throw new Error("CLAIM_PIN_SALT is not configured");
+  return crypto.createHmac("sha256", salt).update(pinLast4).digest("hex");
+}
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = createServerClient();
     const body = await req.json();
 
-    const { cardId, contactName, contactEmail, payoutMethod, payoutDetails } =
-      body || {};
+    const {
+      cardId,
+      contactName,
+      contactEmail,
+      payoutMethod,
+      payoutDetails,
+      pinLast4,
+    } = body || {};
 
     if (!cardId) {
       return NextResponse.json({ error: "cardId is required" }, { status: 400 });
+    }
+
+    const pin = normalizeLast4(pinLast4);
+    if (!pin) {
+      return NextResponse.json(
+        { error: "pinLast4 is required and must be exactly 4 digits" },
+        { status: 400 },
+      );
     }
 
     if (!contactName) {
@@ -69,7 +97,9 @@ export async function POST(req: NextRequest) {
 
     const { data: card, error: cardError } = await supabase
       .from("cards")
-      .select("id, card_id, amount, claimed, payout_request_id")
+      .select(
+        "id, card_id, amount, claimed, payout_request_id, claim_pin_hash, claim_pin_attempts, claim_pin_locked",
+      )
       .eq("card_id", cardId)
       .single();
 
@@ -83,6 +113,110 @@ export async function POST(req: NextRequest) {
         { error: "This card has already been claimed." },
         { status: 400 },
       );
+    }
+
+    if (card.claim_pin_locked) {
+      return NextResponse.json(
+        {
+          error:
+            "Too many incorrect PIN attempts. Please contact givio cards support.",
+          locked: true,
+        },
+        { status: 403 },
+      );
+    }
+
+    const storedHash =
+      typeof (card as any).claim_pin_hash === "string"
+        ? (card as any).claim_pin_hash
+        : null;
+
+    if (!storedHash) {
+      return NextResponse.json(
+        {
+          error:
+            "This card is missing its claim PIN. Please contact givio cards support.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const attemptsRaw = Number((card as any).claim_pin_attempts ?? 0);
+    const attempts = Number.isFinite(attemptsRaw) ? Math.max(0, attemptsRaw) : 0;
+
+    if (attempts >= MAX_PIN_ATTEMPTS) {
+      const { error: lockErr } = await supabase
+        .from("cards")
+        .update({ claim_pin_locked: true })
+        .eq("id", card.id);
+
+      if (lockErr) {
+        console.warn("request payout: failed to set locked state", lockErr);
+      }
+
+      return NextResponse.json(
+        {
+          error:
+            "Too many incorrect PIN attempts. Please contact givio cards support.",
+          locked: true,
+        },
+        { status: 403 },
+      );
+    }
+
+    let submittedHash: string;
+    try {
+      submittedHash = hashPinLast4(pin);
+    } catch (e) {
+      console.error("request payout: pin hash error", e);
+      return NextResponse.json(
+        { error: "Server not configured. Please contact givio cards support." },
+        { status: 500 },
+      );
+    }
+
+    if (submittedHash !== storedHash) {
+      const nextAttempts = attempts + 1;
+      const willLock = nextAttempts >= MAX_PIN_ATTEMPTS;
+
+      const { error: attemptErr } = await supabase
+        .from("cards")
+        .update({
+          claim_pin_attempts: nextAttempts,
+          claim_pin_locked: willLock,
+        })
+        .eq("id", card.id);
+
+      if (attemptErr) {
+        console.warn("request payout: failed to update pin attempts", attemptErr);
+      }
+
+      const remaining = Math.max(0, MAX_PIN_ATTEMPTS - nextAttempts);
+
+      return NextResponse.json(
+        willLock
+          ? {
+              error:
+                "Too many incorrect PIN attempts. Please contact givio cards support.",
+              locked: true,
+            }
+          : {
+              error: `Incorrect PIN. You have ${remaining} attempts remaining.`,
+              attemptsRemaining: remaining,
+            },
+        { status: 403 },
+      );
+    }
+
+    if (attempts !== 0 || card.claim_pin_locked) {
+      const { error: resetErr } = await supabase
+        .from("cards")
+        .update({ claim_pin_attempts: 0, claim_pin_locked: false })
+        .eq("id", card.id);
+
+      if (resetErr) {
+        console.warn("request payout: failed to reset pin state", resetErr);
+      }
     }
 
     if (card.payout_request_id) {

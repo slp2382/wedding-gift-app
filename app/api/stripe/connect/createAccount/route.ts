@@ -56,9 +56,9 @@ export async function POST(req: NextRequest) {
         try {
           await stripe.accounts.update(payoutRequest.stripe_connect_account_id, {
             business_profile: {
-              url: "https://giftlink.cards",
+              url: "https://giviocards.com",
               product_description:
-                "One time gift recipient receiving a payout from GiftLink.",
+                "One time gift recipient receiving a payout from Givio Cards.",
             },
           });
         } catch (err) {
@@ -91,8 +91,8 @@ export async function POST(req: NextRequest) {
       },
       email: payoutRequest.contact_email ?? undefined,
       business_profile: {
-        url: "https://giftlink.cards",
-        product_description: "One time gift recipient receiving a payout from GiftLink.",
+        url: "https://giviocards.com",
+        product_description: "One time gift recipient receiving a payout from Givio Cards.",
       },
     });
 

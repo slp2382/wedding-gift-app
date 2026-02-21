@@ -8,6 +8,7 @@ import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 import QRCode from "qrcode";
 import sharp from "sharp";
 import path from "path";
+import crypto from "node:crypto";
 import { absoluteUrl } from "@/lib/siteUrl";
 
 function getSupabaseAdmin(): SupabaseClient | null {
@@ -47,6 +48,22 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
       setTimeout(() => rej(new Error("timeout")), ms);
     }),
   ]);
+}
+
+const MAX_CLAIM_PIN_ATTEMPTS = 5;
+
+function normalizePinLast4(value: unknown): string | null {
+  const s = String(value ?? "").trim();
+  return /^\d{4}$/.test(s) ? s : null;
+}
+
+function hashClaimPinLast4(
+  pinLast4: string,
+): { hash: string | null; error?: string } {
+  const salt = process.env.CLAIM_PIN_SALT ?? "";
+  if (!salt) return { hash: null, error: "CLAIM_PIN_SALT is not configured" };
+  const hash = crypto.createHmac("sha256", salt).update(pinLast4).digest("hex");
+  return { hash };
 }
 
 type MailLineItem = { description: string; quantity: number };
@@ -177,7 +194,7 @@ function summarizeCartItems(metadata: Record<string, string | undefined>) {
       ? CARD_TEMPLATES.find((t) => t.id === entry.templateId)
       : null;
 
-    const name = tpl?.name ?? (entry.templateId ?? "Givio Card");
+    const name = tpl?.name ?? (entry.templateId ?? "GiftLink card");
     const sizeLabel = entry.size ?? tpl?.size ?? "";
     const sizePart = sizeLabel ? ` (${sizeLabel})` : "";
     lines.push(`${name}${sizePart} Qty ${entry.qty}`);
@@ -257,7 +274,7 @@ async function sendOrderConfirmationEmail(args: {
       ? `<ul>${args.itemLines
           .map((x) => `<li>${escapeHtml(x)}</li>`)
           .join("")}</ul>`
-      : `<p>Givio Cards</p>`;
+      : `<p>GiftLink cards</p>`;
 
   const shipHtml =
     addressLines.length > 0
@@ -269,7 +286,7 @@ async function sendOrderConfirmationEmail(args: {
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.5;">
       <h2>Thanks, ${escapeHtml(greetingName)}!</h2>
-      <p>We have received your Givio Cards order and are currently fullfilling it. Tracking information will be sent when available.</p>
+      <p>We have received your GiftLink order and are currently fullfilling it. Tracking information will be sent when available.</p>
 
       <p><strong>Order ID:</strong> ${escapeHtml(args.orderId)}</p>
       <p><strong>Total:</strong> ${escapeHtml(total)}</p>
@@ -281,10 +298,10 @@ async function sendOrderConfirmationEmail(args: {
       ${shipHtml}
 
       <p style="margin-top: 24px;">
-        If you have any questions, please contact us at admin@giviocards.com.
+        If you have any questions, please contact us at Admin@GiftLink.cards.
       </p>
       <p style="color: #666; font-size: 12px;">
-        Givio Cards, giviocards.com
+        GiftLink, giftlink.cards
       </p>
     </div>
   `;
@@ -292,7 +309,7 @@ async function sendOrderConfirmationEmail(args: {
   const mail: any = {
     from,
     to: args.to,
-    subject: "Your Givio Cards order confirmation",
+    subject: "Your GiftLink order confirmation",
     html,
   };
 
@@ -301,9 +318,6 @@ async function sendOrderConfirmationEmail(args: {
   await transporter.sendMail(mail);
   console.log("[orderEmail] Sent order confirmation to", args.to);
 }
-
-// Everything below this point stays identical to what you pasted.
-// No webhook logic, metadata keys, table names, storage paths, or Printful calls were changed.
 
 async function recordEmailSuccess(
   supabaseAdmin: SupabaseClient,
@@ -430,7 +444,10 @@ function findTwoEdgeClusters(scores: Int32Array) {
   let max = 0;
   for (let i = 0; i < scores.length; i++) max = Math.max(max, scores[i] ?? 0);
   if (max <= 0)
-    return { leftEdge: null as number | null, rightEdge: null as number | null };
+    return {
+      leftEdge: null as number | null,
+      rightEdge: null as number | null,
+    };
 
   const thr = Math.floor(max * 0.7);
 
@@ -926,6 +943,41 @@ export async function POST(req: NextRequest) {
         const giverName = metadata.giverName ?? metadata.giver_name ?? "";
         const note = metadata.note ?? "";
 
+        const pinLast4Raw =
+          metadata.pinLast4 ??
+          metadata.pin_last4 ??
+          metadata.claimPinLast4 ??
+          metadata.claim_pin_last4 ??
+          null;
+
+        const pinLast4 = normalizePinLast4(pinLast4Raw);
+
+        let claimPinHash: string | null = null;
+        let claimPinLocked = false;
+        let claimPinAttempts = 0;
+
+        if (!pinLast4) {
+          claimPinLocked = true;
+          claimPinAttempts = MAX_CLAIM_PIN_ATTEMPTS;
+          console.error(
+            "[stripe-webhook] Missing or invalid pinLast4 in session metadata",
+            { sessionId: session.id, cardId },
+          );
+        } else {
+          const hashed = hashClaimPinLast4(pinLast4);
+          if (!hashed.hash) {
+            claimPinLocked = true;
+            claimPinAttempts = MAX_CLAIM_PIN_ATTEMPTS;
+            console.error("[stripe-webhook] Could not hash pinLast4, locking card", {
+              sessionId: session.id,
+              cardId,
+              error: hashed.error,
+            });
+          } else {
+            claimPinHash = hashed.hash;
+          }
+        }
+
         const giftAmountRaw =
           metadata.giftAmountRaw ??
           metadata.giftAmount ??
@@ -949,7 +1001,11 @@ export async function POST(req: NextRequest) {
           if (!Number.isNaN(parsed) && parsed > 0) giftAmount = parsed;
         }
 
-        if (giftAmount == null && totalChargeRaw != null && feeAmountRaw != null) {
+        if (
+          giftAmount == null &&
+          totalChargeRaw != null &&
+          feeAmountRaw != null
+        ) {
           const totalParsed = Number(totalChargeRaw);
           const feeParsed = Number(feeAmountRaw);
           if (
@@ -982,6 +1038,9 @@ export async function POST(req: NextRequest) {
             amount: giftAmount,
             note,
             funded: true,
+            claim_pin_hash: claimPinHash,
+            claim_pin_attempts: claimPinAttempts,
+            claim_pin_locked: claimPinLocked,
           })
           .eq("card_id", cardId);
 

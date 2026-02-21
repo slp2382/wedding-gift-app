@@ -238,7 +238,7 @@ async function sendTrackingEmail(args: {
     socketTimeout: 10000,
   });
 
-  const subject = "Your GiftLink order has shipped";
+  const subject = "Your Givio order has shipped";
   const trackingLine = args.trackingUrl
     ? `Tracking link: ${args.trackingUrl}`
     : args.trackingNumber
@@ -246,14 +246,14 @@ async function sendTrackingEmail(args: {
       : "Tracking: (not provided yet)";
 
   const text =
-    `Good news, your GiftLink order is on the way.\n\n` +
+    `Good news, your givio order is on the way.\n\n` +
     `Order ID: ${args.orderId}\n` +
     `${trackingLine}\n\n` +
     `Questions? Reply to this email.\n`;
 
   const html =
     `<div style="font-family:Arial,sans-serif;line-height:1.45">` +
-    `<p>Good news, your GiftLink order is on the way.</p>` +
+    `<p>Good news, your Givio order is on the way.</p>` +
     `<p><strong>Order ID:</strong> ${args.orderId}</p>` +
     (args.trackingUrl
       ? `<p><strong>Tracking link:</strong> <a href="${args.trackingUrl}">${args.trackingUrl}</a></p>`

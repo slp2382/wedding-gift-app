@@ -27,6 +27,7 @@ export default function CardPage() {
   const [guestName, setGuestName] = useState("");
   const [guestAmount, setGuestAmount] = useState("");
   const [guestNote, setGuestNote] = useState("");
+  const [guestPinLast4, setGuestPinLast4] = useState("");
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
 
@@ -38,6 +39,7 @@ export default function CardPage() {
     "venmo",
   );
   const [payoutDetails, setPayoutDetails] = useState("");
+  const [claimPinLast4, setClaimPinLast4] = useState("");
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutError, setPayoutError] = useState<string | null>(null);
   const [payoutSuccess, setPayoutSuccess] = useState<string | null>(null);
@@ -84,10 +86,10 @@ export default function CardPage() {
   const heroTitle = loading
     ? "Loading card details..."
     : isFunded
-    ? "Your Givio funds are ready!"
-    : isClaimed
-    ? "This Givio Card has been claimed"
-    : "This card is ready to be loaded with a gift";
+      ? "Your givio gift is ready!"
+      : isClaimed
+        ? "This givio gift has been claimed"
+        : "This card is ready to be loaded with a gift";
 
   const showRecipientViewDecor = !loading && (isFunded || isClaimed);
 
@@ -114,6 +116,12 @@ export default function CardPage() {
       return;
     }
 
+    const pin = guestPinLast4.trim();
+    if (!/^\d{4}$/.test(pin)) {
+      setGuestError("Enter the last 4 digits of your phone number.");
+      return;
+    }
+
     setGuestError(null);
     setLoadingCheckout(true);
 
@@ -126,6 +134,7 @@ export default function CardPage() {
           giverName: trimmedName,
           amount: amountNumber,
           note: guestNote.trim() || null,
+          pinLast4: pin,
         }),
       });
 
@@ -179,6 +188,12 @@ export default function CardPage() {
       return;
     }
 
+    const pin = claimPinLast4.trim();
+    if (!/^\d{4}$/.test(pin)) {
+      setPayoutError("Enter the last 4 digits pin to claim this gift.");
+      return;
+    }
+
     setPayoutError(null);
     setPayoutSuccess(null);
     setPayoutLoading(true);
@@ -193,13 +208,15 @@ export default function CardPage() {
           contactEmail: email,
           payoutMethod: "venmo",
           payoutDetails: details,
+          pinLast4: pin,
         }),
       });
 
       if (!res.ok) {
         const result = await res.json().catch(() => null);
         const message =
-          (result && result.error) || "Could not submit payout request. Please try again.";
+          (result && result.error) ||
+          "Could not submit payout request. Please try again.";
         setPayoutError(message);
         setPayoutLoading(false);
         return;
@@ -208,7 +225,7 @@ export default function CardPage() {
       const claimRes = await fetch("/api/claim-gift", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId }),
+        body: JSON.stringify({ cardId, pinLast4: pin }),
       });
 
       if (!claimRes.ok) {
@@ -257,6 +274,12 @@ export default function CardPage() {
       return;
     }
 
+    const pin = claimPinLast4.trim();
+    if (!/^\d{4}$/.test(pin)) {
+      setPayoutError("Enter the last 4 digits pin to claim this gift.");
+      return;
+    }
+
     setPayoutError(null);
     setPayoutSuccess(null);
     setPayoutLoading(true);
@@ -271,6 +294,7 @@ export default function CardPage() {
           contactEmail: email,
           payoutMethod: "stripe_connect",
           payoutDetails: null,
+          pinLast4: pin,
         }),
       });
 
@@ -291,6 +315,12 @@ export default function CardPage() {
         return;
       }
 
+      try {
+        sessionStorage.setItem(`givio_pin_${payoutRequestId}`, pin);
+      } catch {
+        // ignore storage errors
+      }
+
       const createAccountRes = await fetch("/api/stripe/connect/createAccount", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -300,7 +330,8 @@ export default function CardPage() {
       if (!createAccountRes.ok) {
         const result = await createAccountRes.json().catch(() => null);
         const message =
-          (result && result.error) || "Could not create Stripe Connect account. Please try again.";
+          (result && result.error) ||
+          "Could not create Stripe Connect account. Please try again.";
         setPayoutError(message);
         setPayoutLoading(false);
         return;
@@ -338,7 +369,7 @@ export default function CardPage() {
             <div className="relative h-14 w-72 sm:h-12 sm:w-64 md:h-12 md:w-72">
               <Image
                 src="/givio_logo.svg"
-                alt="Givio"
+                alt="givio cards"
                 fill
                 className="object-contain"
                 priority
@@ -402,8 +433,8 @@ export default function CardPage() {
                 isClaimed
                   ? "border-sky-200/80 bg-slate-50/95 shadow-sky-100/70 dark:border-sky-700/70 dark:bg-slate-950/90 dark:shadow-none"
                   : isFunded
-                  ? "border-sky-200/80 bg-slate-50/95 shadow-sky-100/70 dark:border-sky-700/70 dark:bg-slate-950/90 dark:shadow-none"
-                  : "border-slate-200/80 bg-slate-50/95 shadow-slate-100/70 dark:border-slate-800/70 dark:bg-slate-950/90 dark:shadow-none"
+                    ? "border-sky-200/80 bg-slate-50/95 shadow-sky-100/70 dark:border-sky-700/70 dark:bg-slate-950/90 dark:shadow-none"
+                    : "border-slate-200/80 bg-slate-50/95 shadow-slate-100/70 dark:border-slate-800/70 dark:bg-slate-950/90 dark:shadow-none"
               }`}
             >
               <div className="space-y-4">
@@ -451,7 +482,9 @@ export default function CardPage() {
 
                   {isClaimed && (
                     <p className="text-[11px] text-slate-900/70 dark:text-slate-200/80">
-                      Claim received. Venmo payouts are typically sent the next business day. Bank transfers typically take 3 to 5 business days to complete.
+                      Claim received. Venmo payouts are typically sent the next business
+                      day. Bank transfers typically take 3 to 5 business days to
+                      complete.
                     </p>
                   )}
                 </div>
@@ -503,13 +536,15 @@ export default function CardPage() {
                       </div>
 
                       <p className="text-xs text-slate-900/70 dark:text-slate-200/80">
-                        Venmo payouts are typically sent the next business day. Bank transfers typically take 3 to 5 business days to complete.
+                        Venmo payouts are typically sent the next business day. Bank
+                        transfers typically take 3 to 5 business days to complete.
                       </p>
                     </div>
                   ) : isFunded ? (
                     <>
                       <p className="text-sm text-slate-900/90 dark:text-slate-100/90">
-                        Choose how you would like to receive this gift, then enter your details to claim it.
+                        Choose how you would like to receive this gift, then enter
+                        your details to claim it.
                       </p>
 
                       <div className="mt-2 flex flex-col gap-2 text-xs">
@@ -550,8 +585,8 @@ export default function CardPage() {
                         {showClaimForm
                           ? "Hide claim form"
                           : payoutMethod === "venmo"
-                          ? "Claim gift via Venmo"
-                          : "Claim gift via bank payout"}
+                            ? "Claim gift via Venmo"
+                            : "Claim gift via bank payout"}
                       </button>
 
                       {payoutSuccess && (
@@ -566,13 +601,42 @@ export default function CardPage() {
                             Where should we send this gift?
                           </p>
 
+                          <div className="mb-3">
+                            <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
+                              Pin last 4 digits
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="\d{4}"
+                              maxLength={4}
+                              value={claimPinLast4}
+                              onChange={(e) =>
+                                setClaimPinLast4(
+                                  e.target.value.replace(/[^\d]/g, ""),
+                                )
+                              }
+                              className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
+                              placeholder="1234"
+                            />
+                            <p className="mt-1 text-[11px] text-slate-900/80 dark:text-slate-200/80">
+                              This must match the last 4 digits entered when the gift was loaded.
+                            </p>
+                          </div>
+
                           {payoutMethod === "venmo" ? (
                             <>
                               <p className="mb-3 text-xs text-slate-900/80 dark:text-slate-200/80">
-                                Enter your name, email, and Venmo handle and we&apos;ll review and send your gift there shortly. Venmo is fast and free and payouts are typically sent the next business day.
+                                Enter your name, email, and Venmo handle and we&apos;ll
+                                review and send your gift there shortly. Venmo is fast
+                                and free and payouts are typically sent the next business
+                                day.
                               </p>
 
-                              <form onSubmit={handleSubmitVenmoPayout} className="space-y-3">
+                              <form
+                                onSubmit={handleSubmitVenmoPayout}
+                                className="space-y-3"
+                              >
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
                                     <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
@@ -612,7 +676,8 @@ export default function CardPage() {
                                     placeholder="@your-venmo-handle"
                                   />
                                   <p className="mt-1 text-[11px] text-slate-900/80 dark:text-slate-200/80">
-                                    We’ll use this Venmo handle to send your gift. Make sure it matches your Venmo profile exactly.
+                                    We’ll use this Venmo handle to send your gift.
+                                    Make sure it matches your Venmo profile exactly.
                                   </p>
                                 </div>
 
@@ -625,14 +690,21 @@ export default function CardPage() {
                                   disabled={payoutLoading}
                                   className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
-                                  {payoutLoading ? "Sending claim…" : "Submit Venmo details"}
+                                  {payoutLoading
+                                    ? "Sending claim…"
+                                    : "Submit Venmo details"}
                                 </button>
                               </form>
                             </>
                           ) : (
                             <>
                               <p className="mb-3 text-xs text-slate-900/80 dark:text-slate-200/80">
-                                We&apos;ll connect to Stripe to securely set up a bank payout. Enter your name and email, then we&apos;ll take you to Stripe to add your bank details. Bank payouts can take 3 to 5 business days and a payout processing fee applies and will be deducted from the gift amount. (Processing fee of 3.5% of gift amount plus $0.30)
+                                We&apos;ll connect to Stripe to securely set up a bank
+                                payout. Enter your name and email, then we&apos;ll take
+                                you to Stripe to add your bank details. Bank payouts
+                                can take 3 to 5 business days and a payout processing
+                                fee applies and will be deducted from the gift amount.
+                                (Processing fee of 3.5% of gift amount plus $0.30)
                               </p>
 
                               <form onSubmit={handleStripePayout} className="space-y-3">
@@ -672,7 +744,9 @@ export default function CardPage() {
                                   disabled={payoutLoading}
                                   className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
-                                  {payoutLoading ? "Starting secure bank setup…" : "Continue with Stripe"}
+                                  {payoutLoading
+                                    ? "Starting secure bank setup…"
+                                    : "Continue with Stripe"}
                                 </button>
                               </form>
                             </>
@@ -685,7 +759,9 @@ export default function CardPage() {
                       {isBlankStoreCard ? (
                         <>
                           <p className="text-sm text-slate-900/80 dark:text-slate-200/80">
-                            This Givio Card is ready for a guest to load. When someone uses this QR link to send a gift, the amount and their name will appear here for the recipient to claim.
+                            This givio card is ready for a guest to load. When
+                            someone uses this QR link to send a gift, the amount and
+                            their name will appear here for the recipient to claim.
                           </p>
 
                           <form onSubmit={handleGuestLoad} className="mt-3 space-y-3">
@@ -725,6 +801,29 @@ export default function CardPage() {
 
                             <div>
                               <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
+                                Phone pin last 4 digits
+                              </label>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d{4}"
+                                maxLength={4}
+                                value={guestPinLast4}
+                                onChange={(e) =>
+                                  setGuestPinLast4(
+                                    e.target.value.replace(/[^\d]/g, ""),
+                                  )
+                                }
+                                className="w-full rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-slate-950 px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:text-slate-50"
+                                placeholder="1234"
+                              />
+                              <p className="mt-1 text-[11px] text-slate-900/80 dark:text-slate-200/80">
+                                The recipient will enter this to claim the gift.
+                              </p>
+                            </div>
+
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-slate-900/90 dark:text-slate-100/90">
                                 Optional note
                               </label>
                               <textarea
@@ -741,7 +840,9 @@ export default function CardPage() {
                               disabled={loadingCheckout}
                               className="inline-flex w-full items-center justify-center rounded-full bg-sky-700 dark:bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 dark:hover:bg-sky-400 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:cursor-not-allowed disabled:opacity-70"
                             >
-                              {loadingCheckout ? "Opening secure checkout…" : "Load gift on this card"}
+                              {loadingCheckout
+                                ? "Opening secure checkout…"
+                                : "Load gift on this card"}
                             </button>
 
                             {guestError && (
@@ -752,7 +853,10 @@ export default function CardPage() {
                       ) : (
                         <>
                           <p className="text-sm text-slate-900/80 dark:text-slate-200/80">
-                            This card hasn&apos;t been loaded yet. Once a guest uses the QR code to send a gift, the amount and their name will show up here and you&apos;ll be able to claim it.
+                            This givio card hasn&apos;t been loaded yet. Once a guest
+                            uses the QR code to send a gift, the amount and
+                            their name will show up here and you&apos;ll be able to
+                            claim it.
                           </p>
                           <button
                             disabled
@@ -774,7 +878,7 @@ export default function CardPage() {
               href="/"
               className="text-sm font-medium text-sky-900 underline-offset-4 hover:text-sky-700 hover:underline dark:text-sky-200"
             >
-              Back to Givio Cards Home
+              Back to givio cards Home
             </Link>
           </div>
 
