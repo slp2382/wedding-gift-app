@@ -21,12 +21,22 @@ function shuffle<T>(arr: T[]) {
   return copy;
 }
 
-function Stars({ rating }: { rating: number }) {
+function Stars({ rating, size = "base" }: { rating: number; size?: "base" | "lg" }) {
   const full = Math.max(0, Math.min(5, rating));
+  const sizeClass = size === "lg" ? "text-lg" : "text-base";
+
   return (
-    <div className="flex items-center gap-1" aria-label={`${full} out of 5`}>
+    <div
+      className={`flex items-center gap-1 ${sizeClass}`}
+      aria-label={`${full} out of 5`}
+    >
       {Array.from({ length: 5 }).map((_, i) => (
-        <span key={i} className={i < full ? "text-sky-600" : "text-slate-300"}>
+        <span
+          key={i}
+          className={
+            i < full ? "text-amber-400" : "text-slate-300 dark:text-slate-600"
+          }
+        >
           ★
         </span>
       ))}
@@ -173,25 +183,29 @@ export default function ReviewsSection() {
   return (
     <section className="space-y-6">
       <div className="rounded-3xl border border-sky-100/80 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-sky-800/70 dark:bg-slate-950/40">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">
-              What customers are saying
-            </h2>
-            <p className="mt-1 text-xs text-slate-900/70 dark:text-slate-100/70">
-              Real reviews from people using Givio Cards.
-            </p>
-          </div>
-
-          {active?.rating ? <Stars rating={active.rating} /> : null}
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">
+            What customers are saying
+          </h2>
+          <p className="mt-1 text-xs text-slate-900/70 dark:text-slate-100/70">
+            Real reviews from people using Givio Cards.
+          </p>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-5">
           {reviews.length > 0 ? (
             <>
-              <p className="text-sm leading-relaxed text-slate-900/90 dark:text-slate-50/90">
-                “{active?.body}”
-              </p>
+              <div className="flex items-start gap-3">
+                {active?.rating ? (
+                  <div className="mt-1 shrink-0">
+                    <Stars rating={active.rating} size="lg" />
+                  </div>
+                ) : null}
+
+                <p className="text-lg font-medium leading-relaxed text-slate-900 dark:text-slate-50">
+                  “{active?.body}”
+                </p>
+              </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-900/70 dark:text-slate-100/70">
                 <span className="font-medium text-slate-900 dark:text-slate-50">
@@ -201,7 +215,7 @@ export default function ReviewsSection() {
               </div>
             </>
           ) : (
-            <p className="text-sm leading-relaxed text-slate-900/70 dark:text-slate-100/70">
+            <p className="text-base leading-relaxed text-slate-900/70 dark:text-slate-100/70">
               Be the first to leave a review.
             </p>
           )}
@@ -229,7 +243,6 @@ export default function ReviewsSection() {
           </div>
         ) : null}
 
-        {/* Centered submit button */}
         <div className="mt-6 flex justify-center">
           <button
             type="button"
@@ -307,7 +320,6 @@ export default function ReviewsSection() {
                 </label>
               </div>
 
-              {/* Clickable star rating */}
               <label className="space-y-2 block">
                 <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
                   Rating
@@ -329,8 +341,8 @@ export default function ReviewsSection() {
                         <span
                           className={
                             isActive
-                              ? "text-sky-600"
-                              : "text-slate-300 hover:text-sky-400"
+                              ? "text-amber-400"
+                              : "text-slate-300 hover:text-amber-300 dark:text-slate-600 dark:hover:text-amber-300"
                           }
                         >
                           ★
