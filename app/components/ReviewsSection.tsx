@@ -39,6 +39,8 @@ export default function ReviewsSection() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [index, setIndex] = useState(0);
 
+  const [showForm, setShowForm] = useState(false);
+
   const [submitName, setSubmitName] = useState("");
   const [submitTitle, setSubmitTitle] = useState("");
   const [submitBody, setSubmitBody] = useState("");
@@ -96,6 +98,27 @@ export default function ReviewsSection() {
     };
   }, [reviews.length]);
 
+  useEffect(() => {
+    if (!showForm) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowForm(false);
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [showForm]);
+
+  useEffect(() => {
+    if (!showForm) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showForm]);
+
   async function submitReview(e: React.FormEvent) {
     e.preventDefault();
 
@@ -133,18 +156,22 @@ export default function ReviewsSection() {
       setSubmitTitle("");
       setSubmitBody("");
       setSubmitRating(5);
+
+      setTimeout(() => {
+        setShowForm(false);
+        setSubmitState("idle");
+        setSubmitError("");
+      }, 900);
     } catch {
       setSubmitState("error");
       setSubmitError("Something went wrong. Please try again.");
     }
   }
 
-  // Important: never hide the whole section when there are 0 reviews,
-  // otherwise the submit form disappears and you cannot collect the first review.
   if (loading) return null;
 
   return (
-    <section className="space-y-10">
+    <section className="space-y-6">
       <div className="rounded-3xl border border-sky-100/80 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-sky-800/70 dark:bg-slate-950/40">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -201,95 +228,144 @@ export default function ReviewsSection() {
             })}
           </div>
         ) : null}
+
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => {
+              setSubmitState("idle");
+              setSubmitError("");
+              setShowForm(true);
+            }}
+            className="inline-flex items-center justify-center rounded-full bg-sky-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:opacity-60 dark:bg-sky-500 dark:hover:bg-sky-400"
+          >
+            Submit review
+          </button>
+        </div>
       </div>
 
-      <div className="rounded-3xl border border-sky-100/80 bg-white/60 p-6 shadow-sm backdrop-blur dark:border-sky-800/70 dark:bg-slate-950/30">
-        <h3 className="text-base font-semibold tracking-tight">Leave a review</h3>
-        <p className="mt-1 text-xs text-slate-900/70 dark:text-slate-100/70">
-          Your feedback helps more people discover Givio Cards.
-        </p>
+      {showForm ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Leave a review"
+        >
+          <button
+            type="button"
+            aria-label="Close review form"
+            onClick={() => setShowForm(false)}
+            className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+          />
 
-        <form onSubmit={submitReview} className="mt-5 space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
-                Name
-              </span>
-              <input
-                value={submitName}
-                onChange={(e) => setSubmitName(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring focus:ring-sky-500/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
-                placeholder="Optional"
-              />
-            </label>
+          <div className="relative w-full max-w-2xl rounded-3xl border border-sky-100/80 bg-white p-6 shadow-xl dark:border-sky-800/70 dark:bg-slate-950">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold tracking-tight">
+                  Leave a review
+                </h3>
+                <p className="mt-1 text-xs text-slate-900/70 dark:text-slate-100/70">
+                  Your feedback helps more people discover Givio Cards.
+                </p>
+              </div>
 
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
-                Title
-              </span>
-              <input
-                value={submitTitle}
-                onChange={(e) => setSubmitTitle(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring focus:ring-sky-500/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
-                placeholder="Optional"
-              />
-            </label>
-          </div>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50 dark:hover:bg-slate-900"
+              >
+                Close
+              </button>
+            </div>
 
-          <label className="space-y-1 block">
-            <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
-              Rating
-            </span>
-            <select
-              value={submitRating}
-              onChange={(e) => setSubmitRating(Number(e.target.value))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring focus:ring-sky-500/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
-            >
-              <option value={5}>5</option>
-              <option value={4}>4</option>
-              <option value={3}>3</option>
-              <option value={2}>2</option>
-              <option value={1}>1</option>
-            </select>
-          </label>
+            <form onSubmit={submitReview} className="mt-5 space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
+                    Name
+                  </span>
+                  <input
+                    value={submitName}
+                    onChange={(e) => setSubmitName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring focus:ring-sky-500/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
+                    placeholder="Optional"
+                    autoFocus
+                  />
+                </label>
 
-          <label className="space-y-1 block">
-            <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
-              Review
-            </span>
-            <textarea
-              value={submitBody}
-              onChange={(e) => setSubmitBody(e.target.value)}
-              rows={4}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring focus:ring-sky-500/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
-              placeholder="What did you like about Givio Cards?"
-              required
-            />
-          </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
+                    Title
+                  </span>
+                  <input
+                    value={submitTitle}
+                    onChange={(e) => setSubmitTitle(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring focus:ring-sky-500/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
+                    placeholder="Optional"
+                  />
+                </label>
+              </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="submit"
-              disabled={submitState === "submitting"}
-              className="inline-flex items-center justify-center rounded-full bg-sky-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 disabled:opacity-60 dark:bg-sky-500 dark:hover:bg-sky-400"
-            >
-              {submitState === "submitting" ? "Submitting" : "Submit review"}
-            </button>
+              <label className="space-y-1 block">
+                <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
+                  Rating
+                </span>
+                <select
+                  value={submitRating}
+                  onChange={(e) => setSubmitRating(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring focus:ring-sky-500/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
+                >
+                  <option value={5}>5</option>
+                  <option value={4}>4</option>
+                  <option value={3}>3</option>
+                  <option value={2}>2</option>
+                  <option value={1}>1</option>
+                </select>
+              </label>
 
-            {submitState === "success" ? (
-              <p className="text-xs text-slate-900/70 dark:text-slate-100/70">
-                Thanks. Your review was submitted.
+              <label className="space-y-1 block">
+                <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
+                  Review
+                </span>
+                <textarea
+                  value={submitBody}
+                  onChange={(e) => setSubmitBody(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring focus:ring-sky-500/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
+                  placeholder="What did you like about Givio Cards?"
+                  required
+                />
+              </label>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={submitState === "submitting"}
+                  className="inline-flex items-center justify-center rounded-full bg-sky-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 disabled:opacity-60 dark:bg-sky-500 dark:hover:bg-sky-400"
+                >
+                  {submitState === "submitting" ? "Submitting" : "Submit review"}
+                </button>
+
+                {submitState === "success" ? (
+                  <p className="text-xs text-slate-900/70 dark:text-slate-100/70">
+                    Thanks. Your review was submitted.
+                  </p>
+                ) : null}
+
+                {submitState === "error" ? (
+                  <p className="text-xs text-red-600 dark:text-red-400">
+                    {submitError}
+                  </p>
+                ) : null}
+              </div>
+
+              <p className="text-[11px] text-slate-900/60 dark:text-slate-100/60">
+                Reviews appear after approval.
               </p>
-            ) : null}
-
-            {submitState === "error" ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {submitError}
-              </p>
-            ) : null}
+            </form>
           </div>
-        </form>
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }
