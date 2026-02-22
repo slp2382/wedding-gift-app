@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import EmailCaptureModal from "./components/EmailCaptureModal";
+import ReviewsSection from "./components/ReviewsSection";
 
 export default function HomePage() {
   const [showHeader, setShowHeader] = useState(true);
@@ -47,59 +48,59 @@ export default function HomePage() {
       <EmailCaptureModal />
 
       <header
-  className={[
-    "fixed left-0 right-0 top-0 z-50",
-    "border-b border-sky-100/80 bg-sky-50/70 backdrop-blur",
-    "dark:border-sky-800/70 dark:bg-slate-950/60",
-    "transition-transform duration-200",
-    showHeader ? "translate-y-0" : "-translate-y-full",
-  ].join(" ")}
->
-  <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:py-5">
-    <Link href="/" className="flex items-center">
-      <Image
-        src="/giftlink_logo.svg"
-        alt="Givio Cards"
-        width={7000}
-        height={7000}
-        className="h-28 w-auto sm:h-32"
-        priority
-      />
-    </Link>
-
-    <div className="flex items-center gap-4">
-      <nav className="hidden items-center gap-6 md:flex">
-        <a
-          href="#how-it-works"
-          className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
-        >
-          How it works
-        </a>
-
-        <Link
-          href="/locations"
-          className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
-        >
-          Retail Locations
-        </Link>
-
-        <a
-          href="#faq"
-          className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
-        >
-          FAQ
-        </a>
-      </nav>
-
-      <Link
-        href="/shop"
-        className="inline-flex items-center justify-center rounded-full bg-sky-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
+        className={[
+          "fixed left-0 right-0 top-0 z-50",
+          "border-b border-sky-100/80 bg-sky-50/70 backdrop-blur",
+          "dark:border-sky-800/70 dark:bg-slate-950/60",
+          "transition-transform duration-200",
+          showHeader ? "translate-y-0" : "-translate-y-full",
+        ].join(" ")}
       >
-        Shop
-      </Link>
-    </div>
-  </div>
-</header>
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:py-5">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/giftlink_logo.svg"
+              alt="Givio Cards"
+              width={7000}
+              height={7000}
+              className="h-28 w-auto sm:h-32"
+              priority
+            />
+          </Link>
+
+          <div className="flex items-center gap-4">
+            <nav className="hidden items-center gap-6 md:flex">
+              <a
+                href="#how-it-works"
+                className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
+              >
+                How it works
+              </a>
+
+              <Link
+                href="/locations"
+                className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
+              >
+                Retail Locations
+              </Link>
+
+              <a
+                href="#faq"
+                className="text-sm font-medium text-slate-900/80 hover:text-slate-950 dark:text-slate-100/80 dark:hover:text-slate-50"
+              >
+                FAQ
+              </a>
+            </nav>
+
+            <Link
+              href="/shop"
+              className="inline-flex items-center justify-center rounded-full bg-sky-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 dark:bg-sky-500 dark:hover:bg-sky-400"
+            >
+              Shop
+            </Link>
+          </div>
+        </div>
+      </header>
 
       <div className="mx-auto max-w-5xl px-4 pb-8 pt-40 sm:pt-44">
         <main className="space-y-24 pb-16">
@@ -341,6 +342,11 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
+          </section>
+
+          {/* Reviews */}
+          <section className="pt-2">
+            <ReviewsSection />
           </section>
         </main>
 
