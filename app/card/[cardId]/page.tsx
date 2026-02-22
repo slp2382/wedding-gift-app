@@ -704,7 +704,7 @@ export default function CardPage() {
                                 you to Stripe to add your bank details. Bank payouts
                                 can take 3 to 5 business days and a payout processing
                                 fee applies and will be deducted from the gift amount.
-                                (Processing fee of 3.5% of gift amount plus $0.30)
+                                (Processing fee of $2.50 will be deducted from the gift)
                               </p>
 
                               <form onSubmit={handleStripePayout} className="space-y-3">
