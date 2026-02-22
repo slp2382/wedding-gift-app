@@ -63,9 +63,12 @@ export default function ReviewsSection() {
       setLoading(true);
       try {
         const res = await fetch("/api/reviews", { cache: "no-store" });
-        const json = await res.json();
+        const json = await res.json().catch(() => null);
+
         if (!cancelled && json?.ok) {
-          const items = Array.isArray(json.reviews) ? (json.reviews as Review[]) : [];
+          const items = Array.isArray(json.reviews)
+            ? (json.reviews as Review[])
+            : [];
           setReviews(shuffle(items));
           setIndex(0);
         }
@@ -136,8 +139,9 @@ export default function ReviewsSection() {
     }
   }
 
-  if (loading && reviews.length === 0) return null;
-  if (!loading && reviews.length === 0) return null;
+  // Important: never hide the whole section when there are 0 reviews,
+  // otherwise the submit form disappears and you cannot collect the first review.
+  if (loading) return null;
 
   return (
     <section className="space-y-10">
@@ -156,16 +160,24 @@ export default function ReviewsSection() {
         </div>
 
         <div className="mt-4">
-          <p className="text-sm leading-relaxed text-slate-900/90 dark:text-slate-50/90">
-            “{active?.body}”
-          </p>
+          {reviews.length > 0 ? (
+            <>
+              <p className="text-sm leading-relaxed text-slate-900/90 dark:text-slate-50/90">
+                “{active?.body}”
+              </p>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-900/70 dark:text-slate-100/70">
-            <span className="font-medium text-slate-900 dark:text-slate-50">
-              {active?.name || "Verified customer"}
-            </span>
-            {active?.title ? <span>· {active.title}</span> : null}
-          </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-900/70 dark:text-slate-100/70">
+                <span className="font-medium text-slate-900 dark:text-slate-50">
+                  {active?.name || "Verified customer"}
+                </span>
+                {active?.title ? <span>· {active.title}</span> : null}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm leading-relaxed text-slate-900/70 dark:text-slate-100/70">
+              Be the first to leave a review.
+            </p>
+          )}
         </div>
 
         {reviews.length > 1 ? (
@@ -271,7 +283,9 @@ export default function ReviewsSection() {
             ) : null}
 
             {submitState === "error" ? (
-              <p className="text-xs text-red-600 dark:text-red-400">{submitError}</p>
+              <p className="text-xs text-red-600 dark:text-red-400">
+                {submitError}
+              </p>
             ) : null}
           </div>
         </form>
