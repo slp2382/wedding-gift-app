@@ -135,7 +135,7 @@ export default function ReviewsSection() {
 
     timerRef.current = window.setInterval(() => {
       setIndex((i) => i + 1);
-    }, 7000);
+    }, 10000);
 
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
