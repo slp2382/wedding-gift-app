@@ -229,7 +229,8 @@ export default function ReviewsSection() {
           </div>
         ) : null}
 
-        <div className="mt-6">
+        {/* Centered submit button */}
+        <div className="mt-6 flex justify-center">
           <button
             type="button"
             onClick={() => {
@@ -237,7 +238,7 @@ export default function ReviewsSection() {
               setSubmitError("");
               setShowForm(true);
             }}
-            className="inline-flex items-center justify-center rounded-full bg-sky-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:opacity-60 dark:bg-sky-500 dark:hover:bg-sky-400"
+            className="inline-flex items-center justify-center rounded-full bg-sky-700 px-6 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring focus-visible:ring-sky-500/60 disabled:opacity-60 dark:bg-sky-500 dark:hover:bg-sky-400"
           >
             Submit review
           </button>
@@ -306,21 +307,42 @@ export default function ReviewsSection() {
                 </label>
               </div>
 
-              <label className="space-y-1 block">
+              {/* Clickable star rating */}
+              <label className="space-y-2 block">
                 <span className="text-xs font-medium text-slate-900/80 dark:text-slate-100/80">
                   Rating
                 </span>
-                <select
-                  value={submitRating}
-                  onChange={(e) => setSubmitRating(Number(e.target.value))}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring focus:ring-sky-500/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50"
-                >
-                  <option value={5}>5</option>
-                  <option value={4}>4</option>
-                  <option value={3}>3</option>
-                  <option value={2}>2</option>
-                  <option value={1}>1</option>
-                </select>
+
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: 5 }).map((_, i) => {
+                    const starValue = i + 1;
+                    const isActive = starValue <= submitRating;
+
+                    return (
+                      <button
+                        key={starValue}
+                        type="button"
+                        onClick={() => setSubmitRating(starValue)}
+                        className="text-2xl transition"
+                        aria-label={`Rate ${starValue} stars`}
+                      >
+                        <span
+                          className={
+                            isActive
+                              ? "text-sky-600"
+                              : "text-slate-300 hover:text-sky-400"
+                          }
+                        >
+                          ★
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="text-[11px] text-slate-900/60 dark:text-slate-100/60">
+                  {submitRating} out of 5 stars
+                </p>
               </label>
 
               <label className="space-y-1 block">
