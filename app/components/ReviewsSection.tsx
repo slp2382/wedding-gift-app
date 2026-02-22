@@ -21,7 +21,13 @@ function shuffle<T>(arr: T[]) {
   return copy;
 }
 
-function Stars({ rating, size = "base" }: { rating: number; size?: "base" | "lg" }) {
+function Stars({
+  rating,
+  size = "base",
+}: {
+  rating: number;
+  size?: "base" | "lg";
+}) {
   const full = Math.max(0, Math.min(5, rating));
   const sizeClass = size === "lg" ? "text-lg" : "text-base";
 
@@ -47,7 +53,13 @@ function Stars({ rating, size = "base" }: { rating: number; size?: "base" | "lg"
 export default function ReviewsSection() {
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<Review[]>([]);
+
+  // index is the target index
   const [index, setIndex] = useState(0);
+
+  // renderIndex is what is currently shown on screen
+  const [renderIndex, setRenderIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
 
@@ -64,9 +76,23 @@ export default function ReviewsSection() {
 
   const active = useMemo(() => {
     if (reviews.length === 0) return null;
-    const safeIndex = index % reviews.length;
+    const safeIndex = renderIndex % reviews.length;
     return reviews[safeIndex];
-  }, [reviews, index]);
+  }, [reviews, renderIndex]);
+
+  const incoming = useMemo(() => {
+    if (reviews.length === 0) return null;
+
+    const len = reviews.length;
+    const currentIndex = ((renderIndex % len) + len) % len;
+    const targetIndex = ((index % len) + len) % len;
+
+    const incomingIndex = isAnimating
+      ? targetIndex
+      : (currentIndex + 1) % len;
+
+    return reviews[incomingIndex];
+  }, [reviews, renderIndex, index, isAnimating]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +109,8 @@ export default function ReviewsSection() {
             : [];
           setReviews(shuffle(items));
           setIndex(0);
+          setRenderIndex(0);
+          setIsAnimating(false);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -107,6 +135,20 @@ export default function ReviewsSection() {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
   }, [reviews.length]);
+
+  useEffect(() => {
+    if (reviews.length <= 1) return;
+    if (index === renderIndex) return;
+
+    setIsAnimating(true);
+
+    const t = window.setTimeout(() => {
+      setRenderIndex(index);
+      setIsAnimating(false);
+    }, 320);
+
+    return () => window.clearTimeout(t);
+  }, [index, renderIndex, reviews.length]);
 
   useEffect(() => {
     if (!showForm) return;
@@ -194,26 +236,57 @@ export default function ReviewsSection() {
 
         <div className="mt-5">
           {reviews.length > 0 ? (
-            <>
-              <div className="flex items-start gap-3">
-                {active?.rating ? (
-                  <div className="mt-1 shrink-0">
-                    <Stars rating={active.rating} size="lg" />
+            <div className="overflow-hidden">
+              <div
+                className={[
+                  "flex w-full",
+                  "transition-transform duration-300 ease-out",
+                  isAnimating ? "-translate-x-full" : "translate-x-0",
+                ].join(" ")}
+              >
+                <div className="w-full shrink-0">
+                  <div className="flex items-start gap-3">
+                    {active?.rating ? (
+                      <div className="mt-1 shrink-0">
+                        <Stars rating={active.rating} size="lg" />
+                      </div>
+                    ) : null}
+
+                    <p className="text-lg font-medium leading-relaxed text-slate-900 dark:text-slate-50">
+                      “{active?.body}”
+                    </p>
                   </div>
-                ) : null}
 
-                <p className="text-lg font-medium leading-relaxed text-slate-900 dark:text-slate-50">
-                  “{active?.body}”
-                </p>
-              </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-900/70 dark:text-slate-100/70">
+                    <span className="font-medium text-slate-900 dark:text-slate-50">
+                      {active?.name || "Verified customer"}
+                    </span>
+                    {active?.title ? <span>· {active.title}</span> : null}
+                  </div>
+                </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-900/70 dark:text-slate-100/70">
-                <span className="font-medium text-slate-900 dark:text-slate-50">
-                  {active?.name || "Verified customer"}
-                </span>
-                {active?.title ? <span>· {active.title}</span> : null}
+                <div className="w-full shrink-0">
+                  <div className="flex items-start gap-3">
+                    {incoming?.rating ? (
+                      <div className="mt-1 shrink-0">
+                        <Stars rating={incoming.rating} size="lg" />
+                      </div>
+                    ) : null}
+
+                    <p className="text-lg font-medium leading-relaxed text-slate-900 dark:text-slate-50">
+                      “{incoming?.body}”
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-900/70 dark:text-slate-100/70">
+                    <span className="font-medium text-slate-900 dark:text-slate-50">
+                      {incoming?.name || "Verified customer"}
+                    </span>
+                    {incoming?.title ? <span>· {incoming.title}</span> : null}
+                  </div>
+                </div>
               </div>
-            </>
+            </div>
           ) : (
             <p className="text-base leading-relaxed text-slate-900/70 dark:text-slate-100/70">
               Be the first to leave a review.
