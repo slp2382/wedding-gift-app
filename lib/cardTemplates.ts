@@ -2,7 +2,7 @@
 
 export type CardSize = "4x6";
 
-export type Occasion = "wedding" | "birthday";
+export type Occasion = "wedding" | "birthday" | "graduation";
 
 export type CardTemplate = {
   id: string;
@@ -346,6 +346,29 @@ export const CARD_TEMPLATES: CardTemplate[] = [
       5: "price_1SWJX90btTMST7LgosTE6QSI",
     },
   },
+
+    id: "graduation_caps_4x6",
+    name: "Graduation Caps",
+    size: "4x6",
+    sku: "6929E156244D7",
+    occasion: "graduation",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5079273568,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 948413688,
+    printfulBackFileId:  948417107,
+    images: [
+      "/GraduationCapsImages/GraduationCapsMockup1.png",
+      "/GraduationCapsImages/GraduationCapsMockup2.png",
+      "/GraduationCapsImages/GraduationCapsMockup3.png", // optional if you only have 2
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
+
 ];
 
 export function getCardTemplateById(id: string): CardTemplate | undefined {
