@@ -347,6 +347,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },
 
+{
     id: "graduation_caps_4x6",
     name: "Graduation Caps",
     size: "4x6",
