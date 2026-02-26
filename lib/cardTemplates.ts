@@ -208,6 +208,31 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },
 
+{
+    id: "endless_love_4x6",
+    name: "Endless Love",
+    size: "4x6",
+    sku: "ENDLESS_LOVE_4X6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5079282339,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 948478251,
+    printfulBackFileId:  948487636,
+    images: [
+      "/EndlessLoveImages/EndlessLoveMockup1.png",
+      "/EndlessLoveImages/EndlessLoveMockup2.png",
+      "/EndlessLoveImages/EndlessLoveMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
+
+
+
   {
     id: "colorful_wedding_4x6",
     name: "Colorful Wedding",
