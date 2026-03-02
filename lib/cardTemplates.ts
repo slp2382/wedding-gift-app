@@ -407,9 +407,9 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     printfulCoverFileId: 950486199,
     printfulBackFileId:  950485651,
     images: [
-      "/ClassicGraduationImagesImages/ClassicGraduation1.png",
-      "/ClassicGraduationImagesImages/ClassicGraduation2.png",
-      "/ClassicGraduationImagesImages/ClassicGraduation3.png", // optional if you only have 2
+      "/ClassicGraduationImages/ClassicGraduation1.png",
+      "/ClassicGraduationImages/ClassicGraduation2.png",
+      "/ClassicGraduationImages/ClassicGraduation3.png", // optional if you only have 2
     ],
     stripePrices: {
       1: "price_1SWJVN0btTMST7LgTBriW2Am",
