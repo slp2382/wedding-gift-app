@@ -418,6 +418,28 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },
 
+{
+    id: "graduation_2026_4x6",
+    name: "Graduation 2026",
+    size: "4x6",
+    sku: "6929E156244D7",
+    occasion: "graduation",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5079273568,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 950493236,
+    printfulBackFileId:  950495004,
+    images: [
+      "/Graduation2026Images/Graduation2026Mockup1.png",
+      "/Graduation2026Images/Graduation2026Mockup2.png",
+      "/Graduation2026Images/Graduation2026Mockup3.png", // optional if you only have 2
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
 
 
 ];
