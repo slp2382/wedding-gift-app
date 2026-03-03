@@ -67,6 +67,29 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },  
 
+{
+    id: "forever_starts_today_4x6",
+    name: "Forever Starts Today",
+    size: "4x6",
+    sku: "4EVER_TODAY_4X6",
+    occasion: "wedding",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5078065456,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 948477881,
+    printfulBackFileId: 950500941,
+    images: [
+      "/ForeverStartsTodayImages/ForeverStartsTodayMockup1.png",
+      "/ForeverStartsTodayImages/ForeverStartsTodayMockup2.png",
+      "/ForeverStartsTodayImages/ForeverStartsTodayMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
+
 
 {
     id: "fizzy_bubbly_4x6",
