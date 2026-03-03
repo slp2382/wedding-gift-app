@@ -358,7 +358,7 @@ export default function HomePage() {
                 </p>
                 <div className="mt-4 h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
                 <p className="mt-3 text-xs text-slate-900/70 dark:text-slate-200/80">
-                  No cash, no awkward envelopes.
+                  No cash, no ATMs, no banks.
                 </p>
               </div>
 
