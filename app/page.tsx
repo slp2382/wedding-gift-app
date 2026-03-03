@@ -65,13 +65,13 @@ function Reveal({
     return () => observer.disconnect();
   }, [prefersReducedMotion]);
 
-  const style: React.CSSProperties = prefersReducedMotion
-    ? undefined
-    : {
-        transitionDelay: `${delayMs}ms`,
-        transform: shown ? "translate3d(0,0,0)" : `translate3d(0,${y}px,0)`,
-        opacity: shown ? 1 : 0,
-      };
+  const style: React.CSSProperties | undefined = prefersReducedMotion
+  ? undefined
+  : {
+      transitionDelay: `${delayMs}ms`,
+      transform: shown ? "translate3d(0,0,0)" : `translate3d(0,${y}px,0)`,
+      opacity: shown ? 1 : 0,
+    };
 
   return (
     <div
