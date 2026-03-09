@@ -124,6 +124,85 @@ function lerp(start: number, end: number, t: number) {
   return start + (end - start) * t;
 }
 
+function FlippingCard({
+  frontSrc,
+  frontAlt,
+  backContent,
+  transform,
+  opacity = 1,
+  priority = false,
+}: {
+  frontSrc: string;
+  frontAlt: string;
+  backContent: ReactNode;
+  transform: string;
+  opacity?: number;
+  priority?: boolean;
+}) {
+  return (
+    <div
+      className="group relative mx-auto aspect-[5/7] w-full max-w-[220px] [perspective:1600px]"
+      style={{ transformStyle: "preserve-3d", opacity }}
+    >
+      <div
+        className="relative h-full w-full rounded-[1.75rem] shadow-[0_18px_50px_rgba(14,116,144,0.18)] transition-transform duration-100 will-change-transform"
+        style={{
+          transform,
+          transformStyle: "preserve-3d",
+        }}
+      >
+        <div
+          className="absolute inset-0 overflow-hidden rounded-[1.75rem] bg-white dark:bg-slate-950"
+          style={{ backfaceVisibility: "hidden" }}
+        >
+          <Image
+            src={frontSrc}
+            alt={frontAlt}
+            fill
+            className="object-cover"
+            sizes="(max-width: 1024px) 50vw, 25vw"
+            priority={priority}
+          />
+        </div>
+
+        <div
+          className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-[1.75rem] bg-slate-50/95 p-5 dark:bg-slate-950/85"
+          style={{
+            transform: "rotateY(180deg)",
+            backfaceVisibility: "hidden",
+          }}
+        >
+          {backContent}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepBack({
+  step,
+  line1,
+  line2,
+}: {
+  step: string;
+  line1: string;
+  line2: string;
+}) {
+  return (
+    <div className="space-y-4 text-center">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
+        {step}
+      </p>
+      <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
+        {line1}
+      </p>
+      <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
+        {line2}
+      </p>
+    </div>
+  );
+}
+
 function ScrollHowItWorksSection() {
   const prefersReducedMotion = usePrefersReducedMotion();
   const wrapperRef = useRef<HTMLElement | null>(null);
@@ -169,39 +248,31 @@ function ScrollHowItWorksSection() {
     };
   }, [prefersReducedMotion]);
 
-  const card1Slide = clamp(progress / 0.34, 0, 1);
-  const card1Flip = clamp((progress - 0.28) / 0.16, 0, 1);
+  const card1Slide = clamp(progress / 0.22, 0, 1);
+  const card2Slide = clamp((progress - 0.04) / 0.22, 0, 1);
+  const card3Slide = clamp((progress - 0.08) / 0.22, 0, 1);
+  const card4Slide = clamp((progress - 0.12) / 0.22, 0, 1);
 
-  const card2In = clamp((progress - 0.12) / 0.16, 0, 1);
-  const card3In = clamp((progress - 0.2) / 0.16, 0, 1);
-  const card4In = clamp((progress - 0.28) / 0.16, 0, 1);
+  const card1Flip = clamp((progress - 0.24) / 0.12, 0, 1);
+  const card2Flip = clamp((progress - 0.34) / 0.12, 0, 1);
+  const card3Flip = clamp((progress - 0.44) / 0.12, 0, 1);
+  const card4Flip = clamp((progress - 0.54) / 0.12, 0, 1);
 
-  const card1Transform = prefersReducedMotion
-    ? "translate3d(0,0,0) rotateY(0deg)"
-    : `translate3d(${lerp(115, 0, card1Slide)}%, 0, 0) rotateY(${lerp(
-        0,
-        180,
-        card1Flip,
-      )}deg)`;
-
-  const stepCardTransform = (t: number) =>
+  const cardTransform = (slideT: number, flipT: number) =>
     prefersReducedMotion
-      ? "translate3d(0,0,0)"
-      : `translate3d(${lerp(115, 0, t)}%, ${lerp(10, 0, t)}px, 0)`;
-
-  const stepCardOpacity = (t: number) =>
-    prefersReducedMotion ? 1 : lerp(0.2, 1, t);
+      ? "translate3d(0,0,0) rotateY(180deg)"
+      : `translate3d(${lerp(115, 0, slideT)}%, 0, 0) rotateY(${lerp(0, 180, flipT)}deg)`;
 
   return (
     <section
       id="how-it-works"
       ref={wrapperRef}
-      className="relative h-[220vh] scroll-mt-44 sm:h-[230vh] lg:h-[240vh]"
+      className="relative h-[235vh] scroll-mt-44 sm:h-[245vh] lg:h-[255vh]"
     >
       <div className="sticky top-24 flex min-h-[calc(100vh-7rem)] items-center overflow-visible py-6 sm:py-8">
         <div className="w-full space-y-6 sm:space-y-8">
           <Reveal className="space-y-3 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300 sm:text-base">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300 sm:text-base md:text-lg">
               How it works
             </p>
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -213,38 +284,11 @@ function ScrollHowItWorksSection() {
             <div className="pointer-events-none absolute inset-x-8 top-1/2 h-40 -translate-y-1/2 rounded-full bg-sky-300/20 blur-3xl dark:bg-sky-500/10" />
 
             <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
-              <div
-                className="group relative mx-auto aspect-[5/7] w-full max-w-[220px] [perspective:1600px]"
-                style={{ transformStyle: "preserve-3d" }}
-              >
-                <div
-                  className="relative h-full w-full rounded-[1.75rem] shadow-[0_18px_50px_rgba(14,116,144,0.18)] transition-transform duration-100 will-change-transform"
-                  style={{
-                    transform: card1Transform,
-                    transformStyle: "preserve-3d",
-                  }}
-                >
-                  <div
-                    className="absolute inset-0 overflow-hidden rounded-[1.75rem] bg-white dark:bg-slate-950"
-                    style={{ backfaceVisibility: "hidden" }}
-                  >
-                    <Image
-                      src="/Homepage_Display_Card/Homepage_display_Card.png"
-                      alt="Givio card cover"
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 1024px) 50vw, 25vw"
-                      priority
-                    />
-                  </div>
-
-                  <div
-                    className="absolute inset-0 overflow-hidden rounded-[1.75rem] bg-white dark:bg-slate-950"
-                    style={{
-                      transform: "rotateY(180deg)",
-                      backfaceVisibility: "hidden",
-                    }}
-                  >
+              <FlippingCard
+                frontSrc="/Homepage_Display_Card/Homepage_display_Card.png"
+                frontAlt="Givio floral wedding card cover"
+                backContent={
+                  <div className="relative h-full w-full">
                     <Image
                       src="/Homepage_Display_Card/Inside_cover.png"
                       alt="Inside of a Givio card showing the QR code"
@@ -254,68 +298,52 @@ function ScrollHowItWorksSection() {
                       priority
                     />
                   </div>
-                </div>
-              </div>
+                }
+                transform={cardTransform(card1Slide, card1Flip)}
+                priority
+              />
 
-              <div
-                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col items-center justify-center rounded-[1.75rem] bg-slate-50/95 p-5 text-center shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:bg-slate-950/85"
-                style={{
-                  transform: stepCardTransform(card2In),
-                  opacity: stepCardOpacity(card2In),
-                }}
-              >
-                <div className="space-y-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                    Step 1
-                  </p>
-                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
-                    Scan the QR
-                  </p>
-                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
-                    Load your gift
-                  </p>
-                </div>
-              </div>
+              <FlippingCard
+                frontSrc="/Homepage_Display_Card/Homepage_display_Card_2.png"
+                frontAlt="Givio birthday card cover"
+                backContent={
+                  <StepBack
+                    step="Step 1"
+                    line1="Scan the QR"
+                    line2="Load your gift"
+                  />
+                }
+                transform={cardTransform(card2Slide, card2Flip)}
+                priority
+              />
 
-              <div
-                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col items-center justify-center rounded-[1.75rem] bg-slate-50/95 p-5 text-center shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:bg-slate-950/85"
-                style={{
-                  transform: stepCardTransform(card3In),
-                  opacity: stepCardOpacity(card3In),
-                }}
-              >
-                <div className="space-y-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                    Step 2
-                  </p>
-                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
-                    Give your
-                  </p>
-                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
-                    Givio card
-                  </p>
-                </div>
-              </div>
+              <FlippingCard
+                frontSrc="/Homepage_Display_Card/Homepage_display_Card_3.png"
+                frontAlt="Givio graduation card cover"
+                backContent={
+                  <StepBack
+                    step="Step 2"
+                    line1="Give your"
+                    line2="Givio card"
+                  />
+                }
+                transform={cardTransform(card3Slide, card3Flip)}
+                priority
+              />
 
-              <div
-                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col items-center justify-center rounded-[1.75rem] bg-slate-50/95 p-5 text-center shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:bg-slate-950/85"
-                style={{
-                  transform: stepCardTransform(card4In),
-                  opacity: stepCardOpacity(card4In),
-                }}
-              >
-                <div className="space-y-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                    Step 3
-                  </p>
-                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
-                    Recipient scans
-                  </p>
-                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
-                    to claim funds
-                  </p>
-                </div>
-              </div>
+              <FlippingCard
+                frontSrc="/Homepage_Display_Card/Homepage_display_Card_4.png"
+                frontAlt="Givio travel themed card cover"
+                backContent={
+                  <StepBack
+                    step="Step 3"
+                    line1="Recipient scans"
+                    line2="to claim funds"
+                  />
+                }
+                transform={cardTransform(card4Slide, card4Flip)}
+                priority
+              />
             </div>
           </div>
         </div>
