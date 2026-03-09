@@ -66,12 +66,12 @@ function Reveal({
   }, [prefersReducedMotion]);
 
   const style: React.CSSProperties | undefined = prefersReducedMotion
-  ? undefined
-  : {
-      transitionDelay: `${delayMs}ms`,
-      transform: shown ? "translate3d(0,0,0)" : `translate3d(0,${y}px,0)`,
-      opacity: shown ? 1 : 0,
-    };
+    ? undefined
+    : {
+        transitionDelay: `${delayMs}ms`,
+        transform: shown ? "translate3d(0,0,0)" : `translate3d(0,${y}px,0)`,
+        opacity: shown ? 1 : 0,
+      };
 
   return (
     <div
@@ -113,6 +113,224 @@ function RevealStagger({
         </Reveal>
       ))}
     </div>
+  );
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function lerp(start: number, end: number, t: number) {
+  return start + (end - start) * t;
+}
+
+function ScrollHowItWorksSection() {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const wrapperRef = useRef<HTMLElement | null>(null);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setProgress(1);
+      return;
+    }
+
+    let rafId = 0;
+
+    const update = () => {
+      const el = wrapperRef.current;
+      if (!el) return;
+
+      const rect = el.getBoundingClientRect();
+      const total = Math.max(el.offsetHeight - window.innerHeight, 1);
+      const travelled = clamp(-rect.top, 0, total);
+      const next = clamp(travelled / total, 0, 1);
+
+      setProgress((prev) => {
+        if (Math.abs(prev - next) < 0.001) return prev;
+        return next;
+      });
+    };
+
+    const requestTick = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(update);
+    };
+
+    update();
+
+    window.addEventListener("scroll", requestTick, { passive: true });
+    window.addEventListener("resize", requestTick);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", requestTick);
+      window.removeEventListener("resize", requestTick);
+    };
+  }, [prefersReducedMotion]);
+
+  const card1Slide = clamp(progress / 0.38, 0, 1);
+  const card1Flip = clamp((progress - 0.34) / 0.18, 0, 1);
+
+  const card2In = clamp((progress - 0.16) / 0.2, 0, 1);
+  const card3In = clamp((progress - 0.26) / 0.2, 0, 1);
+  const card4In = clamp((progress - 0.36) / 0.2, 0, 1);
+
+  const card1Transform = prefersReducedMotion
+    ? "translate3d(0,0,0) rotateY(0deg)"
+    : `translate3d(${lerp(120, 0, card1Slide)}%, 0, 0) rotateY(${lerp(
+        0,
+        180,
+        card1Flip,
+      )}deg)`;
+
+  const stepCardTransform = (t: number) =>
+    prefersReducedMotion
+      ? "translate3d(0,0,0)"
+      : `translate3d(${lerp(120, 0, t)}%, ${lerp(14, 0, t)}px, 0)`;
+
+  const stepCardOpacity = (t: number) =>
+    prefersReducedMotion ? 1 : lerp(0.2, 1, t);
+
+  return (
+    <section
+      id="how-it-works"
+      ref={wrapperRef}
+      className="relative h-[320vh] scroll-mt-44 sm:h-[340vh] lg:h-[360vh]"
+    >
+      <div className="sticky top-24 flex h-[calc(100vh-7rem)] items-center overflow-hidden">
+        <div className="w-full space-y-8">
+          <Reveal className="space-y-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
+              How it works
+            </p>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              One real card, three simple steps
+            </h2>
+            <p className="mx-auto max-w-2xl text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
+              Scroll through the Givio experience. The first card reveals the QR
+              inside, then the next three cards show exactly how gifting works.
+            </p>
+          </Reveal>
+
+          <div className="relative mx-auto max-w-6xl">
+            <div className="pointer-events-none absolute inset-x-8 top-1/2 h-40 -translate-y-1/2 rounded-full bg-sky-300/20 blur-3xl dark:bg-sky-500/10" />
+
+            <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+              <div
+                className="group relative mx-auto aspect-[5/7] w-full max-w-[220px] [perspective:1600px]"
+                style={{ transformStyle: "preserve-3d" }}
+              >
+                <div
+                  className="relative h-full w-full rounded-[1.75rem] shadow-[0_18px_50px_rgba(14,116,144,0.18)] transition-transform duration-100 will-change-transform"
+                  style={{
+                    transform: card1Transform,
+                    transformStyle: "preserve-3d",
+                  }}
+                >
+                  <div
+                    className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-sky-100/80 bg-white dark:border-sky-800/70"
+                    style={{ backfaceVisibility: "hidden" }}
+                  >
+                    <Image
+                      src="/Homepage_Display_Card/Homepage_display_Card.png"
+                      alt="Givio card cover"
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 1024px) 50vw, 25vw"
+                      priority
+                    />
+                  </div>
+
+                  <div
+                    className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-sky-100/80 bg-white dark:border-sky-800/70"
+                    style={{
+                      transform: "rotateY(180deg)",
+                      backfaceVisibility: "hidden",
+                    }}
+                  >
+                    <Image
+                      src="/Homepage_Display_Card/Inside_cover.png"
+                      alt="Inside of a Givio card showing the QR code"
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 1024px) 50vw, 25vw"
+                      priority
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col justify-between rounded-[1.75rem] border border-sky-100/80 bg-slate-50/95 p-5 shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:border-sky-800/70 dark:bg-slate-950/85"
+                style={{
+                  transform: stepCardTransform(card2In),
+                  opacity: stepCardOpacity(card2In),
+                }}
+              >
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
+                    Step 1
+                  </p>
+                  <h3 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                    Scan the QR
+                  </h3>
+                  <p className="text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
+                    Load your gift
+                  </p>
+                </div>
+
+                <div className="h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
+              </div>
+
+              <div
+                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col justify-between rounded-[1.75rem] border border-sky-100/80 bg-slate-50/95 p-5 shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:border-sky-800/70 dark:bg-slate-950/85"
+                style={{
+                  transform: stepCardTransform(card3In),
+                  opacity: stepCardOpacity(card3In),
+                }}
+              >
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
+                    Step 2
+                  </p>
+                  <h3 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                    Give your
+                  </h3>
+                  <p className="text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
+                    Givio card
+                  </p>
+                </div>
+
+                <div className="h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
+              </div>
+
+              <div
+                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col justify-between rounded-[1.75rem] border border-sky-100/80 bg-slate-50/95 p-5 shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:border-sky-800/70 dark:bg-slate-950/85"
+                style={{
+                  transform: stepCardTransform(card4In),
+                  opacity: stepCardOpacity(card4In),
+                }}
+              >
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
+                    Step 3
+                  </p>
+                  <h3 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                    Recipient scans
+                  </h3>
+                  <p className="text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
+                    to claim funds
+                  </p>
+                </div>
+
+                <div className="h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -227,9 +445,9 @@ export default function HomePage() {
               </h1>
 
               <p className="max-w-xl text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                Givio Cards turn a simple card into a QR powered gift. Guests scan a
-                card, load a monetary gift through Stripe, and the recipient scans
-                the same card to claim their funds later.
+                Givio Cards turn a simple card into a QR powered gift. Guests
+                scan a card, load a monetary gift through Stripe, and the
+                recipient scans the same card to claim their funds later.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -249,8 +467,8 @@ export default function HomePage() {
               </div>
 
               <p className="text-xs text-slate-900/70 dark:text-slate-200/80">
-                Recipients keep the gift amount. Guests cover a small service fee.
-                Payments are handled securely by Stripe.
+                Recipients keep the gift amount. Guests cover a small service
+                fee. Payments are handled securely by Stripe.
               </p>
             </Reveal>
 
@@ -317,67 +535,7 @@ export default function HomePage() {
             </Reveal>
           </section>
 
-          <section id="how-it-works" className="scroll-mt-44 space-y-8">
-            <Reveal className="space-y-3 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
-                How it works
-              </p>
-              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                Three simple steps, one QR code
-              </h2>
-              <p className="mx-auto max-w-2xl text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                Every Givio card carries a single QR code. Givers use it to load
-                gifts, and recipients use the same code to claim them later.
-              </p>
-            </Reveal>
-
-            <RevealStagger className="grid gap-5 md:grid-cols-3" baseDelayMs={60}>
-              <div className="group rounded-3xl border border-sky-100/80 bg-slate-50/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-sky-800/70 dark:bg-slate-950/80">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/80 dark:text-sky-300/80">
-                  Step 1
-                </p>
-                <h3 className="text-base font-semibold">Buy a Givio card</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                  Pick up a card from a partner shop or order a pack online. Each one
-                  includes a unique QR code.
-                </p>
-                <div className="mt-4 h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
-                <p className="mt-3 text-xs text-slate-900/70 dark:text-slate-200/80">
-                  Great for weddings, birthdays, and showers.
-                </p>
-              </div>
-
-              <div className="group rounded-3xl border border-sky-100/80 bg-slate-50/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-sky-800/70 dark:bg-slate-950/80">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/80 dark:text-sky-300/80">
-                  Step 2
-                </p>
-                <h3 className="text-base font-semibold">Scan to load your gift</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                  Givers scan the QR, enter their name and note, choose an amount,
-                  and pay through Stripe.
-                </p>
-                <div className="mt-4 h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
-                <p className="mt-3 text-xs text-slate-900/70 dark:text-slate-200/80">
-                  No cash, no ATMs, no banks.
-                </p>
-              </div>
-
-              <div className="group rounded-3xl border border-sky-100/80 bg-slate-50/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-sky-800/70 dark:bg-slate-950/80">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700/80 dark:text-sky-300/80">
-                  Step 3
-                </p>
-                <h3 className="text-base font-semibold">Recipient scans to claim</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                  The recipient scans that same QR code later to claim the funds and
-                  deposit them.
-                </p>
-                <div className="mt-4 h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
-                <p className="mt-3 text-xs text-slate-900/70 dark:text-slate-200/80">
-                  Familiar payout methods, clear status updates.
-                </p>
-              </div>
-            </RevealStagger>
-          </section>
+          <ScrollHowItWorksSection />
 
           <Reveal>
             <section className="space-y-5 rounded-3xl border border-sky-100/80 bg-slate-50/95 p-7 shadow-lg shadow-sky-100/70 dark:border-sky-800 dark:bg-slate-950/85 dark:shadow-none">
@@ -390,8 +548,8 @@ export default function HomePage() {
                     Ready to put Givio Cards in the real world
                   </h2>
                   <p className="max-w-2xl text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                    We are rolling out physical Givio Cards with select shops. You can
-                    order card packs online today.
+                    We are rolling out physical Givio Cards with select shops.
+                    You can order card packs online today.
                   </p>
                 </div>
 
@@ -426,8 +584,8 @@ export default function HomePage() {
                 Answers for recipients and gifters
               </h2>
               <p className="mx-auto max-w-2xl text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                Givio Cards are a new way to give and receive event gifts. Here are
-                clear answers to the most common questions we hear.
+                Givio Cards are a new way to give and receive event gifts. Here
+                are clear answers to the most common questions we hear.
               </p>
             </Reveal>
 
@@ -437,9 +595,9 @@ export default function HomePage() {
                   Are Givio Cards safe to use
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                  Payments are processed by Stripe. Card details never pass through or
-                  live on Givio servers. We only store the info needed to link each card
-                  to its gift and payout.
+                  Payments are processed by Stripe. Card details never pass
+                  through or live on Givio servers. We only store the info
+                  needed to link each card to its gift and payout.
                 </p>
               </div>
 
@@ -448,8 +606,9 @@ export default function HomePage() {
                   What fees apply and who pays them
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                  Guests pay for the physical card and a small service fee when they send a
-                  gift. Recipients keep the full gift amount if using a free transfer method.
+                  Guests pay for the physical card and a small service fee when
+                  they send a gift. Recipients keep the full gift amount if
+                  using a free transfer method.
                 </p>
               </div>
 
@@ -458,9 +617,9 @@ export default function HomePage() {
                   What if someone loses the card
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                  The QR code on the physical card is the key to the gift. We recommend
-                  recipients keep cards in a safe place once they are opened. If a card is
-                  lost before a payout, contact us.
+                  The QR code on the physical card is the key to the gift. We
+                  recommend recipients keep cards in a safe place once they are
+                  opened. If a card is lost before a payout, contact us.
                 </p>
               </div>
 
@@ -469,8 +628,8 @@ export default function HomePage() {
                   How long can gifts remain unclaimed
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                  Funds stay linked to the card until a payout request is made or a year
-                  after the card is loaded, submitted, and processed.
+                  Funds stay linked to the card until a payout request is made
+                  or a year after the card is loaded, submitted, and processed.
                 </p>
               </div>
 
@@ -479,8 +638,9 @@ export default function HomePage() {
                   Do recipients need an app or account
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                  No app is required. Recipients scan the QR code printed inside the card
-                  and submit a payout request through a mobile friendly page.
+                  No app is required. Recipients scan the QR code printed inside
+                  the card and submit a payout request through a mobile friendly
+                  page.
                 </p>
               </div>
 
@@ -489,8 +649,9 @@ export default function HomePage() {
                   Which payout methods are supported
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-                  We support Venmo payouts and bank transfers. Our goal is to give recipients
-                  familiar ways to move gift money where they want it.
+                  We support Venmo payouts and bank transfers. Our goal is to
+                  give recipients familiar ways to move gift money where they
+                  want it.
                 </p>
               </div>
             </RevealStagger>
