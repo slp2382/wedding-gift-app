@@ -141,7 +141,7 @@ function FlippingCard({
 }) {
   return (
     <div
-      className="group relative mx-auto aspect-[5/7] w-full max-w-[220px] [perspective:1600px]"
+      className="group relative mx-auto aspect-[5/7] w-full max-w-[160px] sm:max-w-[220px] [perspective:1600px]"
       style={{ transformStyle: "preserve-3d", opacity }}
     >
       <div
@@ -269,8 +269,8 @@ function ScrollHowItWorksSection() {
       ref={wrapperRef}
       className="relative h-[235vh] scroll-mt-44 sm:h-[245vh] lg:h-[255vh]"
     >
-      <div className="sticky top-24 flex min-h-[calc(100vh-7rem)] items-center overflow-visible py-6 sm:py-8">
-        <div className="w-full space-y-6 sm:space-y-8">
+      <div className="sticky top-24 flex min-h-[calc(100svh-7rem)] items-center overflow-visible py-6 pb-24 sm:min-h-[calc(100vh-7rem)] sm:py-8 sm:pb-8">
+        <div className="w-full space-y-5 sm:space-y-8">
           <Reveal className="space-y-3 text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300 sm:text-base md:text-lg">
               How it works
