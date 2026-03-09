@@ -169,16 +169,16 @@ function ScrollHowItWorksSection() {
     };
   }, [prefersReducedMotion]);
 
-  const card1Slide = clamp(progress / 0.38, 0, 1);
-  const card1Flip = clamp((progress - 0.34) / 0.18, 0, 1);
+  const card1Slide = clamp(progress / 0.34, 0, 1);
+  const card1Flip = clamp((progress - 0.28) / 0.16, 0, 1);
 
-  const card2In = clamp((progress - 0.16) / 0.2, 0, 1);
-  const card3In = clamp((progress - 0.26) / 0.2, 0, 1);
-  const card4In = clamp((progress - 0.36) / 0.2, 0, 1);
+  const card2In = clamp((progress - 0.12) / 0.16, 0, 1);
+  const card3In = clamp((progress - 0.2) / 0.16, 0, 1);
+  const card4In = clamp((progress - 0.28) / 0.16, 0, 1);
 
   const card1Transform = prefersReducedMotion
     ? "translate3d(0,0,0) rotateY(0deg)"
-    : `translate3d(${lerp(120, 0, card1Slide)}%, 0, 0) rotateY(${lerp(
+    : `translate3d(${lerp(115, 0, card1Slide)}%, 0, 0) rotateY(${lerp(
         0,
         180,
         card1Flip,
@@ -187,7 +187,7 @@ function ScrollHowItWorksSection() {
   const stepCardTransform = (t: number) =>
     prefersReducedMotion
       ? "translate3d(0,0,0)"
-      : `translate3d(${lerp(120, 0, t)}%, ${lerp(14, 0, t)}px, 0)`;
+      : `translate3d(${lerp(115, 0, t)}%, ${lerp(10, 0, t)}px, 0)`;
 
   const stepCardOpacity = (t: number) =>
     prefersReducedMotion ? 1 : lerp(0.2, 1, t);
@@ -196,21 +196,17 @@ function ScrollHowItWorksSection() {
     <section
       id="how-it-works"
       ref={wrapperRef}
-      className="relative h-[320vh] scroll-mt-44 sm:h-[340vh] lg:h-[360vh]"
+      className="relative h-[220vh] scroll-mt-44 sm:h-[230vh] lg:h-[240vh]"
     >
-      <div className="sticky top-24 flex h-[calc(100vh-7rem)] items-center overflow-hidden">
-        <div className="w-full space-y-8">
+      <div className="sticky top-24 flex min-h-[calc(100vh-7rem)] items-center overflow-visible py-6 sm:py-8">
+        <div className="w-full space-y-6 sm:space-y-8">
           <Reveal className="space-y-3 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300 sm:text-base">
               How it works
             </p>
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               One real card, three simple steps
             </h2>
-            <p className="mx-auto max-w-2xl text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
-              Scroll through the Givio experience. The first card reveals the QR
-              inside, then the next three cards show exactly how gifting works.
-            </p>
           </Reveal>
 
           <div className="relative mx-auto max-w-6xl">
@@ -229,7 +225,7 @@ function ScrollHowItWorksSection() {
                   }}
                 >
                   <div
-                    className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-sky-100/80 bg-white dark:border-sky-800/70"
+                    className="absolute inset-0 overflow-hidden rounded-[1.75rem] bg-white dark:bg-slate-950"
                     style={{ backfaceVisibility: "hidden" }}
                   >
                     <Image
@@ -243,7 +239,7 @@ function ScrollHowItWorksSection() {
                   </div>
 
                   <div
-                    className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-sky-100/80 bg-white dark:border-sky-800/70"
+                    className="absolute inset-0 overflow-hidden rounded-[1.75rem] bg-white dark:bg-slate-950"
                     style={{
                       transform: "rotateY(180deg)",
                       backfaceVisibility: "hidden",
@@ -262,69 +258,63 @@ function ScrollHowItWorksSection() {
               </div>
 
               <div
-                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col justify-between rounded-[1.75rem] border border-sky-100/80 bg-slate-50/95 p-5 shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:border-sky-800/70 dark:bg-slate-950/85"
+                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col items-center justify-center rounded-[1.75rem] bg-slate-50/95 p-5 text-center shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:bg-slate-950/85"
                 style={{
                   transform: stepCardTransform(card2In),
                   opacity: stepCardOpacity(card2In),
                 }}
               >
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                     Step 1
                   </p>
-                  <h3 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
                     Scan the QR
-                  </h3>
-                  <p className="text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
+                  </p>
+                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
                     Load your gift
                   </p>
                 </div>
-
-                <div className="h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
               </div>
 
               <div
-                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col justify-between rounded-[1.75rem] border border-sky-100/80 bg-slate-50/95 p-5 shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:border-sky-800/70 dark:bg-slate-950/85"
+                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col items-center justify-center rounded-[1.75rem] bg-slate-50/95 p-5 text-center shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:bg-slate-950/85"
                 style={{
                   transform: stepCardTransform(card3In),
                   opacity: stepCardOpacity(card3In),
                 }}
               >
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                     Step 2
                   </p>
-                  <h3 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
                     Give your
-                  </h3>
-                  <p className="text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
+                  </p>
+                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
                     Givio card
                   </p>
                 </div>
-
-                <div className="h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
               </div>
 
               <div
-                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col justify-between rounded-[1.75rem] border border-sky-100/80 bg-slate-50/95 p-5 shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:border-sky-800/70 dark:bg-slate-950/85"
+                className="mx-auto flex aspect-[5/7] w-full max-w-[220px] flex-col items-center justify-center rounded-[1.75rem] bg-slate-50/95 p-5 text-center shadow-[0_18px_50px_rgba(14,116,144,0.12)] transition-transform duration-100 will-change-transform dark:bg-slate-950/85"
                 style={{
                   transform: stepCardTransform(card4In),
                   opacity: stepCardOpacity(card4In),
                 }}
               >
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                     Step 3
                   </p>
-                  <h3 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
                     Recipient scans
-                  </h3>
-                  <p className="text-base leading-relaxed text-slate-900/80 dark:text-slate-100/80">
+                  </p>
+                  <p className="text-xl font-semibold leading-tight text-slate-950 dark:text-slate-50 sm:text-2xl">
                     to claim funds
                   </p>
                 </div>
-
-                <div className="h-px w-full bg-gradient-to-r from-sky-200 via-sky-100 to-transparent dark:from-sky-800 dark:via-sky-900" />
               </div>
             </div>
           </div>
