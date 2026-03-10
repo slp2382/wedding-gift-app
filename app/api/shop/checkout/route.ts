@@ -6,7 +6,6 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 import { absoluteUrl } from "@/lib/siteUrl";
 
-
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
@@ -22,6 +21,7 @@ type CartItemPayload = {
 type RecipientPayload = {
   name: string;
   address1: string;
+  address2?: string;
   city: string;
   stateCode: string;
   countryCode: string;
@@ -71,6 +71,10 @@ function maskSecret(v: string | null | undefined): string | null {
   if (!v) return null;
   if (v.length <= 8) return "********";
   return `${v.slice(0, 8)}...${v.slice(-4)}`;
+}
+
+function cleanString(value: string | undefined | null) {
+  return (value ?? "").trim();
 }
 
 function buildItemsMetadata(
@@ -182,7 +186,10 @@ function parsePartnerTiers(value: unknown): PartnerTier[] {
   return tiers;
 }
 
-function findPartnerUnitPriceCents(totalQty: number, tiers: PartnerTier[]): number | null {
+function findPartnerUnitPriceCents(
+  totalQty: number,
+  tiers: PartnerTier[],
+): number | null {
   for (const tier of tiers) {
     const withinMin = totalQty >= tier.min_qty;
     const withinMax = tier.max_qty === null ? true : totalQty <= tier.max_qty;
@@ -238,6 +245,8 @@ export async function POST(req: NextRequest) {
         process.env.STRIPE_SHOP_SHIPPING_PRICE_ID ?? null,
       PRINTFUL_API_KEY: maskSecret(process.env.PRINTFUL_API_KEY ?? null),
       VERCEL_ENV: process.env.VERCEL_ENV ?? null,
+      SITE_URL: process.env.SITE_URL ?? null,
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? null,
       GIFTLINK_BASE_URL: process.env.GIFTLINK_BASE_URL ?? null,
       SUPABASE_URL:
         process.env.SUPABASE_URL ??
@@ -280,8 +289,10 @@ export async function POST(req: NextRequest) {
     const originHeader = req.headers.get("origin");
     const origin =
       originHeader ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.SITE_URL ||
       process.env.GIFTLINK_BASE_URL ||
-      "https://www.giftlink.cards";
+      "https://www.giviocards.com";
 
     const body = (await req.json().catch(() => null)) as
       | {
@@ -314,7 +325,32 @@ export async function POST(req: NextRequest) {
     }
 
     const cartItems = body.items;
-    const recipient = body.recipient;
+    const recipient = {
+      name: cleanString(body.recipient.name),
+      address1: cleanString(body.recipient.address1),
+      address2: cleanString(body.recipient.address2),
+      city: cleanString(body.recipient.city),
+      stateCode: cleanString(body.recipient.stateCode).toUpperCase(),
+      countryCode: cleanString(body.recipient.countryCode || "US").toUpperCase(),
+      zip: cleanString(body.recipient.zip),
+    };
+
+    if (
+      !recipient.name ||
+      !recipient.address1 ||
+      !recipient.city ||
+      !recipient.stateCode ||
+      !recipient.countryCode ||
+      !recipient.zip
+    ) {
+      return NextResponse.json(
+        {
+          error: "A complete shipping address is required",
+          ...(debugEnabled ? { debug } : {}),
+        },
+        { status: 400 },
+      );
+    }
 
     debug.computed.origin = origin;
     debug.computed.cartItems = cartItems.map((i) => ({
@@ -322,8 +358,12 @@ export async function POST(req: NextRequest) {
       quantity: i.quantity,
     }));
     debug.computed.recipientSummary = {
-      countryCode: recipient.countryCode,
+      name: recipient.name,
+      address1: recipient.address1,
+      address2: recipient.address2 || null,
+      city: recipient.city,
       stateCode: recipient.stateCode,
+      countryCode: recipient.countryCode,
       zip: recipient.zip,
     };
 
@@ -403,7 +443,7 @@ export async function POST(req: NextRequest) {
             currency: "usd",
             unit_amount: unitPriceCents,
             product_data: {
-              name: `${(template as any).name ?? "GiftLink card"} (4x6)`,
+              name: `${(template as any).name ?? "Givio Cards card"} (4x6)`,
             },
           },
         };
@@ -479,9 +519,10 @@ export async function POST(req: NextRequest) {
       recipient: {
         name: recipient.name,
         address1: recipient.address1,
+        ...(recipient.address2 ? { address2: recipient.address2 } : {}),
         city: recipient.city,
         state_code: recipient.stateCode,
-        country_code: recipient.countryCode || "US",
+        country_code: recipient.countryCode,
         zip: recipient.zip,
       },
       items: itemsForPrintful,
@@ -712,7 +753,7 @@ export async function POST(req: NextRequest) {
           duration: "once",
           amount_off: discountAmountCents,
           currency: "usd",
-          name: `GiftLink Partner ${code}`,
+          name: `Givio Cards Partner ${code}`,
         });
         couponId = created.id;
       } else {
@@ -722,13 +763,13 @@ export async function POST(req: NextRequest) {
               ? {
                   duration: "once",
                   percent_off: Number(row.discount_value ?? 0),
-                  name: `GiftLink ${code}`,
+                  name: `Givio Cards ${code}`,
                 }
               : {
                   duration: "once",
                   amount_off: Number(row.discount_value ?? 0),
                   currency: "usd",
-                  name: `GiftLink ${code}`,
+                  name: `Givio Cards ${code}`,
                 },
           );
 
@@ -783,32 +824,79 @@ export async function POST(req: NextRequest) {
       };
     }
 
+    const stripeCustomer = await stripe.customers.create({
+      name: recipient.name,
+      address: {
+        line1: recipient.address1,
+        ...(recipient.address2 ? { line2: recipient.address2 } : {}),
+        city: recipient.city,
+        state: recipient.stateCode,
+        postal_code: recipient.zip,
+        country: recipient.countryCode,
+      },
+      shipping: {
+        name: recipient.name,
+        address: {
+          line1: recipient.address1,
+          ...(recipient.address2 ? { line2: recipient.address2 } : {}),
+          city: recipient.city,
+          state: recipient.stateCode,
+          postal_code: recipient.zip,
+          country: recipient.countryCode,
+        },
+      },
+      metadata: {
+        source: "giviocards_shop_checkout",
+        fulfillment_shipping_source: "site_entered",
+      },
+    });
+
+    debug.computed.customer = {
+      id: stripeCustomer.id,
+      shippingPrefilled: true,
+    };
+
+    const allowedCountry =
+      recipient.countryCode as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry;
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      customer: stripeCustomer.id,
+      customer_update: {
+        address: "never",
+        name: "never",
+        shipping: "never",
+      },
       line_items: lineItems,
       discounts: discountsParam,
-	success_url: absoluteUrl(`/shop?status=success&session_id={CHECKOUT_SESSION_ID}`),
-	cancel_url: absoluteUrl(`/shop?status=cancelled`),
-
+      success_url: absoluteUrl(
+        `/shop?status=success&session_id={CHECKOUT_SESSION_ID}`,
+      ),
+      cancel_url: absoluteUrl(`/shop?status=cancelled`),
       metadata: {
         type: "card_pack_order",
         packQuantity: String(totalCards),
+        fulfillment_shipping_source: "site_entered",
 
         ...itemsMetadata,
-
         ...discountMetadata,
+
+        shipping_name: recipient.name,
+        shipping_address_line1: recipient.address1,
+        shipping_address_line2: recipient.address2 || "",
+        shipping_city: recipient.city,
+        shipping_state: recipient.stateCode,
+        shipping_country: recipient.countryCode,
+        shipping_zip: recipient.zip,
 
         shipping_printful_method_id: best.id,
         shipping_printful_method_name: best.name,
         shipping_printful_rate_cents: String(printfulRateCents),
         shipping_handling_cents: String(handlingCents),
         shipping_total_cents: String(totalShippingCents),
-        shipping_country: recipient.countryCode,
-        shipping_state: recipient.stateCode,
-        shipping_zip: recipient.zip,
       },
       shipping_address_collection: {
-        allowed_countries: ["US"],
+        allowed_countries: [allowedCountry],
       },
       shipping_options: [
         {

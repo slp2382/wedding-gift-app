@@ -98,6 +98,93 @@ type ShipAddr = {
   country?: string | null;
 };
 
+type CanonicalShipping = {
+  name: string | null;
+  address: ShipAddr | null;
+  source: "metadata" | "stripe_customer_details" | "missing";
+};
+
+function cleanString(value: unknown): string | null {
+  const s = String(value ?? "").trim();
+  return s ? s : null;
+}
+
+function hasUsableShippingAddress(addr: ShipAddr | null | undefined): boolean {
+  return Boolean(
+    cleanString(addr?.line1) &&
+      cleanString(addr?.city) &&
+      cleanString(addr?.state) &&
+      cleanString(addr?.postal_code) &&
+      cleanString(addr?.country),
+  );
+}
+
+function readCanonicalShippingFromMetadata(
+  metadata: Record<string, string | undefined>,
+): CanonicalShipping | null {
+  const line1 = cleanString(metadata.shipping_address_line1);
+  const city = cleanString(metadata.shipping_city);
+  const state = cleanString(metadata.shipping_state);
+  const postalCode = cleanString(metadata.shipping_zip);
+  const country = cleanString(metadata.shipping_country);
+
+  if (!line1 || !city || !state || !postalCode || !country) {
+    return null;
+  }
+
+  return {
+    name: cleanString(metadata.shipping_name),
+    address: {
+      line1,
+      line2: cleanString(metadata.shipping_address_line2),
+      city,
+      state,
+      postal_code: postalCode,
+      country,
+    },
+    source: "metadata",
+  };
+}
+
+function resolveCanonicalShipping(args: {
+  metadata: Record<string, string | undefined>;
+  customerDetails:
+    | {
+        email?: string | null;
+        name?: string | null;
+        address?: ShipAddr | null;
+      }
+    | null
+    | undefined;
+}): CanonicalShipping {
+  const fromMetadata = readCanonicalShippingFromMetadata(args.metadata);
+  if (fromMetadata) return fromMetadata;
+
+  const customerName = cleanString(args.customerDetails?.name);
+  const customerAddress = args.customerDetails?.address ?? null;
+
+  if (hasUsableShippingAddress(customerAddress)) {
+    return {
+      name: customerName,
+      address: {
+        line1: cleanString(customerAddress?.line1),
+        line2: cleanString(customerAddress?.line2),
+        city: cleanString(customerAddress?.city),
+        state: cleanString(customerAddress?.state),
+        postal_code: cleanString(customerAddress?.postal_code),
+        country: cleanString(customerAddress?.country),
+      },
+      source: "stripe_customer_details",
+    };
+  }
+
+  return {
+    name: customerName,
+    address: null,
+    source: "missing",
+  };
+}
+
 function formatAddressLines(addr: ShipAddr | null | undefined): string[] {
   if (!addr) return [];
   const line1 = addr.line1 ?? "";
@@ -681,34 +768,30 @@ export async function POST(req: NextRequest) {
           | null
           | undefined;
 
-        let shippingName: string | null = customerDetails?.name ?? null;
-        let shippingAddress: ShipAddr | null = customerDetails?.address ?? null;
+        const canonicalShipping = resolveCanonicalShipping({
+          metadata,
+          customerDetails,
+        });
 
-        const paymentIntentId =
-          typeof session.payment_intent === "string"
-            ? session.payment_intent
-            : session.payment_intent?.id;
+        const shippingName = canonicalShipping.name;
+        const shippingAddress = canonicalShipping.address;
 
-        if (paymentIntentId) {
-          try {
-            const paymentIntent = await stripe.paymentIntents.retrieve(
-              paymentIntentId,
-            );
-            const piShipping = paymentIntent.shipping as
-              | { name?: string | null; address?: ShipAddr | null }
-              | null
-              | undefined;
-
-            if (piShipping) {
-              shippingName = piShipping.name ?? shippingName;
-              shippingAddress = (piShipping.address ?? shippingAddress) || null;
-            }
-          } catch (err) {
-            console.error(
-              "Could not retrieve payment intent for shipping details",
-              err,
-            );
-          }
+        if (canonicalShipping.source !== "metadata") {
+          console.warn(
+            "[stripe-webhook] Card pack order is not using metadata shipping as canonical source",
+            {
+              sessionId: session.id,
+              source: canonicalShipping.source,
+              shippingName,
+              shippingAddress,
+            },
+          );
+        } else {
+          console.log("[stripe-webhook] Using canonical site entered shipping", {
+            sessionId: session.id,
+            shippingName,
+            shippingAddress,
+          });
         }
 
         const items =
