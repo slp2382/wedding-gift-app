@@ -29,7 +29,7 @@ function ShopPageContent() {
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-slate-100 px-4 py-6 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 dark:text-slate-50">
       <QuantityDiscountModal />
 
-      <div className="mx-auto flex min-h-[90vh] max-w-5xl flex-col">
+      <div className="mx-auto flex min-h-[90vh] max-w-5xl flex-col pb-28">
         <header className="mb-8 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/" className="flex items-center">
             <Image
@@ -118,6 +118,30 @@ function ShopPageContent() {
           </section>
         </main>
       </div>
+
+      {itemCount > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-[100] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
+          <div className="mx-auto max-w-5xl rounded-2xl border border-sky-200/80 bg-slate-50/95 shadow-2xl shadow-sky-200/50 backdrop-blur-sm dark:border-sky-700/70 dark:bg-slate-950/95 dark:shadow-none">
+            <div className="flex items-center justify-between gap-4 p-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+                  {itemCount} card{itemCount === 1 ? "" : "s"} in your cart
+                </p>
+                <p className="text-xs text-slate-700/70 dark:text-slate-100/70">
+                  Review your selection before checkout
+                </p>
+              </div>
+
+              <Link
+                href="/cart"
+                className="shrink-0 rounded-full bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:bg-sky-500 dark:hover:bg-sky-400"
+              >
+                Proceed to cart
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
