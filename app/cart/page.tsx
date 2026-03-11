@@ -9,6 +9,7 @@ import { CARD_TEMPLATES } from "@/lib/cardTemplates";
 type Recipient = {
   name: string;
   address1: string;
+  address2: string;
   city: string;
   stateCode: string;
   countryCode: string;
@@ -59,6 +60,7 @@ export default function CartPage() {
   const [recipient, setRecipient] = useState<Recipient>({
     name: "",
     address1: "",
+    address2: "",
     city: "",
     stateCode: "",
     countryCode: "US",
@@ -300,7 +302,12 @@ export default function CartPage() {
                       Quantity {item.quantity}
                     </div>
                     <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                      Unit price {unitPrice.toLocaleString("en-US", { style: "currency", currency: "USD" })} based on total quantity {totalQty}
+                      Unit price{" "}
+                      {unitPrice.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })}{" "}
+                      based on total quantity {totalQty}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -316,7 +323,7 @@ export default function CartPage() {
               ))}
             </section>
 
-            <section className="mt-4 rounded-2xl border bg-white p-4 shadow-sm space-y-3 dark:border-zinc-800 dark:bg-zinc-900">
+            <section className="mt-4 space-y-3 rounded-2xl border bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 Shipping address
               </h2>
@@ -335,6 +342,14 @@ export default function CartPage() {
                   value={recipient.address1}
                   onChange={(e) =>
                     setRecipient((r) => ({ ...r, address1: e.target.value }))
+                  }
+                />
+                <input
+                  className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                  placeholder="Apartment, suite, or unit"
+                  value={recipient.address2}
+                  onChange={(e) =>
+                    setRecipient((r) => ({ ...r, address2: e.target.value }))
                   }
                 />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -380,11 +395,15 @@ export default function CartPage() {
 
               {shippingQuote && (
                 <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                  Method {shippingQuote.methodName} · Estimated shipping and handling{" "}
-                  {(shippingQuote.totalShippingCents / 100).toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                  })}
+                  Method {shippingQuote.methodName} · Estimated shipping and
+                  handling{" "}
+                  {(shippingQuote.totalShippingCents / 100).toLocaleString(
+                    "en-US",
+                    {
+                      style: "currency",
+                      currency: "USD",
+                    },
+                  )}
                 </p>
               )}
             </section>
@@ -430,9 +449,14 @@ export default function CartPage() {
             <section className="mt-4 rounded-2xl border bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex flex-col gap-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 dark:text-zinc-400">Subtotal</span>
+                  <span className="text-zinc-600 dark:text-zinc-400">
+                    Subtotal
+                  </span>
                   <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                    {subtotal.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                    {subtotal.toLocaleString("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                    })}
                   </span>
                 </div>
 
@@ -469,7 +493,10 @@ export default function CartPage() {
                     Order total
                   </span>
                   <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                    {total.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                    {total.toLocaleString("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                    })}
                   </span>
                 </div>
               </div>

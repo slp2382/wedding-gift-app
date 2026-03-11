@@ -11,6 +11,7 @@ type CartItemPayload = {
 type Recipient = {
   name: string;
   address1: string;
+  address2?: string;
   city: string;
   stateCode: string;
   countryCode: string;
@@ -46,42 +47,40 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Map cart to Printful variant ids and aggregate quantities
-const variantQuantity = new Map<number, number>();
+  const variantQuantity = new Map<number, number>();
 
-for (const item of items) {
-  const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
-  if (!template) {
-    console.error("[shipping/quote] Unknown template", item.templateId);
-    continue;
+  for (const item of items) {
+    const template = CARD_TEMPLATES.find((t) => t.id === item.templateId);
+    if (!template) {
+      console.error("[shipping/quote] Unknown template", item.templateId);
+      continue;
+    }
+
+    const shippingVariant =
+      (template as any).printfulShippingVariantId ??
+      (template as any).printfulCatalogVariantId;
+
+    if (!shippingVariant) {
+      console.error(
+        "[shipping/quote] Missing Printful shipping variant for template",
+        item.templateId,
+      );
+      continue;
+    }
+
+    const variantId = Number(shippingVariant);
+    if (!Number.isFinite(variantId)) {
+      console.error(
+        "[shipping/quote] Invalid Printful shipping variant id for template",
+        item.templateId,
+        shippingVariant,
+      );
+      continue;
+    }
+
+    const prev = variantQuantity.get(variantId) ?? 0;
+    variantQuantity.set(variantId, prev + Number(item.quantity ?? 0));
   }
-
-  const shippingVariant =
-    (template as any).printfulShippingVariantId ??
-    (template as any).printfulCatalogVariantId;
-
-  if (!shippingVariant) {
-    console.error(
-      "[shipping/quote] Missing Printful shipping variant for template",
-      item.templateId,
-    );
-    continue;
-  }
-
-  const variantId = Number(shippingVariant);
-  if (!Number.isFinite(variantId)) {
-    console.error(
-      "[shipping/quote] Invalid Printful shipping variant id for template",
-      item.templateId,
-      shippingVariant,
-    );
-    continue;
-  }
-
-  const prev = variantQuantity.get(variantId) ?? 0;
-  variantQuantity.set(variantId, prev + Number(item.quantity ?? 0));
-}
-
 
   if (!variantQuantity.size) {
     return NextResponse.json(
@@ -101,6 +100,7 @@ for (const item of items) {
     recipient: {
       name: recipient.name,
       address1: recipient.address1,
+      ...(recipient.address2 ? { address2: recipient.address2 } : {}),
       city: recipient.city,
       state_code: recipient.stateCode,
       country_code: recipient.countryCode,
@@ -145,7 +145,7 @@ for (const item of items) {
     );
   }
 
-  const best = json.result[0]; // for now pick the first method
+  const best = json.result[0];
   const printfulRate = parseFloat(best.rate);
   const printfulRateCents = Math.round(printfulRate * 100);
   const handlingCents = 50;
