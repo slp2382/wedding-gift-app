@@ -15,17 +15,14 @@ export default function ShopPageClient() {
   const searchParams = useSearchParams();
   const { clearCart, items } = useCart();
 
-  // Clear the cart once when we land on /shop?status=success
   useEffect(() => {
     const status = searchParams.get("status");
     if (status === "success") {
       clearCart();
     }
-    // We intentionally only run this on first mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Cart summary for the bottom bar
   const cartItemCount = useMemo(
     () =>
       Array.isArray(items)
@@ -52,8 +49,7 @@ export default function ShopPageClient() {
 
   return (
     <>
-      <main className="mx-auto flex max-w-5xl flex-col gap-8 pb-24">
-        {/* extra bottom padding so content is not hidden behind the sticky bar */}
+      <main className="mx-auto flex max-w-5xl flex-col gap-8 pb-32">
         <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
           <div className="mb-6 space-y-2">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
@@ -66,7 +62,6 @@ export default function ShopPageClient() {
             </p>
           </div>
 
-          {/* Occasion filter */}
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
               Occasion
@@ -100,7 +95,6 @@ export default function ShopPageClient() {
             ))}
           </div>
 
-          {/* Product grid */}
           <div className="grid gap-8 md:grid-cols-2">
             {visibleTemplates.map((template) => (
               <ProductCard key={template.id} template={template} />
@@ -109,26 +103,26 @@ export default function ShopPageClient() {
         </section>
       </main>
 
-      {/* Sticky proceed to cart bar */}
       {hasCartItems && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95">
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 p-4">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                {cartItemCount} card{cartItemCount === 1 ? "" : "s"} in your
-                cart
-              </span>
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                Review your selection before checkout
-              </span>
-            </div>
+        <div className="fixed inset-x-0 bottom-0 z-[100] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
+          <div className="mx-auto max-w-5xl rounded-2xl border border-zinc-200 bg-white/95 shadow-2xl backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95">
+            <div className="flex items-center justify-between gap-4 p-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                  {cartItemCount} card{cartItemCount === 1 ? "" : "s"} in your cart
+                </p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Review your selection before checkout
+                </p>
+              </div>
 
-            <Link
-              href="/cart"
-              className="rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-zinc-100"
-            >
-              Proceed to cart
-            </Link>
+              <Link
+                href="/cart"
+                className="shrink-0 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-zinc-100"
+              >
+                Proceed to cart
+              </Link>
+            </div>
           </div>
         </div>
       )}
@@ -184,7 +178,6 @@ function ProductCard({ template }: { template: CardTemplate }) {
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-      {/* Images */}
       <div>
         <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-800">
           {mainImage && (
@@ -218,7 +211,6 @@ function ProductCard({ template }: { template: CardTemplate }) {
         )}
       </div>
 
-      {/* Details and controls */}
       <div className="flex flex-1 flex-col justify-between gap-4">
         <div className="space-y-2">
           <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
@@ -235,7 +227,6 @@ function ProductCard({ template }: { template: CardTemplate }) {
         </div>
 
         <div className="space-y-3">
-          {/* Quantity selector */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
               Quantity
@@ -251,24 +242,24 @@ function ProductCard({ template }: { template: CardTemplate }) {
             </select>
           </div>
 
-          {/* Price and add to cart */}
           <div className="mt-1 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {/* Button and feedback */}
             <div className="flex flex-col gap-1 sm:order-last sm:items-end">
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className={`w-full rounded-full px-4 py-2.5 text-sm font-semibold sm:w-auto transform transition-all duration-300 ease-out ${
+                className={`w-full transform rounded-full px-4 py-2.5 text-sm font-semibold transition-all duration-300 ease-out sm:w-auto ${
                   justAdded
-                    ? "bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-900 scale-95"
-                    : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 scale-100"
+                    ? "scale-95 bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-900"
+                    : "scale-100 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
                 }`}
               >
                 {justAdded ? "Added to cart" : "Add to cart"}
               </button>
               <span
-                className={`text-xs text-emerald-600 dark:text-emerald-400 transition-all duration-300 ease-out ${
-                  justAdded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                className={`text-xs text-emerald-600 transition-all duration-300 ease-out dark:text-emerald-400 ${
+                  justAdded
+                    ? "translate-y-0 opacity-100"
+                    : "-translate-y-1 opacity-0"
                 }`}
                 aria-live="polite"
               >
