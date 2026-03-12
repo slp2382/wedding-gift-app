@@ -326,6 +326,29 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     },
   },
 
+{
+    id: "birthday_balloons_4x6",
+    name: "Birthday Baloons",
+    size: "4x6",
+    sku: "BIRTHDAY_BALLOONS_4X6",
+    occasion: "birthday",
+    stripePriceId: "price_1SWJVN0btTMST7LgTBriW2Am",
+    printfulSyncVariantId: 5078093148,
+    printfulShippingVariantId: 14457,
+    printfulCoverFileId: 954637955,
+    printfulBackFileId:  954641377,
+    images: [
+      "/BirthdayBalloonsImages/BirthdayBalloonsMockup1.png",
+      "/BirthdayBalloonsImages/BirthdayBalloonsMockup2.png",
+      "/BirthdayBalloonsImages/BirthdayBalloonsMockup3.png",
+    ],
+    stripePrices: {
+      1: "price_1SWJVN0btTMST7LgTBriW2Am",
+      3: "price_1SWJWc0btTMST7LgunEmJ5p6",
+      5: "price_1SWJX90btTMST7LgosTE6QSI",
+    },
+  },
+
   {
     id: "pink_birthday_4x6",
     name: "Pink Birthday!",
